@@ -17,6 +17,18 @@
 const int RECSIZ = 128;	// MAXIMUM SIZE OF A FORMATTED BINARY RECORD IN BYTES
 						// DOES NOT COUNT LEADING 1ST WORD OF 1 OR THE CHECKSUM BYTE
 
+// .SBTTL	****	OBJECT LIBRARY HEADER DEFINITIONS
+enum
+{
+	F_BRHC = 1,		// FORMATTED BINARY BLOCK FOR LIBRARY
+	L_HLEN = 042,	// RECORD LENGTH OF LIBRARY HEADER BLOCK
+	L_BR   = 7,		// LIBRARIAN CODE
+	L_HVER = 0305,	// LIBRARY VERSION NUMBER (VERSION # = V03.05)
+	L_HEPT = 040,	// END OF LBR HEADER (1ST EPT ENTRY SYMBOL NAME)
+	L_HX   = 010,	// OFFSET OF /X FLAG IN LIBRARY HEADER
+	L_HEAB = 030,	// OFFSET OF EPT SIZE IN LIBRARY HEADER
+};
+
 //.SBTTL	****	COMMAND STRING SWITCH MASKS
 // THE FOLLOWING ARE GLOBAL MASKS FOR THE "SWITCH" WORD IN THE ROOT SEGMENT,
 // INDICATING VARIOUS SWITCHES WHICH WERE SPECIFIED IN THE COMMAND STRING.
@@ -94,6 +106,7 @@ struct SaveStatusEntry
 	char	filename[64];
 	FILE*	fileobj;
 	WORD	filesize;
+	bool	islibrary;
 	void*	data;
 };
 const int SaveStatusAreaSize = 8;
@@ -112,9 +125,9 @@ LibraryModuleEntry LibraryModuleList[LibraryModuleListSize];
 struct GSDentry
 {
 	DWORD	symbol;		// SYMBOL CHARS 1-6(RAD50)
-	BYTE	flags;
-	BYTE	code;
-	WORD	sizeoffset;	// SIZE OR OFFSET
+	BYTE	flags;		// FLAGS
+	BYTE	code;		// CODE BYTE
+	WORD	value;		// SIZE OR OFFSET
 };
 
 //.SBTTL	****	SYMBOL TABLE STRUCTURE
@@ -184,7 +197,7 @@ int OutputBufferSize = 0;
 /////////////////////////////////////////////////////////////////////////////
 
 
-struct
+struct tagGlobals
 {
 	BYTE	TXTBLK[RECSIZ];  // SPACE FOR A FORMATTED BINARY RECORD
 
@@ -197,9 +210,12 @@ struct
 	WORD	TXTLEN;	// TEMP FOR /V SWITCH
 	WORD	CBPTR;	// DEFAULT IS NO CREF
 
+	BYTE	LIBNB;  // LIBRARY FILE NUMBER FOR LML
+
 	WORD	SWIT1;	// Switches
 
-	WORD	PAS1_5;
+	WORD	PAS1_5; // PASS 1.5 SWITCH(0 ON PASS1, 1 IF TO DO LIBRARY,
+					// BIT 7 SET IF DOING LIBRARIES
 
 	WORD	LRUNUM;	// USED TO COUNT MAX # OF SECTIONS AND AS
 					//  TIME STAMP FOR SAV FILE CACHING
@@ -208,6 +224,9 @@ struct
 
 	DWORD	MODNAM;	// MODULE NAME, RAD50
 	DWORD	IDENT;	// PROGRAM IDENTIFICATION
+
+	GSDentry BEGBLK; // TRANSFER ADDRESS BLOCK (4 WD GSD ENTRY)
+					//   TRANS ADDR OR REL OFFSET FROM PSECT
 }
 Globals;
 
@@ -513,12 +532,12 @@ void process_pass1_gsd_block(const SaveStatusEntry* sscur, const BYTE* data)
 
 		switch (itemtype)
 		{
-		case 0: // 0 - MODULE NAME, see MODNME
+		case 0: // 0 - MODULE NAME FROM .TITLE, see LINK3\MODNME
 			printf("      Item '%s' type 0 - MODULE NAME\n", buffer);
 			if (Globals.MODNAM == 0)
 				Globals.MODNAM = MAKEDWORD(itemw0, itemw1);
 			break;
-		case 1: // 1 - CSECT NAME, see CSECNM
+		case 1: // 1 - CSECT NAME, see LINK3\CSECNM
 			printf("      Item '%s' type 1 - CSECT NAME  %06o\n", buffer, itemw3);
 			{
 				DWORD lkname = MAKEDWORD(itemw0, itemw1);
@@ -550,18 +569,28 @@ void process_pass1_gsd_block(const SaveStatusEntry* sscur, const BYTE* data)
 				}
 			}
 			break;
-		case 2: // 2 - ISD ENTRY (IGNORED)
+		case 2: // 2 - ISD ENTRY (IGNORED), see LINK3\ISDNAM
 			printf("      Item '%s' type 2 - ISD ENTRY, ignored\n", buffer);
 			break;
-		case 3: // 3 - TRANSFER ADDRESS; see TADDR in source
+		case 3: // 3 - TRANSFER ADDRESS; see LINK3\TADDR
 			printf("      Item '%s' type 3 - TRANSFER ADDR %06o\n", buffer, itemw3);
 			//WORD taddr = itemw3;
-			//TODO: Transfer address processing
+			if ((itemw3 & 1) != 0)  // USE ONLY 1ST EVEN ONE ENCOUNTERED
+			{
+				DWORD lkname = MAKEDWORD(itemw0, itemw1);
+				WORD dupmsk = 0;//TODO
+				int index;
+				if (!SymbolTableLookup(lkname, SY_SEC, ~SY_SEC, dupmsk, &index))
+					fatal_error("ERR31: Transfer address for '%s' undefined or in overlay.\n", buffer);
+				//TODO
+			}
 			break;
-		case 4: // 4 - GLOBAL SYMBOL
+		case 4: // 4 - GLOBAL SYMBOL, see LINK3\SYMNAM
 			printf("      Item '%s' type 4 - GLOBAL SYMBOL flags %03o addr %06o\n", buffer, itemflags, itemw3);
+			//TODO: Global symbol processing
+			//  Lookup
 			break;
-		case 5: // 5 - PSECT NAME; see PSECNM in source
+		case 5: // 5 - PSECT NAME; see LINK3\PSECNM
 			printf("      Item '%s' type 5 - PSECT NAME flags %03o maxlen %06o\n", buffer, itemflags, itemw3);
 			{
 				Globals.LRUNUM++; // COUNT SECTIONS IN A MODULE
@@ -631,18 +660,24 @@ void process_pass1()
 
 			if (blocktype == 0 || blocktype > 8)
 				fatal_error("Illegal record type at %06o in %s\n", offset, sscur->filename);
-			else if (blocktype == 1)  // 1 - START GSD RECORD
+			else if (blocktype == 1)  // 1 - START GSD RECORD, see LINK3\GSD
 			{
 				printf("    Block type 1 - GSD at %06o size %06o\n", offset, blocksize);
 				process_pass1_gsd_block(sscur, data);
 			}
-			else if (blocktype == 6)  // 6 - MODULE END
+			else if (blocktype == 6)  // 6 - MODULE END, see LINK3\MODND
 			{
 				printf("    Block type 6 - ENDMOD at %06o size %06o\n", offset, blocksize);
 				//TODO
 			}
-			else if (blocktype == 7)
+			else if (blocktype == 7)  // See LINK3\LIBRA
+			{
+				WORD libver = ((WORD*)data)[3];
+				if (libver < L_HVER)
+					fatal_error("ERR23 Old library format (%03o).\n", (int)libver);
+				sscur->islibrary = true;
 				break;  // Skipping library files on Pass 1
+			}
 
 			data += blocksize; offset += blocksize;
 			data += 1; offset += 1;  // Skip checksum
@@ -653,13 +688,20 @@ void process_pass1()
 void process_pass15()
 {
 	printf("Pass 1.5 started\n");
+
+	Globals.LIBNB = 0;
 	for (int i = 0; i < SaveStatusCount; i++)
 	{
 		SaveStatusEntry* sscur = SaveStatusArea + i;
 		assert(sscur->fileobj == NULL);
 		assert(sscur->data != NULL);
 
+		// Skipping non-library files on Pass 1.5
+		if (!sscur->islibrary)
+			continue;
+
 		printf("  Processing %s\n", sscur->filename);
+		Globals.LIBNB++;  // BUMP LIBRARY FILE # FOR LML
 		int offset = 0;
 		while (offset < sscur->filesize)
 		{
@@ -682,14 +724,16 @@ void process_pass15()
 			WORD blocksize = ((WORD*)data)[1];
 			WORD blocktype = ((WORD*)data)[2];
 
-			if (blocktype == 0 || blocktype > 8)
+			if (blocktype != 7 && blocktype != 8)
 				fatal_error("Illegal record type at %06o in %s\n", offset, sscur->filename);
-			else if (blocktype == 1)
-				break;  // Skipping non-library files on Pass 1.5
-			else if (blocktype == 7)
+			if (blocktype == 7)  // See LINK3\LIBRA
 			{
 				printf("    Block type 7 - TITLIB at %06o size %06o\n", offset, blocksize);
-				//TODO
+				WORD eptsize = *(WORD*)(data + L_HEAB);
+				printf("      EPT size %06o bytes, %d. records\n", eptsize, (int)(eptsize / 8));
+				//TODO: Test /X switch library flag
+				data += L_HEPT; offset += L_HEPT;  // Move to 1ST EPT ENTRY
+				//TODO: Resolve undefined symbols using EPT
 				break;  // Skip for now
 			}
 			else if (blocktype == 8)
@@ -787,7 +831,7 @@ void process_pass2_init()
 	printf("Pass 2 initialization\n");
 
 	// Dump SymbolTable
-	printf("  SymbolTable count=%d\n", SymbolTableCount);
+	printf("  SymbolTable count=%d.\n", SymbolTableCount);
 	for (int i = 0; i < SymbolTableSize; i++)
 	{
 		const SymbolTableEntry* entry = SymbolTable + i;
@@ -897,8 +941,11 @@ int main(int argc, char *argv[])
 
 	read_files();
 
+	Globals.PAS1_5 = 0;
 	process_pass1();
 
+	//TODO: Check if we need Pass 1.5
+	Globals.PAS1_5 = 0200;
 	process_pass15();
 
 	process_pass2_init();
