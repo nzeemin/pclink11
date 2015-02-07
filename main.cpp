@@ -175,23 +175,24 @@ const char* FORLIB = "FORLIB.OBJ";  // FORTRAN LIBRARY FILENAME
 const char* SYSLIB = "SYSLIB.OBJ";  // DEFAULT SYSTEM LIBRARY FILENAME
 
 // OFFSETS INTO JOB'S SYSTEM COMMUNICATION AREA, see LINK1
-enum SysCom
+enum
 {
-	BEGIN  = 040,  // JOB STARTING ADDRESS
-	STACK  = 042,  // INITIAL VALUE OF STACK POINTER
-	JSW    = 044,  // JOB STATUS WORD
-	HIGH   = 050,  // PROGRAM'S HIGHEST AVAILABLE LOCATION(ROOT+/O OVERLAYS)
-	ERRBYT = 052,  // MONITOR ERROR INDICATOR
-	USERRB = 053,  // SYSTEM USER ERROR BYTE
-	RMON   = 054,  // CONTAINS THE START OF THE RESIDENT MONITOR
-	IDS    = 060,  // RAD50 IDS - I-D SPACE IDENTIFIER IN I-SPACE CCB
-	STOTAB = 064,  // START OF OVERLAY TABLE ($OTABL)
+	SysCom_BEGIN  = 040,  // JOB STARTING ADDRESS
+	SysCom_STACK  = 042,  // INITIAL VALUE OF STACK POINTER
+	SysCom_JSW    = 044,  // JOB STATUS WORD
+	SysCom_HIGH   = 050,  // PROGRAM'S HIGHEST AVAILABLE LOCATION(ROOT+/O OVERLAYS)
+	SysCom_ERRBYT = 052,  // MONITOR ERROR INDICATOR
+	SysCom_USERRB = 053,  // SYSTEM USER ERROR BYTE
+	SysCom_RMON   = 054,  // CONTAINS THE START OF THE RESIDENT MONITOR
+	SysCom_IDS    = 060,  // RAD50 IDS - I-D SPACE IDENTIFIER IN I-SPACE CCB
+	SysCom_STOTAB = 064,  // START OF OVERLAY TABLE ($OTABL)
 
-	BITMAP = 0360,  // START OF CORE USE BITMAP OF IMAGE FILE
+	SysCom_BITMAP = 0360,  // START OF CORE USE BITMAP OF IMAGE FILE
 };
 
 BYTE* OutputBuffer = NULL;
 int OutputBufferSize = 0;
+FILE* outfileobj = NULL;
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -219,6 +220,8 @@ struct tagGlobals
 
 	WORD	LRUNUM;	// USED TO COUNT MAX # OF SECTIONS AND AS
 					//  TIME STAMP FOR SAV FILE CACHING
+
+	WORD	BASE;	// BASE OF CURRENT SECTION
 
 	WORD	VIRSIZ;	// LARGEST REGION IN A PARTITION
 
@@ -292,6 +295,10 @@ void finalize()
 	if (OutputBuffer != NULL)
 	{
 		free(OutputBuffer);  OutputBuffer = NULL;  OutputBufferSize = 0;
+	}
+	if (outfileobj != NULL)
+	{
+		fclose(outfileobj);  outfileobj = NULL;
 	}
 }
 
@@ -375,13 +382,42 @@ void parse_commandline(int argc, char **argv)
 // /J -USE SEPARATED I-D SPACE
 }
 
+void symbol_table_enter(int* pindex, DWORD lkname, WORD lkwd)
+{
+	// Find empty entry
+	if (SymbolTableCount >= SymbolTableSize)
+		fatal_error("Symbol table overflow");
+
+	int index = *pindex;
+	SymbolTableEntry* entry;
+	while (true)
+	{
+		entry = SymbolTable + index;
+		if (entry->name == 0)
+			break;
+		index++;
+		if (index >= SymbolTableSize)
+			index = 0;
+	}
+
+	//printf("        Saving entry: index %4d name '%s'\n", index, unrad50(lkname));
+
+	// Save the entry
+	SymbolTableCount++;
+	entry->name = lkname;
+	entry->flags = lkwd;
+	*pindex = index;
+}
+
 // SYMBOL TABLE SEARCH ROUTINE
 // In:  lkname = symbol name to lookup
 // In:  lnwd   = FLAGS & SEGMENT # MATCH WORD
 // In:  lkmsk  = MASK OF BITS DO NOT CARE ABOUT FOR A MATCH
+// In:  dupmsk
+// In:  enter
 // Out: return = true if found
 // Out: result = index of the found entity, or index of entity to work with
-bool SymbolTableLookup(DWORD lkname, WORD lkwd, WORD lkmsk, WORD dupmsk, int* result)
+bool symbol_table_search_routine(DWORD lkname, WORD lkwd, WORD lkmsk, WORD dupmsk, bool enter, int* result)
 {
 	assert(SymbolTable != NULL);
 
@@ -405,6 +441,7 @@ bool SymbolTableLookup(DWORD lkname, WORD lkwd, WORD lkmsk, WORD dupmsk, int* re
 			stdiv = stdiv >> 1;
 	}
 	
+	bool found = false;
 	int index = hash;  // Now we have starting index
 	int count = SymbolTableCount;
 	while (true)
@@ -413,7 +450,7 @@ bool SymbolTableLookup(DWORD lkname, WORD lkwd, WORD lkmsk, WORD dupmsk, int* re
 		if (entry->name == 0)
 		{
 			*result = index;
-			return false;  // EMPTY CELL
+			break;  // EMPTY CELL
 		}
 		if (entry->name = lkname)
 		{
@@ -424,7 +461,8 @@ bool SymbolTableLookup(DWORD lkname, WORD lkwd, WORD lkmsk, WORD dupmsk, int* re
 				if (dupmsk == 0 || (entry->status & SY_DUP) == 0)
 				{
 					*result = index;
-					return true;
+					found = true;
+					break;
 				}
 
 				//TODO: Process dups
@@ -435,41 +473,50 @@ bool SymbolTableLookup(DWORD lkname, WORD lkwd, WORD lkmsk, WORD dupmsk, int* re
 		if (count == 0)
 		{
 			*result = index;
-			return false;  // not found
+			break;  // not found
 		}
 
 		index++;
 		if (index >= SymbolTableSize)
 			index = 0;
 	}
+
+	if (found)
+		return true;
+	if (!enter)
+		return false;
+
+	symbol_table_enter(&index, lkname, lkwd);
+
+	return false;
 }
 
-void SaveTableEntry(int index, DWORD lkname, WORD lkwd)
+// 'DLOOKE' DOES A LOOKUP & IF NOT FOUND THEN ENTERS THE NEW SYMBOL INTO
+//	   THE SYMBOL TABLE.  DOES NOT REQUIRE A SEGMENT NUMBER MATCH
+//	   WHETHER THE SYMBOL IS A DUPLICATE OR NOT.
+bool symbol_table_dlooke(DWORD lkname, WORD lkwd, WORD lkmsk, int* result)
 {
-	// Find empty entry
-	if (SymbolTableCount >= SymbolTableSize)
-		fatal_error("Symbol table overflow");
-	
-	SymbolTableEntry* entry;
-	while (true)
-	{
-		entry = SymbolTable + index;
-		if (entry->name == 0)
-			break;
-		index++;
-		if (index >= SymbolTableSize)
-			index = 0;
-	}
-
-	//char buffer[7];  memset(buffer, 0, sizeof(buffer));
-	//unrad50(LOWORD(lkname), buffer);
-	//unrad50(HIWORD(lkname), buffer + 3);
-	//printf("        Saving entry: index %4d name '%s'\n", index, buffer);
-
-	// Save the entry
-	SymbolTableCount++;
-	entry->name = lkname;
-	entry->flags = lkwd;
+	return symbol_table_search_routine(lkname, lkwd, lkmsk, 0, false, result);
+}
+// 'LOOKUP' ONLY SEARCHES THE SYMBOL TABLE FOR A SYMBOL MATCH.  IF SYMBOL
+//	   IS A DUPLICATE, THIS ROUTINE REQUIRES A SEGMENT NUMBER MATCH.
+bool symbol_table_lookup(DWORD lkname, WORD lkwd, WORD lkmsk, int* result)
+{
+	return symbol_table_search_routine(lkname, lkwd, lkmsk, SY_DUP, false, result);
+}
+// 'LOOKE'  DOES A LOOKUP & IF NOT FOUND THEN ENTERS THE NEW SYMBOL INTO
+//	   THE SYMBOL TABLE.  IF SYMBOL IS A DUPLICATE, THIS ROUTINE
+//	   REQUIRES A SEGMENT NUMBER MATCH.
+bool symbol_table_looke(DWORD lkname, WORD lkwd, WORD lkmsk, int* result)
+{
+	return symbol_table_search_routine(lkname, lkwd, lkmsk, SY_DUP, true, result);
+}
+// 'SEARCH' THIS ROUTINE DOES A LOOKUP ONLY AND DOES NOT CARE WHETHER THE
+//	   SYMBOL IS A DUPLICATE OR NOT.  THIS ROUTINE IS USED REPEATEDLY
+//	   AFTER A SINGLE CALL TO 'DLOOKE'.
+bool symbol_table_search(DWORD lkname, WORD lkwd, WORD lkmsk, int* result)
+{
+	return symbol_table_search_routine(lkname, lkwd, lkmsk, 0, false, result);
 }
 
 void read_files()
@@ -558,15 +605,8 @@ void process_pass1_gsd_block(const SaveStatusEntry* sscur, const BYTE* data)
 				Globals.LRUNUM++; // COUNT SECTIONS IN A MODULE
 
 				// SECTION NAME LOOKUP
-				WORD dupmsk = SY_DUP;
 				int index;
-				if (!SymbolTableLookup(lkname, lkwd, lkmsk, dupmsk, &index))
-				{
-					SaveTableEntry(
-						index,
-						lkname == 0 ? (Globals.SEGNUM + 1) << 2 : lkname,
-						lkwd);
-				}
+				symbol_table_looke(lkname, lkwd, lkmsk, &index);
 			}
 			break;
 		case 2: // 2 - ISD ENTRY (IGNORED), see LINK3\ISDNAM
@@ -578,17 +618,23 @@ void process_pass1_gsd_block(const SaveStatusEntry* sscur, const BYTE* data)
 			if ((itemw3 & 1) != 0)  // USE ONLY 1ST EVEN ONE ENCOUNTERED
 			{
 				DWORD lkname = MAKEDWORD(itemw0, itemw1);
-				WORD dupmsk = 0;//TODO
 				int index;
-				if (!SymbolTableLookup(lkname, SY_SEC, ~SY_SEC, dupmsk, &index))
+				if (!symbol_table_lookup(lkname, SY_SEC, ~SY_SEC, &index))
 					fatal_error("ERR31: Transfer address for '%s' undefined or in overlay.\n", buffer);
 				//TODO
 			}
 			break;
 		case 4: // 4 - GLOBAL SYMBOL, see LINK3\SYMNAM
 			printf("      Item '%s' type 4 - GLOBAL SYMBOL flags %03o addr %06o\n", buffer, itemflags, itemw3);
-			//TODO: Global symbol processing
-			//  Lookup
+			{
+				DWORD lkname = MAKEDWORD(itemw0, itemw1);
+				WORD lkwd = 0;
+				WORD lkmsk = ~SY_SEC;
+				//TODO: IS SYMBOL DEFINED HERE?
+				//TODO: REFERENCE FROM ROOT?
+				int index;
+				symbol_table_dlooke(lkname, lkwd, lkmsk, &index);
+			}
 			break;
 		case 5: // 5 - PSECT NAME; see LINK3\PSECNM
 			printf("      Item '%s' type 5 - PSECT NAME flags %03o maxlen %06o\n", buffer, itemflags, itemw3);
@@ -601,15 +647,10 @@ void process_pass1_gsd_block(const SaveStatusEntry* sscur, const BYTE* data)
 				WORD lkmsk = ~(SY_SEC+SY_SEG);
 
 				// SECTION NAME LOOKUP
-				WORD dupmsk = SY_DUP;
 				int index;
-				if (!SymbolTableLookup(lkname, lkwd, lkmsk, dupmsk, &index))
-				{
-					SaveTableEntry(
-						index,
-						lkname == 0 ? (Globals.SEGNUM + 1) << 2 : lkname,
-						lkwd);
-				}
+				symbol_table_looke(lkname, lkwd, lkmsk, &index);
+				SymbolTableEntry* entry = SymbolTable + index;
+				Globals.BASE = entry->value;
 			}
 			break;
 		case 6: // 6 - IDENT DEFINITION; see PGMIDN in source
@@ -762,7 +803,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const BYTE* data)
 		WORD constdata;
 		switch (command & 0177)
 		{
-		case 1:
+		case 1:  // See LINK7\RLDIR
 			printf("      Item type 001 INTERNAL RELOCATION  %03o %06o\n", (int)disbyte, *((WORD*)data));
 			data += 2;  offset += 2;
 			break;
@@ -847,7 +888,44 @@ void process_pass2_init()
 		fatal_error("Failed to allocate memory for output buffer.\n");
 	memset(OutputBuffer, 0, OutputBufferSize);
 
+	// See LINK6\DOCASH
+	*((WORD*)(OutputBuffer + SysCom_BEGIN)) = Globals.BEGBLK.value;
+	//TODO: if (Globals.STKBLK != 0)
+	//TODO: *((WORD*)(OutputBuffer + SysCom_STACK)) = ???
+	//TODO: *((WORD*)(OutputBuffer + SysCom_HIGH)) = ???
+	//TODO: For /K switch STORE IT AT LOC. 56 IN SYSCOM AREA
+
+	//TODO: SYSCOM AREA FOR REL FILE
+
+	assert(outfileobj == NULL);
+	outfileobj = fopen("OUTPUT.SAV", "wb");
+	if (outfileobj == NULL)
+		fatal_error("Failed to open output file.\n");
+
+	// See LINK6\INITP2
+	//TODO: Some code for REL
 	Globals.VIRSIZ = 0;
+	Globals.SEGBLK = 0;
+	//TODO: INIT FOR LIBRARY PROCESSING
+	//TODO: RESET NUMBER OF ENTRIES IN MODULE SECTION TBL
+	Globals.LIBNB = 1;
+
+	//.SBTTL	-	FORCE BASE OF ZERO FOR VSECT IF ANY
+	//TODO
+}
+
+void process_pass2_dump_txtblk()  // See TDMP0
+{
+	if (Globals.TXTLEN == 0)
+		return;
+
+	WORD addr = *((WORD*)Globals.TXTBLK);
+	WORD baseaddr = 512;  //TODO: Globals.BASE
+	BYTE* dest = OutputBuffer + (baseaddr + addr);
+	BYTE* src = Globals.TXTBLK + 2;
+	memcpy(dest, src, Globals.TXTLEN);
+
+	Globals.TXTLEN = 0;
 }
 
 void process_pass2()
@@ -883,7 +961,7 @@ void process_pass2()
 			WORD blocktype = ((WORD*)data)[2];
 
 			if (blocktype == 0 || blocktype > 8)
-				fatal_error("Illegal record type at %06o in %s\n", offset, sscur->filename);
+				fatal_error("ERR4: Illegal record type at %06o in %s\n", offset, sscur->filename);
 			else if (blocktype == 1)
 			{
 				printf("    Block type 1 - GSD at %06o size %06o\n", offset, blocksize);
@@ -891,10 +969,14 @@ void process_pass2()
 			}
 			else if (blocktype == 3)  // See LINK7\DMPTXT
 			{
+				process_pass2_dump_txtblk();
+
 				WORD addr = ((WORD*)data)[3];
 				WORD datasize = blocksize - 8;
 				printf("    Block type 3 - TXT at %06o size %06o addr %06o len %06o\n", offset, blocksize, addr, datasize);
-				//TODO
+				Globals.TXTLEN = datasize;
+				assert(datasize <= sizeof(Globals.TXTBLK));
+				memcpy(Globals.TXTBLK, data + 6, blocksize - 6);
 			}
 			else if (blocktype == 4)  // See LINK\RLD
 			{
@@ -904,6 +986,8 @@ void process_pass2()
 			else if (blocktype == 6)  // See LINK7\MODND
 			{
 				printf("    Block type 6 - ENDMOD at %06o size %06o\n", offset, blocksize);
+
+				process_pass2_dump_txtblk();
 				//TODO
 			}
 			else if (blocktype == 7)  // See LINK7\LIBPA2
@@ -950,6 +1034,11 @@ int main(int argc, char *argv[])
 
 	process_pass2_init();
 	process_pass2();
+	//TODO: Pass 2.5
+
+	size_t byteswrit = fwrite(OutputBuffer, 1, OutputBufferSize, outfileobj);
+	if (byteswrit != OutputBufferSize)
+		fatal_error("Failed to write output file.\n");
 
 	printf("SUCCESS\n");
 	exit(EXIT_SUCCESS);
