@@ -311,6 +311,18 @@ void parse_commandline(int argc, char **argv)
 		if (*argvcur == '/')  // Parse global arguments
 		{
 		    //TODO: Parse arguments like Command String Interpreter
+			const char* cur = argvcur + 1;
+			while (*cur != 0)
+			{
+				char option = toupper(*cur);
+				switch (option)
+				{
+				//case 'T':
+				//	break;
+				default:
+					fatal_error("Unknown command line option '%c'\n", option);
+				}
+			}
 		}
 		else  // Parse filename and arguments
 		{
@@ -344,14 +356,6 @@ void parse_commandline(int argc, char **argv)
 			//	}
 			//}
 		}
-
-
-		//if (argc > SaveStatusAreaSize)
-		//	fatal_error("Too many files specified.\n");
-		//if (strlen(argvcur) > 12)
-		//	fatal_error("Too long filename: %s\n", argvcur);
-
-		//strcpy(sscur->filename, argvcur);
 	}
 
 // /T - SPECIFY TRANSFER ADR
