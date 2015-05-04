@@ -13,6 +13,10 @@
 
 /////////////////////////////////////////////////////////////////////////////
 
+const int LMLSIZ = 0525; // DEFAULT NUMBER OF LIBRARY MOD LIST ENTRIES
+						 // EACH ENTRY IS 6 BYTES LONG
+
+const WORD LINPPG = 60;	// NUMBER OF LINES PER PAGE FOR MAP
 
 const int RECSIZ = 128;	// MAXIMUM SIZE OF A FORMATTED BINARY RECORD IN BYTES
 						// DOES NOT COUNT LEADING 1ST WORD OF 1 OR THE CHECKSUM BYTE
@@ -118,7 +122,7 @@ struct LibraryModuleEntry
 	//TODO
 	WORD stub[3];
 };
-const int LibraryModuleListSize = 252;
+const int LibraryModuleListSize = LMLSIZ;
 LibraryModuleEntry LibraryModuleList[LibraryModuleListSize];
 
 //.SBTTL	****	GSD ENTRY STRUCTURE
@@ -390,7 +394,7 @@ void symbol_table_enter(int* pindex, DWORD lkname, WORD lkwd)
 {
 	// Find empty entry
 	if (SymbolTableCount >= SymbolTableSize)
-		fatal_error("Symbol table overflow");
+		fatal_error("ERR1: Symbol table overflow\n");
 
 	int index = *pindex;
 	SymbolTableEntry* entry;
@@ -418,10 +422,9 @@ void symbol_table_enter(int* pindex, DWORD lkname, WORD lkwd)
 // In:  lnwd   = FLAGS & SEGMENT # MATCH WORD
 // In:  lkmsk  = MASK OF BITS DO NOT CARE ABOUT FOR A MATCH
 // In:  dupmsk
-// In:  enter
 // Out: return = true if found
 // Out: result = index of the found entity, or index of entity to work with
-bool symbol_table_search_routine(DWORD lkname, WORD lkwd, WORD lkmsk, WORD dupmsk, bool enter, int* result)
+bool symbol_table_search_routine(DWORD lkname, WORD lkwd, WORD lkmsk, WORD dupmsk, int* result)
 {
 	assert(SymbolTable != NULL);
 
@@ -485,42 +488,47 @@ bool symbol_table_search_routine(DWORD lkname, WORD lkwd, WORD lkmsk, WORD dupms
 			index = 0;
 	}
 
-	if (found)
-		return true;
-	if (!enter)
-		return false;
-
-	symbol_table_enter(&index, lkname, lkwd);
-
-	return false;
+	return found;
 }
 
 // 'DLOOKE' DOES A LOOKUP & IF NOT FOUND THEN ENTERS THE NEW SYMBOL INTO
 //	   THE SYMBOL TABLE.  DOES NOT REQUIRE A SEGMENT NUMBER MATCH
 //	   WHETHER THE SYMBOL IS A DUPLICATE OR NOT.
-bool symbol_table_dlooke(DWORD lkname, WORD lkwd, WORD lkmsk, int* result)
+// Out: return = true if found, false if new entry
+bool symbol_table_dlooke(DWORD lkname, WORD lkwd, WORD lkmsk, int* pindex)
 {
-	return symbol_table_search_routine(lkname, lkwd, lkmsk, 0, false, result);
+	bool found = symbol_table_search_routine(lkname, lkwd, lkmsk, 0, pindex);
+	if (found)
+		return true;
+
+	symbol_table_enter(pindex, lkname, lkwd);
+	return false;
 }
 // 'LOOKUP' ONLY SEARCHES THE SYMBOL TABLE FOR A SYMBOL MATCH.  IF SYMBOL
 //	   IS A DUPLICATE, THIS ROUTINE REQUIRES A SEGMENT NUMBER MATCH.
-bool symbol_table_lookup(DWORD lkname, WORD lkwd, WORD lkmsk, int* result)
+bool symbol_table_lookup(DWORD lkname, WORD lkwd, WORD lkmsk, int* pindex)
 {
-	return symbol_table_search_routine(lkname, lkwd, lkmsk, SY_DUP, false, result);
+	return symbol_table_search_routine(lkname, lkwd, lkmsk, SY_DUP, pindex);
 }
 // 'LOOKE'  DOES A LOOKUP & IF NOT FOUND THEN ENTERS THE NEW SYMBOL INTO
 //	   THE SYMBOL TABLE.  IF SYMBOL IS A DUPLICATE, THIS ROUTINE
 //	   REQUIRES A SEGMENT NUMBER MATCH.
-bool symbol_table_looke(DWORD lkname, WORD lkwd, WORD lkmsk, int* result)
+// Out: return = true if found, false if new entry
+bool symbol_table_looke(DWORD lkname, WORD lkwd, WORD lkmsk, int* pindex)
 {
-	return symbol_table_search_routine(lkname, lkwd, lkmsk, SY_DUP, true, result);
+	bool found = symbol_table_search_routine(lkname, lkwd, lkmsk, SY_DUP, pindex);
+	if (found)
+		return true;
+
+	symbol_table_enter(pindex, lkname, lkwd);
+	return false;
 }
 // 'SEARCH' THIS ROUTINE DOES A LOOKUP ONLY AND DOES NOT CARE WHETHER THE
 //	   SYMBOL IS A DUPLICATE OR NOT.  THIS ROUTINE IS USED REPEATEDLY
 //	   AFTER A SINGLE CALL TO 'DLOOKE'.
-bool symbol_table_search(DWORD lkname, WORD lkwd, WORD lkmsk, int* result)
+bool symbol_table_search(DWORD lkname, WORD lkwd, WORD lkmsk, int* pindex)
 {
-	return symbol_table_search_routine(lkname, lkwd, lkmsk, 0, false, result);
+	return symbol_table_search_routine(lkname, lkwd, lkmsk, 0, pindex);
 }
 
 void read_files()
@@ -532,7 +540,7 @@ void read_files()
 
 		FILE* file = fopen(sscur->filename, "rb");
 		if (file == NULL)
-			fatal_error("Failed to open input file: %s.\n", sscur->filename);
+			fatal_error("ERR2: Failed to open input file: %s, errno %d.\n", sscur->filename, errno);
 		sscur->fileobj = file;
 		//printf("  File opened: %s\n", sscur->filename);
 
@@ -550,7 +558,7 @@ void read_files()
 		fseek(file, 0L, SEEK_SET);
 		size_t bytesread = fread(sscur->data, 1, filesize, file);
 		if (bytesread != filesize)
-			fatal_error("Failed to read input file %s.\n", sscur->filename);
+			fatal_error("ERR2: Failed to read input file %s.\n", sscur->filename);
 		printf("  File read %s, %d bytes.\n", sscur->filename, bytesread);
 
 		fclose(file);
@@ -598,12 +606,17 @@ void process_pass1_gsd_block(const SaveStatusEntry* sscur, const BYTE* data)
 					{}
 				else if (lkname == RAD50_ABS)  // Case 2: ASECT
 				{
-					//(Globals.SWIT1 & SW_J) ?
+					//(SWIT1 & SW_J) ?
 					// .ASECT = .PSECT . ABS.,GBL,ABS,I,OVR,RW (NON I-D SPACE)
 					// .ASECT = .PSECT . ABS.,GBL,ABS,D,OVR,RW (I-D SPACE)
+					itemflags |= 0100 + 4;  // CS$GBL+CS$ALO == GBL,OVR
+					if (Globals.SWIT1 & SW_J)
+						itemtype = 0200;  // CS$TYP == D
 				}
 				else  // Case 3: named section
-					{}
+				{
+					itemflags |= 0100 + 4 + 040;  // CS$GBL+CS$ALO+CS$REL == GBL,OVR,REL
+				}
 				//TODO: Set flags according to case and process as PSECT
 
 				Globals.LRUNUM++; // COUNT SECTIONS IN A MODULE
@@ -635,9 +648,18 @@ void process_pass1_gsd_block(const SaveStatusEntry* sscur, const BYTE* data)
 				WORD lkwd = 0;
 				WORD lkmsk = ~SY_SEC;
 				//TODO: IS SYMBOL DEFINED HERE?
-				//TODO: REFERENCE FROM ROOT?
-				int index;
-				symbol_table_dlooke(lkname, lkwd, lkmsk, &index);
+				if (Globals.SEGNUM == 0) // REFERENCE FROM ROOT?
+				{
+					int index;
+					symbol_table_dlooke(lkname, lkwd, lkmsk, &index);
+					SymbolTableEntry* entry = SymbolTable + index;
+					//TODO: IS IT A DUP SYMBOL?
+				}
+				else // NORMAL LOOKUP
+				{
+					int index;
+					symbol_table_looke(lkname, lkwd, lkmsk, &index);
+				}
 			}
 			break;
 		case 5: // 5 - PSECT NAME; see LINK3\PSECNM
@@ -657,13 +679,14 @@ void process_pass1_gsd_block(const SaveStatusEntry* sscur, const BYTE* data)
 				Globals.BASE = entry->value;
 			}
 			break;
-		case 6: // 6 - IDENT DEFINITION; see PGMIDN in source
+		case 6: // 6 - IDENT DEFINITION; see LINK3\PGMIDN in source
 			printf("      Item '%s' type 6 - IDENT DEFINITION\n", buffer);
 			if (Globals.IDENT == 0)
 				Globals.IDENT = MAKEDWORD(itemw0, itemw1);
 			break;
-		case 7: // 7 - VIRTUAL SECTION
+		case 7: // 7 - VIRTUAL SECTION; see LINK3\VSECNM in source
 			printf("      Item '%s' type 7 - VIRTUAL SECTION\n", buffer);
+			//TODO
 			break;
 		default:
 			fatal_error("ERR21: Bad GSD type %d found in %s.\n", itemtype, sscur->filename);
@@ -866,7 +889,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const BYTE* data)
 			data += 4;  offset += 4;  //TODO: length is variable
 			break;
 		default:
-			fatal_error("Unknown RLD command: %d\n", (int)command);
+			fatal_error("ERR36: Unknown RLD command: %d\n", (int)command);
 		}
 	}
 }
@@ -889,7 +912,7 @@ void process_pass2_init()
 	OutputBufferSize = 65536;
 	OutputBuffer = (BYTE*) malloc(OutputBufferSize);
 	if (OutputBuffer == NULL)
-		fatal_error("Failed to allocate memory for output buffer.\n");
+		fatal_error("ERR11: Failed to allocate memory for output buffer.\n");
 	memset(OutputBuffer, 0, OutputBufferSize);
 
 	// See LINK6\DOCASH
@@ -904,7 +927,7 @@ void process_pass2_init()
 	assert(outfileobj == NULL);
 	outfileobj = fopen("OUTPUT.SAV", "wb");
 	if (outfileobj == NULL)
-		fatal_error("Failed to open output file.\n");
+		fatal_error("ERR6: Failed to open output .SAV file, errno %d.\n", errno);
 
 	// See LINK6\INITP2
 	//TODO: Some code for REL
@@ -1042,7 +1065,7 @@ int main(int argc, char *argv[])
 
 	size_t byteswrit = fwrite(OutputBuffer, 1, OutputBufferSize, outfileobj);
 	if (byteswrit != OutputBufferSize)
-		fatal_error("Failed to write output file.\n");
+		fatal_error("ERR6: Failed to write output file.\n");
 
 	printf("SUCCESS\n");
 	exit(EXIT_SUCCESS);
