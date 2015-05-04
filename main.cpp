@@ -7,6 +7,7 @@
 #include <ctype.h>
 #include <assert.h>
 #include <stdarg.h>
+#include <time.h>
 
 #include "main.h"
 
@@ -198,6 +199,8 @@ BYTE* OutputBuffer = NULL;
 int OutputBufferSize = 0;
 FILE* outfileobj = NULL;
 
+FILE* mapfileobj = NULL;
+
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -213,8 +216,10 @@ struct tagGlobals
 	WORD	SEGNUM;	// KEEP TRACK OF INPUT SEGMENT #'S
 	WORD	ENDRT;	// END OF ROOT SYMBOL TBL LIST
 	WORD	TXTLEN;	// TEMP FOR /V SWITCH
+	WORD	LINLFT; // NUMBER OF LINES LEFT ON CURRENT MAP PAGE
 	WORD	CBPTR;	// DEFAULT IS NO CREF
 
+	BYTE	NUMCOL;	// NUMBER OF COLUMNS WIDE FOR MAP
 	BYTE	LIBNB;  // LIBRARY FILE NUMBER FOR LML
 
 	WORD	SWIT1;	// Switches
@@ -274,6 +279,8 @@ void initialize()
 	SymbolTable = (SymbolTableEntry*) ::malloc(SymbolTableLength);
 	memset(SymbolTable, 0, SymbolTableLength);
 	SymbolTableCount = 0;
+
+	Globals.NUMCOL = 3; // 3-COLUMN MAP IS NORMAL
 }
 
 void finalize()
@@ -303,6 +310,10 @@ void finalize()
 	if (outfileobj != NULL)
 	{
 		fclose(outfileobj);  outfileobj = NULL;
+	}
+	if (mapfileobj != NULL)
+	{
+		fclose(mapfileobj);  mapfileobj = NULL;
 	}
 }
 
@@ -816,6 +827,83 @@ void process_pass15()
 	}
 }
 
+static const char LINE2[] = "             \tTitle:\t";
+static const char TTL[] = "\tIdent:\t";
+static const char LINE4[] = "Section  Addr\tSize";
+static const char MTITL4[] = "\tGlobal\tValue";
+static const char* wday_name[] =
+	{ "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
+static const char mon_name[][4] =
+	{ "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+
+// Initialization: see LINK4 in source
+// Map output: see LINK5 in source
+void process_pass_map_output()
+{
+	printf("Map pass started\n");
+
+	assert(mapfileobj == NULL);
+	mapfileobj = fopen("OUTPUT.MAP", "wt");
+	if (mapfileobj == NULL)
+		fatal_error("ERR5: Failed to open output .MAP file, errno %d.\n", errno);
+
+	Globals.LINLFT = LINPPG;
+
+	// OUTPUT THE HEADERS
+
+	fprintf(mapfileobj, "PCLINK11  Vxx.xx");
+	fprintf(mapfileobj, "\tLoad map \t");
+
+	time_t curtime;  time(&curtime); // DETERMINE DATE & TIME
+	struct tm * timeptr = localtime(&curtime);
+	fprintf(mapfileobj, "%s %.2d-%s-%d %.2d:%.2d\n",
+		wday_name[timeptr->tm_wday],
+		timeptr->tm_mday, mon_name[timeptr->tm_mon], 1900 + timeptr->tm_year,
+		timeptr->tm_hour, timeptr->tm_min);
+
+	//TODO: Print output file name to LINE2
+	fprintf(mapfileobj, LINE2);
+	if (Globals.MODNAM != 0)
+	{
+		fprintf(mapfileobj, unrad50(Globals.MODNAM));
+	}
+	fprintf(mapfileobj, TTL);
+	if (Globals.IDENT != 0)
+	{
+		fprintf(mapfileobj, unrad50(Globals.IDENT));
+	}
+	fprintf(mapfileobj, "\n\n");
+	fprintf(mapfileobj, LINE4);
+	for (BYTE i = 0; i < Globals.NUMCOL; i++)
+		fprintf(mapfileobj, MTITL4);
+	fprintf(mapfileobj, "\n");
+
+	//TODO: Get ASECT entry
+	//TODO: See LINK5\RESOLV in sources
+
+	//TODO: PRINT UNDEFINED GLOBALS IF ANY, see LINK5\DOUDFS
+	//TODO: Check UNDLST
+
+	// OUTPUT TRANSFER ADR & CHECK ITS VALIDITY, see LINK5\DOTADR
+	WORD lkmsk = ~(SY_SEC+SY_SEG);
+	WORD segnum = 0;
+	WORD lkwd = SY_SEC;
+	if (Globals.BEGBLK.code == 4)
+		lkwd = 0;
+	int index;
+	bool found = symbol_table_lookup(Globals.BEGBLK.symbol, lkwd, lkmsk, &index);
+	//if (!found)
+	//	fatal_error("ERR31: Transfer address undefined or in overlay\n");
+	SymbolTableEntry* entry = SymbolTable + index;
+	//TODO: Calculate transfer address
+	WORD taddr = 0;
+	//TODO: Calculate high limit
+	WORD highlim = 0;
+	fprintf(mapfileobj, "\n\nTransfer address = %06o, High limit = %06o = %d. words\n", taddr, highlim, highlim);
+
+	fclose(mapfileobj);  mapfileobj = NULL;
+}
+
 void process_pass2_rld(const SaveStatusEntry* sscur, const BYTE* data)
 {
 	assert(data != NULL);
@@ -1058,6 +1146,9 @@ int main(int argc, char *argv[])
 	//TODO: Check if we need Pass 1.5
 	Globals.PAS1_5 = 0200;
 	process_pass15();
+
+	//TODO: process_pass_map();
+	process_pass_map_output();
 
 	process_pass2_init();
 	process_pass2();
