@@ -22,7 +22,7 @@ const WORD LINPPG = 60;	// NUMBER OF LINES PER PAGE FOR MAP
 const int RECSIZ = 128;	// MAXIMUM SIZE OF A FORMATTED BINARY RECORD IN BYTES
 						// DOES NOT COUNT LEADING 1ST WORD OF 1 OR THE CHECKSUM BYTE
 
-// .SBTTL	****	OBJECT LIBRARY HEADER DEFINITIONS
+// ****	OBJECT LIBRARY HEADER DEFINITIONS
 enum
 {
 	F_BRHC = 1,		// FORMATTED BINARY BLOCK FOR LIBRARY
@@ -34,7 +34,7 @@ enum
 	L_HEAB = 030,	// OFFSET OF EPT SIZE IN LIBRARY HEADER
 };
 
-//.SBTTL	****	COMMAND STRING SWITCH MASKS
+// ****	COMMAND STRING SWITCH MASKS
 // THE FOLLOWING ARE GLOBAL MASKS FOR THE "SWITCH" WORD IN THE ROOT SEGMENT,
 // INDICATING VARIOUS SWITCHES WHICH WERE SPECIFIED IN THE COMMAND STRING.
 enum
@@ -62,7 +62,7 @@ enum
 const WORD SW_D = 1; // DUPLICATE SYMBOL
 const WORD SW_J = 2; // GENERATE SEPARATED I-D SPACE .SAV IMAGE
 
-//.SBTTL	****	IDSWIT BIT MASKS
+// ****	IDSWIT BIT MASKS
 // THE FOLLOWING ARE BIT ASSIGNMENTS FOR VARIOUS FLAGS IN IDSWIT.
 // IDSWIT IS ONLY USED IF /J IS USED.
 // IDSWIT LOW BYTE IS FOR D-SPACE
@@ -86,7 +86,7 @@ enum
 	I_SWZ = 020000,	// /Z SWITCH FOR I-SPACE
 };
 
-//.SBTTL	****	ADDITIONAL FLAG WORD BIT MASKS
+// ****	ADDITIONAL FLAG WORD BIT MASKS
 // THE FOLLOWING ARE BIT ASSIGNMENTS FOR VARIOUS FLAGS IN "FLGWD" WORD.
 enum  // THE FOLLOWING ARE BIT ASSIGNMENTS FOR VARIOUS FLAGS IN "FLGWD" WORD.
 {
@@ -126,7 +126,7 @@ struct LibraryModuleEntry
 const int LibraryModuleListSize = LMLSIZ;
 LibraryModuleEntry LibraryModuleList[LibraryModuleListSize];
 
-//.SBTTL	****	GSD ENTRY STRUCTURE
+// ****	GSD ENTRY STRUCTURE
 struct GSDentry
 {
 	DWORD	symbol;		// SYMBOL CHARS 1-6(RAD50)
@@ -135,7 +135,7 @@ struct GSDentry
 	WORD	value;		// SIZE OR OFFSET
 };
 
-//.SBTTL	****	SYMBOL TABLE STRUCTURE
+// ****	SYMBOL TABLE STRUCTURE
 struct SymbolTableEntry
 {
 	DWORD	name;		// 2 WD RAD50 NAME
@@ -149,7 +149,7 @@ const int SymbolTableSize = 4095;  // STSIZE
 const int SymbolTableLength = SymbolTableSize * sizeof(SymbolTableEntry);
 int SymbolTableCount = 0;  // STCNT -- SYMBOL TBL ENTRIES COUNTER
 
-//.SBTTL	****	INTERNAL SYMBOL TABLE FLAGS BIT ASSIGNMENT
+// ****	INTERNAL SYMBOL TABLE FLAGS BIT ASSIGNMENT
 const WORD SY_UDF = 0100000;	// SET TO DECLARE SYMBOL IS UNDEFINED (PSECT NEVER UNDEFINED)
 const WORD SY_DUP =  040000;	// SET TO ALLOW DUPLICATE LIBRARY SYMBOLS   
 const WORD SY_IND =  020000;	// SET TO PUT SYMBOL IN OVERLAY HANDLER TABLE                       
@@ -234,6 +234,8 @@ struct tagGlobals
 
 	WORD	VIRSIZ;	// LARGEST REGION IN A PARTITION
 
+	WORD	HIPHYS; // HIGH LIMIT FOR EXTENDED MEMORY (96K MAX)
+
 	DWORD	MODNAM;	// MODULE NAME, RAD50
 	DWORD	IDENT;	// PROGRAM IDENTIFICATION
 
@@ -241,6 +243,16 @@ struct tagGlobals
 					//   TRANS ADDR OR REL OFFSET FROM PSECT
 }
 Globals;
+
+struct tagRoot
+{
+	WORD	DHLRT;	// D-SPACE HIGH ADDR LIMIT OF REGION (R.GHLD)
+	WORD	DBOTTM;	// ST ADDR OF REGION AREA - D-SPACE (R.GSAD)
+	//TODO
+	WORD	HLRT;	// HIGH LIMIT OF AREA (R.GHL)
+	WORD	BOTTOM;	// ST ADDR OF REGION AREA - (I-SPACE IF /J USED)
+}
+Root;
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -281,6 +293,9 @@ void initialize()
 	SymbolTableCount = 0;
 
 	Globals.NUMCOL = 3; // 3-COLUMN MAP IS NORMAL
+
+	Root.DBOTTM = 01000;
+	Root.BOTTOM = 01000;
 }
 
 void finalize()
@@ -420,6 +435,9 @@ void symbol_table_enter(int* pindex, DWORD lkname, WORD lkwd)
 	}
 
 	//printf("        Saving entry: index %4d name '%s'\n", index, unrad50(lkname));
+
+	if (lkname == 0)
+		lkname = (Globals.SEGNUM + 1) << 2;  // USE SEGMENT # FOR BLANK SECTION NAME
 
 	// Save the entry
 	SymbolTableCount++;
@@ -679,14 +697,44 @@ void process_pass1_gsd_block(const SaveStatusEntry* sscur, const BYTE* data)
 				Globals.LRUNUM++; // COUNT SECTIONS IN A MODULE
 
 				DWORD lkname = MAKEDWORD(itemw0, itemw1);
+				WORD lkmsk = ~SY_SEC;
 				WORD lkwd = SY_SEC;
-				lkwd |= Globals.SEGNUM;
-				WORD lkmsk = ~(SY_SEC+SY_SEG);
+				if (itemflags & 1/*CS$SAV*/) // DOES PSECT HAVE SAVE ATTRIBUTE?
+					itemflags |= 0100/*CS$GBL*/; // FORCE PSECT TO ROOT VIA GBL ATTRIBUTE
+				if (itemflags & 0100/*CS$GBL*/) // LOCAL OR GLOBAL SECTION ?
+				{
+					lkmsk = ~(SY_SEC+SY_SEG); // CARE ABOUT SECTION FLG & SEGMENT #
+					lkwd |= Globals.SEGNUM; // LOCAL SECTION QUALIFIED BY SEGMENT #
+				}
 
-				// SECTION NAME LOOKUP
 				int index;
-				symbol_table_looke(lkname, lkwd, lkmsk, &index);
+				bool isnewentry = !symbol_table_looke(lkname, lkwd, lkmsk, &index);
 				SymbolTableEntry* entry = SymbolTable + index;
+
+				if (itemflags & 1/*CS$SAV*/) // DOES PSECT HAVE SAV ATTRIBUTE?
+					entry->status |= 1/*CS$SAV*/; // INDICATE SAV ATTRIBUTE IN PSECT ENTRY
+				itemflags &= ~(010/*CS$NU*/ | 2/*CS$LIB*/ | 1/*CS$SAV*/); // ALL UNSUPPORTED FLAG BITS
+				//TODO: PTR TO SYM TBL ENTRY
+				if (isnewentry)
+				{
+					//TODO: Put the entry to the list
+					entry->flags |= ((itemtype << 8) | itemflags);
+					//TODO: LENGTH=0 INITIALLY FOR NEW SECTION
+				}
+				else // AT THIS POINT SYMBOL WAS ALREADY ENTERED INTO SYMBOL TBL; see LINK3\OLDPCT
+				{
+					WORD R2 = (entry->flags & 0377) // GET PSECT FLAG BITS IN R2
+						& ~(010/*CS$NU*/ | 2/*CS$LIB*/ | 1/*CS$SAV*/); // GET RID OF UNUSED FLAG BITS
+					if (Globals.SWIT1 & SW_J) // ARE WE PROCESSING I-D SPACE?
+					{
+						//TODO
+					}
+					if (R2 != itemflags) // ARE SECTION ATTRIBUTES THE SAME?
+						fatal_error("ERR10: Conflicting section attributes");
+				}
+
+				//TODO: PLOOP
+
 				Globals.BASE = entry->value;
 			}
 			break;
@@ -827,6 +875,34 @@ void process_pass15()
 	}
 }
 
+// Map processing: see LINK4/MAP in source
+void process_pass_map_init()
+{
+	Globals.SEGBAS = 0; // N VALUE (V:N:M) FOR /V REGION FLAG
+	Globals.VIRSIZ = 0; // SIZE OF THE LARGEST PARTITION IN /V REGION
+	Globals.HIPHYS = 0; // PARTITION EXTENDED ADDR HIGH LIMIT
+	Globals.SEGBLK = 0; // BASE OF PREVIOUS XM PARTITION
+
+	if (Globals.FLGWD & FG_STB) // IS THERE AN STB FILE?
+	{
+		//TODO: Start .STB file preparation
+	}
+	
+	WORD R4 = (Globals.SWIT1 & SW_J) ? Root.DBOTTM : Root.BOTTOM;
+	//TODO: IS "BOTTOM" .GE. SIZE OF ASECT ?
+	//TODO
+
+	//TODO: PROCESS /H SWITCH
+
+	//TODO: PROCESS /U & /Q SWITCHES
+
+	//TODO: /V AND /R WITH NO /Y HIGH LIMIT ADJUSTMENT
+
+	//TODO: /Q SWITCH PROCESSING
+
+	//TODO: ROUND ALL XM SEGMENTS TO 32. WORDS
+}
+
 static const char LINE2[] = "             \tTitle:\t";
 static const char TTL[] = "\tIdent:\t";
 static const char LINE4[] = "Section  Addr\tSize";
@@ -836,7 +912,6 @@ static const char* wday_name[] =
 static const char mon_name[][4] =
 	{ "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 
-// Initialization: see LINK4 in source
 // Map output: see LINK5 in source
 void process_pass_map_output()
 {
@@ -904,6 +979,27 @@ void process_pass_map_output()
 	fclose(mapfileobj);  mapfileobj = NULL;
 }
 
+void process_pass2_rld_lookup(const BYTE* data, bool global)
+{
+	DWORD lkname = *((DWORD*)data);
+	WORD lkwd = global ? (SY_SEC | Globals.SEGNUM) : 0;
+	WORD lkmsk = global ? ~(SY_SEC | SY_SEG) : ~SY_SEC;
+
+	int index;
+	bool found = symbol_table_lookup(lkname, lkwd, lkmsk, &index);
+	if (!found && !global)
+	{
+		lkwd = SY_SEC; // LOOKUP SECTION NAME IN ROOT
+		found = symbol_table_lookup(lkname, lkwd, lkmsk, &index);
+	}
+	if (!found) // MUST FIND IT THIS TIME
+		fatal_error("ERR46: Invalid RLD symbol '%s'", unrad50(lkname));
+
+	SymbolTableEntry* entry = SymbolTable + index;
+	WORD R3 = entry->value; // GET SYMBOL'S VALUE
+	//TODO
+}
+
 void process_pass2_rld(const SaveStatusEntry* sscur, const BYTE* data)
 {
 	assert(data != NULL);
@@ -930,8 +1026,9 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const BYTE* data)
 			printf("      Item type 003 INTERNAL DISPLACED\n");
 			data += 2;  offset += 2;
 			break;
-		case 4:
+		case 4:  // See LINK7\RLDGDR
 			printf("      Item type 004 GLOBAL DISPLACED  %03o '%s'\n", (int)disbyte, unrad50(*((DWORD*)data)));
+			process_pass2_rld_lookup(data, false);
 			data += 4;  offset += 4;
 			break;
 		case 5:
@@ -1035,7 +1132,7 @@ void process_pass2_dump_txtblk()  // See TDMP0
 		return;
 
 	WORD addr = *((WORD*)Globals.TXTBLK);
-	WORD baseaddr = 512;  //TODO: Globals.BASE
+	WORD baseaddr = 512; //Globals.BASE;
 	BYTE* dest = OutputBuffer + (baseaddr + addr);
 	BYTE* src = Globals.TXTBLK + 2;
 	memcpy(dest, src, Globals.TXTLEN);
@@ -1147,7 +1244,7 @@ int main(int argc, char *argv[])
 	Globals.PAS1_5 = 0200;
 	process_pass15();
 
-	//TODO: process_pass_map();
+	process_pass_map_init();
 	process_pass_map_output();
 
 	process_pass2_init();
