@@ -197,8 +197,8 @@ enum
 
 BYTE* OutputBuffer = NULL;
 int OutputBufferSize = 0;
-FILE* outfileobj = NULL;
 
+FILE* outfileobj = NULL;
 FILE* mapfileobj = NULL;
 FILE* stbfileobj = NULL;
 
@@ -208,52 +208,167 @@ FILE* stbfileobj = NULL;
 
 struct tagGlobals
 {
+	WORD	ODBLK[15]; // BLOCK TO HOLD BINOUT SPEC
+					// LNKOV1->STORE TIME TO ROLL OVER DATE
+	WORD	TEMP;	// TEMPORARY STORAGE
 	BYTE	TXTBLK[RECSIZ];  // SPACE FOR A FORMATTED BINARY RECORD
 
-	WORD	FLGWD;	// INTERNAL FLAG WORD
-	WORD	SEGBLK;	// BASE BLK OF OVERLAY SEGMENT
-	WORD	SEGBAS;	// BASE OF OVERLAY SEGMENT
-	WORD	ENDOL;	// USE FOR CONTINUE SWITCHES /C OR //
-	WORD	SEGNUM;	// KEEP TRACK OF INPUT SEGMENT #'S
-	WORD	ENDRT;	// END OF ROOT SYMBOL TBL LIST
-	WORD	TXTLEN;	// TEMP FOR /V SWITCH
-	WORD	LINLFT; // NUMBER OF LINES LEFT ON CURRENT MAP PAGE
-	WORD	CBPTR;	// DEFAULT IS NO CREF
+	WORD	UNDLST; // START OF UNDEFINED SYMBOL LIST
+	WORD	SYEN0;	// ADR OF SYMBOL TABLE ENTRY NUMBER 0
+					// REL PTR + THIS = ABS ADDR OF SYMBOL NODE
+	WORD	CSECT;	// PTR TO LATEST SECTION (PASS1)
 
+	WORD	PA2LML;	// START OF LML BUFR
+					// LNKOV1->TEMP. SEGMENT POINTER
+	WORD	LMLPTR;	// CURRENT PTR TO LIBRARY MOD LIST
+	WORD	STLML;	// CURRENT START OF LMLPTR IF MULTI-LIBR FILES
+	WORD	ENDLML;	// END OF LIB MOD LIST
+	WORD	ESZRBA;	// SIZE OF CURRENT LIBRARY EPT
+					// RELOCATION INFO OUTPUT BUFR ADR
+	WORD	OVCOUN;	// NO. OF OVERLAY ENTRY PTS.
+	WORD	OVSPTR;	// PTR TO OVERLAY SEGMENT BLK
+	BYTE	PAS1_5; // PASS 1.5 SWITCH(0 ON PASS1, 1 IF TO DO LIBRARY,
+					// BIT 7 SET IF DOING LIBRARIES
+	BYTE	DUPMOD;	// 1 IF LIB MOD IS DUP
+					// 0 IF LIB MOD IS NOT DUP
 	BYTE	NUMCOL;	// NUMBER OF COLUMNS WIDE FOR MAP
+					// IND + OR - RELOCATION DURING PASS 2
 	BYTE	LIBNB;  // LIBRARY FILE NUMBER FOR LML
 
+	WORD	SWITCH;	// SWITCHES FROM CSI (SEE "LINK1" FOR DETAILS)
 	WORD	SWIT1;	// Switches
+	WORD	FILPT1; // START OF SAVESTATUS AREA -4
 
-	WORD	PAS1_5; // PASS 1.5 SWITCH(0 ON PASS1, 1 IF TO DO LIBRARY,
-					// BIT 7 SET IF DOING LIBRARIES
-
-	WORD	LRUNUM;	// USED TO COUNT MAX # OF SECTIONS AND AS
-					//  TIME STAMP FOR SAV FILE CACHING
-
-	WORD	BASE;	// BASE OF CURRENT SECTION
-
-	WORD	VIRSIZ;	// LARGEST REGION IN A PARTITION
-
-	WORD	HIPHYS; // HIGH LIMIT FOR EXTENDED MEMORY (96K MAX)
-
-	DWORD	MODNAM;	// MODULE NAME, RAD50
-	DWORD	IDENT;	// PROGRAM IDENTIFICATION
+	// VARIABLES FOR PROGRAM BEING LINKED
+	WORD	HGHLIM;	// MAX # OF SECTIONS IN ANY MODULE PROCESSED
+					// HIGHEST LOCATION USED BY PROGRAM (I-SPACE)
+	WORD	DHGHLM;	// MAX # OF SECTIONS IN ANY MODULE PROCESSED
+					// HIGHEST LOCATION USED BY PROGRAM (D-SPACE)
 
 	GSDentry BEGBLK; // TRANSFER ADDRESS BLOCK (4 WD GSD ENTRY)
 					//   TRANS ADDR OR REL OFFSET FROM PSECT
-}
-Globals;
 
-struct tagRoot
-{
+	GSDentry STKBLK; // USER STACK ADDRESS BLOCK(SYMBOL & VALUE)
+					// LNKSAV->TEMP 4 WORD STORAGE FOR GSD RECORD
+
+	WORD	HSWVAL;	// /H SWITCH VALUE - I-SPACE
+	WORD	DHSWVL;	// /H SWITCH VALUE - D-SPACE
+
+	WORD	ESWVAL;	// /E SWITCH VALUE - I-SPACE
+	DWORD	ESWNAM; // /E SWITCH NAME - I-SPACE
+	WORD	DESWVL; // /E SWITCH VALUE - D-SPACE
+	DWORD	DESWNM;	// /E SWITCH NAME - D-SPACE
+	WORD	KSWVAL;	// /K SWITCH VALUE OR STACK SIZE FOR REL FILE
+	WORD	YSWNAM[25]; // /Y SECTION NAME ARRAY(TEMP OVERLAY # IN OV1 & SAV)
+					// +2 NEXT ASSIGNABLE OUTPUT BLK(LNKMAP)
+					//    RELOCATION INFO BLOCK #(LNKSAV) - I-SPACE
+	// YSWVAL==YSWNAM+4
+	WORD	DYSWNM[25];
+	// DYSWVL==DYSWNM+4
+	BYTE	YSWT;	// SAY WE ARE USING /Y
+	BYTE	YCNT;	// NUMBER OF TIMES TO PROMPT FOR /Y (SET IN LINK2)
+	WORD	DEFALT;	// DEFAULT BOUNDARY VALUE FOR /Y (SET IN LINK2)
+	WORD	USWVAL;	// /U SWITCH VALUE - I-SPACE
+	DWORD	USWNAM;	// /U SWITCH NAME - I-SPACE
+	WORD	DUSWVL;	// /U SWITCH VALUE - D-SPACE
+	DWORD	DUSWNM;	// /U SWITCH NAME - D-SPACE
+	WORD	QSWVAL;	// /Q BUFFER POINTER
+	WORD	ZSWVAL;	// /Z SWITCH VALUE - I-SPACE
+	WORD	DZSWVL;	// /Z SWITCH VALUE - D-SPACE
+	WORD	LRUNUM;	// USED TO COUNT MAX # OF SECTIONS AND AS
+					//  TIME STAMP FOR SAV FILE CACHING
+	WORD	BITBAD;	// -> START OF BITMAP TABLE (D-SPACE IF /J USED)
+	WORD	IBITBD;	// -> START OF I-SPACE BITMAP TABLE
+	WORD	BITMAP;	// CONTAINS BITMAP OR IBITBD (IF /J USED)
+	WORD	CACHER;	// -> CACHE CONTROL BLOCKS
+	WORD	NUMBUF;	// NUMBER OF AVAILABLE CACHING BLOCKS (DEF=3)
+	WORD	BASE;	// BASE OF CURRENT SECTION
+	WORD	CKSUM;	// CHECKSUM FOR STB & LDA OUTPUT
+					// LNKOV1->TEMP LINK POINTER TO NEW REGION BLK
+					// CURRENT REL BLK OVERLAY NUM
+	WORD	ENDRT;	// END OF ROOT SYMBOL TBL LIST
+	WORD	VIRSIZ;	// LARGEST REGION IN A PARTITION
+	WORD	REGION;	// XM REGION NUMBER
+	WORD	WDBCNT;	// WDB TABLE SIZE ( 14. * NUMBER OF PARTITIONS)
+	WORD	HIPHYS;	// HIGH LIMIT FOR EXTENDED MEMORY (96K MAX)
+	WORD	SVLML;	// START OF LML LIST FOR WHOLE LIBRARY
+	WORD	SW_LML;	// LML INTO OVERLAY SWITCH, AND PASS INDICATOR
+	WORD	LOC0;	// USED FOR CONTENTS OF LOC 0 IN SAV HEADER
+	WORD	LOC66;	// # /O SEGMENTS SAVED FOR CONVERSION TO ADDR OF
+					//  /V SEGS IN OVERLAY HANLDER TABLE
+	WORD	LSTFMT;	// CREF LISTING FORMAT (0=80COL, -1=132COL)
+
+	// I-D SPACE VARIABLES
+
+	WORD	IDSWIT;	// BITMASK WORD FOR WHICH SWITCHES USE SEPARATED
+					// I-D SPACE
+					// D-SPACE, LOW BYTE, I-SPACE, HI BYTE
+	WORD	ILEN;	// TOTAL LENGTH OF I-SPACE PSECTS IN WORDS
+	WORD	DLEN;	// TOTAL LENGTH OF D-SPACE PSECTS IN WORDS
+	WORD	IBLK;	// TOTAL LENGTH OF I-SPACE PSECTS IN BLOCKS
+	WORD	DBLK;	// TOTAL LENGTH OF D-SPACE PSECTS IN BLOCKS
+	WORD	IROOT;	// SIZE OF THE I-SPACE ROOT IN WORDS
+	WORD	DROOT;	// SIZE OF THE D-SPACE ROOT IN WORDS
+	WORD	IBASE;	// START OF THE I BASE (BLOCKS)
+	WORD	DBASE;	// START OF THE D BASE (BLOCKS)
+	WORD	ILOC40;	// CONTENTS OF LOC 40 FOR I-SPACE CCB
+	WORD	IFLG;	// NON-ZERO MEANS WRITING I-SPACE BITMAP
+	WORD	IDSTRT;	// I-D SPACE ENTRY POINT ($OVRHZ)
+	WORD	ZTAB;	// I-D SPACE START ADDRESS OF PSECT $ZTABL
+	WORD	OVRCNT;	// # OF OVERLAY SEGMENTS, USED FOR COMPUTING $OVDF6
+	WORD	DSGBAS;	// PASS 2 BASE ADR OF D-SPACE OVERLAY SEGMENT
+	WORD	DSGBLK;	// PASS 2 BASE BLK OF D-SPACE OVERLAY SEGMENT
+
+	DWORD	MODNAM;	// MODULE NAME, RAD50
+					// LDA OUTPUT BUFR PTR OR REL INFO BUFR PTR
+	DWORD	IDENT;	// PROGRAM IDENTIFICATION
+					// "RELADR" ADR OF RELOCATION CODE IN TEXT OF REL FILE
+					// +2 "RELOVL" NEXT REL BLK OVERLAY #
+
+	WORD	ASECT[8];
+
 	WORD	DHLRT;	// D-SPACE HIGH ADDR LIMIT OF REGION (R.GHLD)
 	WORD	DBOTTM;	// ST ADDR OF REGION AREA - D-SPACE (R.GSAD)
-	//TODO
+	WORD	DBOTTM_2; // REGION NUMBER (R.GNB)
+	WORD	OVRG1;	// -> NEXT ORDB (R.GNXP)
+	WORD	OVRG1_2; // -> OSDB THIS REGION (R.GSGP)
 	WORD	HLRT;	// HIGH LIMIT OF AREA (R.GHL)
 	WORD	BOTTOM;	// ST ADDR OF REGION AREA - (I-SPACE IF /J USED)
+
+	WORD	CBUF;	// START OF CREF BUFFER
+	WORD	CBEND;	// CBUF + 512. BYTES FOR A 1 BLOCK CREF BUFFER
+	WORD	QAREA[10]; // EXTRA QUEUE ELEMENT
+	WORD	PRAREA[5]; // AREA FOR PROGRAMMED REQUESTS
+
+	WORD	EIB512;	// IBUF + 512. BYTES FOR A 1 BLOCK MAP BUFR
+	WORD	SEGBAS;	// BASE OF OVERLAY SEGMENT
+	WORD	SEGBLK;	// BASE BLK OF OVERLAY SEGMENT
+	WORD	TXTLEN;	// TEMP FOR /V SWITCH
+	WORD	LINLFT; // NUMBER OF LINES LEFT ON CURRENT MAP PAGE
+
+	// The following globals are defined inside the code
+
+	WORD	FLGWD;	// INTERNAL FLAG WORD
+	WORD	ENDOL;	// USE FOR CONTINUE SWITCHES /C OR //
+	WORD	SEGNUM;	// KEEP TRACK OF INPUT SEGMENT #'S
+
+	// INPUT BUFFER INFORMATION
+
+	WORD	IRAREA;	// CHANNEL NUMBER AND .READ EMT CODE
+	WORD	CURBLK;	// RELATIVE INPUT BLOCK NUMBER
+	WORD	IBUF;	// INPUT BUFR ADR(ALSO END OF OUTPUT BUFR (OBUF+512))
+	WORD	IBFSIZ;	// INPUT BUFR SIZE (MULTIPLE OF 256) WORD COUNT
+
+	WORD	OBLK;	// RELATIVE OUTPUT BLOCK #
+	WORD	OBUF;	// OUTPUT BUFR ADR
+
+	WORD	MBLK;	// OUTPUT BLK # (INIT TO -1 FOR BUMP BEFORE WRITE)
+	WORD	MBPTR;	// OUTPUT BUFR POINTER (0 MEANS NO MAP OUTPUT)
+
+	WORD	CBLK;	// OUTPUT BLK # (INIT TO -1 FOR BUMP BEFORE WRITE)
+	WORD	CBPTR;	// DEFAULT IS NO CREF
 }
-Root;
+Globals;
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -293,10 +408,11 @@ void initialize()
 	memset(SymbolTable, 0, SymbolTableLength);
 	SymbolTableCount = 0;
 
+	// Set globals defaults
 	Globals.NUMCOL = 3; // 3-COLUMN MAP IS NORMAL
-
-	Root.DBOTTM = 01000;
-	Root.BOTTOM = 01000;
+	Globals.NUMBUF = 3; // NUMBER OF AVAILABLE CACHING BLOCKS (DEF=3)
+	Globals.DBOTTM = 01000;
+	Globals.BOTTOM = 01000;
 }
 
 void finalize()
@@ -343,17 +459,148 @@ void parse_commandline(int argc, char **argv)
 	{
 		const char* argvcur = argv[arg];
 
-		if (*argvcur == '/')  // Parse global arguments
+		if (*argvcur == '/' || *argvcur == '-')  // Parse global arguments
 		{
 		    //TODO: Parse arguments like Command String Interpreter
 			const char* cur = argvcur + 1;
-			while (*cur != 0)
+			int result;
+			WORD param1, param2;
+			if (*cur != 0)
 			{
-				char option = toupper(*cur);
+				param1 = param2 = result = 0;
+				char option = toupper(*cur++);
 				switch (option)
 				{
-				//case 'T':
-				//	break;
+				// /T - SPECIFY TRANSFER ADR
+				case 'T': // /T:address
+					result = sscanf(cur, ":%ho", &param1);
+					if (result < 1)
+						fatal_error("Invalid /T option, use /T:addr\n");
+					Globals.SWITCH |= SW_T;
+					Globals.BEGBLK.value = param1;
+					break;
+				// /M - MODIFY INITIAL STACK
+				case 'M':
+					result = sscanf(cur, ":%ho", &param1);
+					if (result < 1)
+						fatal_error("Invalid /M option, use /M:addr\n");
+					if (param1 & 1)
+						fatal_error("Invalid /M option value, use even address\n");
+					Globals.SWITCH |= SW_M;
+					Globals.STKBLK.code = param1;
+					break;
+				// /B - SPECIFY BOTTOM ADR FOR LINK
+				case 'B':
+					result = sscanf(cur, ":%ho", &param1);
+					if (result < 1)
+						fatal_error("Invalid /B option, use /B:addr\n");
+					Globals.SWITCH |= SW_B;
+					//Globals.TMPIDD = 0;
+					//Globals.TMPIDI = 0;
+					//TODO
+					break;
+				// /U - ROUND SECTION
+				case 'U':
+					result = sscanf(cur, ":%ho:%ho", &param1, &param2);
+					//TODO
+					break;
+				// /E - EXTEND SECTION
+				case 'E':
+					result = sscanf(cur, ":%ho:%ho", &param1, &param2);
+					//TODO
+					break;
+				// /Y - START SECTION ON MULTIPLE OF VALUE
+				case 'Y':
+					result = sscanf(cur, ":%ho:%ho", &param1, &param2);
+					//TODO
+					break;
+				// /H - SPECIFY TOP ADR FOR LINK
+				case 'H':
+					result = sscanf(cur, ":%ho:%ho", &param1, &param2);
+					//TODO
+					break;
+				// /K - SPECIFY MINIMUM SIZE
+				case 'K':
+					result = sscanf(cur, ":%ho", &param1);
+					//TODO
+					break;
+				// /P:N  SIZE OF LML TABLE
+				case 'P':
+					result = sscanf(cur, ":%ho", &param1);
+					//TODO
+					break;
+				// /Z - ZERO UNFILLED LOCATIONS
+				case 'Z':
+					result = sscanf(cur, ":%ho:%ho", &param1, &param2);
+					//TODO
+					break;
+				// /R - INDICATE FOREGROUND LINK
+				case 'R':
+					result = sscanf(cur, ":%ho", &param1);
+					//TODO
+					break;
+				// /XM, OR /V ON 1ST LINE
+				case 'V':
+					result = sscanf(cur, ":%ho", &param1);
+					//TODO
+					break;
+				// /L - INDICATE LDA OUTPUT
+				case 'L':
+					//TODO
+					break;
+				// /W - SPECIFY WIDE MAP LISTING
+				case 'W':
+					Globals.NUMCOL = 6; // 6 COLUMNS
+					Globals.LSTFMT--; // WIDE CREF
+					break;
+				// /C - CONTINUE ON ANOTHER LINE
+				// /
+				// /X - DO NOT EMIT BIT MAP
+				case 'X':
+					Globals.SWITCH |= SW_X;
+					break;
+				// /I - INCLUDE MODULES FROM LIBRARY
+				case 'I':
+					Globals.SWITCH |= SW_I;
+					break;
+				// /F - INCLUDE FORLIB.OBJ IN LINK
+				case 'F':
+					Globals.SWITCH |= SW_F;
+					break;
+				// /A - ALPHABETIZE MAP
+				case 'A':
+					Globals.SWITCH |= SW_A;
+					break;
+				// /S - SYMBOL TABLE AS LARGE AS POSSIBLE
+				case 'S':
+					//TODO
+					break;
+				// /D - ALLOW DUPLICATE SYMBOLS
+				case 'D':
+					Globals.SWIT1 |= SW_D;
+					break;
+				// /N - GENERATE CROSS REFERENCE
+				case 'N':
+					result = sscanf(cur, ":%ho", &param1);
+					//TODO
+					break;
+				// /G - CALC. EPT SIZE ON RT-11
+				case 'G':
+					result = sscanf(cur, ":%ho", &param1);
+					//TODO
+					break;
+				// /Q - SET PSECTS TO ABSOLUTE ADDRESSES
+				case 'Q':
+					result = sscanf(cur, ":%ho", &param1);
+					//TODO
+					break;
+				// /J - USE SEPARATED I-D SPACE
+				case 'J':
+					if (Globals.SWITCH & SW_R)
+						fatal_error("Invalid option: /R illegal with /J\n"); //TODO: Should be warning only
+					else
+						Globals.SWIT1 |= SW_J;
+					break;
 				default:
 					fatal_error("Unknown command line option '%c'\n", option);
 				}
@@ -393,32 +640,6 @@ void parse_commandline(int argc, char **argv)
 		}
 	}
 
-// /T - SPECIFY TRANSFER ADR
-// /M - MODIFY INITIAL STACK
-// /B - SPECIFY BOTTOM ADR FOR LINK
-// /U - ROUND SECTION
-// /E - EXTEND SECTION
-// /Y - START SECTION ON MULTIPLE OF VALUE
-// /H - SPECIFY TOP ADR FOR LINK
-// /K - SPECIFY MINIMUM SIZE
-// /P:N  SIZE OF LML TABLE
-// /Z - ZERO UNFILLED LOCATIONS
-// /R - INDICATE FOREGROUND LINK
-// /XM, OR /V ON 1ST LINE
-// /L - INDICATE LDA OUTPUT
-// /W - SPECIFY WIDE MAP LISTING
-// /C - CONTINUE ON ANOTHER LINE
-// /
-// /X - DO NOT EMIT BIT MAP
-// /I - INCLUDE MODULES FROM LIBRARY
-// /F - INCLUDE FORLIB.OBJ IN LINK
-// /A - ALPHABETIZE MAP
-// /S - SYMBOL TABLE AS LARGE AS POSSIBLE
-// /D - ALLOW DUPLICATE SYMBOLS
-// /N - GENERATE CROSS REFERENCE
-// /G - CALC. EPT SIZE ON RT-11
-// /Q - SET PSECTS TO ABSOLUTE ADDRESSES
-// /J -USE SEPARATED I-D SPACE
 }
 
 void symbol_table_enter(int* pindex, DWORD lkname, WORD lkwd)
@@ -665,8 +886,8 @@ void process_pass1_gsd_block(const SaveStatusEntry* sscur, const BYTE* data)
 			break;
 		case 3: // 3 - TRANSFER ADDRESS; see LINK3\TADDR
 			printf("      Item '%s' type 3 - TRANSFER ADDR %06o\n", buffer, itemw3);
-			//WORD taddr = itemw3;
-			if ((itemw3 & 1) != 0)  // USE ONLY 1ST EVEN ONE ENCOUNTERED
+			if ((Globals.BEGBLK.value & 1) == 0)  // USE ONLY 1ST EVEN ONE ENCOUNTERED
+				break; // WE ALREADY HAVE AN EVEN ONE.  RETURN
 			{
 				DWORD lkname = MAKEDWORD(itemw0, itemw1);
 				int index;
@@ -893,7 +1114,7 @@ void process_pass_map_init()
 		//TODO: Start .STB file preparation
 	}
 	
-	WORD R4 = (Globals.SWIT1 & SW_J) ? Root.DBOTTM : Root.BOTTOM;
+	WORD R4 = (Globals.SWIT1 & SW_J) ? Globals.DBOTTM : Globals.BOTTOM;
 	//TODO: IS "BOTTOM" .GE. SIZE OF ASECT ?
 	//TODO
 
@@ -1105,6 +1326,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const BYTE* data)
 	}
 }
 
+// Prapare SYSCOM area, pass 2 initialization; see LINK6
 void process_pass2_init()
 {
 	printf("Pass 2 initialization\n");
@@ -1127,14 +1349,27 @@ void process_pass2_init()
 	memset(OutputBuffer, 0, OutputBufferSize);
 
 	// See LINK6\DOCASH
-	*((WORD*)(OutputBuffer + SysCom_BEGIN)) = Globals.BEGBLK.value;
-	//TODO: if (Globals.STKBLK != 0)
-	//TODO: *((WORD*)(OutputBuffer + SysCom_STACK)) = ???
+	Globals.LRUNUM = 0; // INIT LEAST RECENTLY USED TIME STAMP
+	//TODO
+
+	*((WORD*)(OutputBuffer + SysCom_BEGIN)) = Globals.BEGBLK.value; // PROG START ADDR
+
+	if (Globals.STKBLK.symbol != 0)
+	{
+		WORD lkwd = 0; // MUST BE A GLOBAL SYMBOL
+		//TODO: Lookup for the symbol address
+	}
+	else
+	{
+		*((WORD*)(OutputBuffer + SysCom_STACK)) = Globals.STKBLK.value;
+	}
 	//TODO: *((WORD*)(OutputBuffer + SysCom_HIGH)) = ???
+
 	//TODO: For /K switch STORE IT AT LOC. 56 IN SYSCOM AREA
 
 	//TODO: SYSCOM AREA FOR REL FILE
 
+	//TODO: BINOUT REQUESTED?
 	// Prepare SAV file name
 	char savfilename[64];
 	memcpy(savfilename, SaveStatusArea[0].filename, 64);
@@ -1150,13 +1385,14 @@ void process_pass2_init()
 	// See LINK6\INITP2
 	//TODO: Some code for REL
 	Globals.VIRSIZ = 0;
+	//TODO: ARE WE DOING I-D SPACE?
+	//TODO: /V OVERLAY, OR /XM?
 	Globals.SEGBLK = 0;
 	//TODO: INIT FOR LIBRARY PROCESSING
 	//TODO: RESET NUMBER OF ENTRIES IN MODULE SECTION TBL
 	Globals.LIBNB = 1;
 
-	//.SBTTL	-	FORCE BASE OF ZERO FOR VSECT IF ANY
-	//TODO
+	//TODO: FORCE BASE OF ZERO FOR VSECT IF ANY
 }
 
 void process_pass2_dump_txtblk()  // See TDMP0
@@ -1173,6 +1409,7 @@ void process_pass2_dump_txtblk()  // See TDMP0
 	Globals.TXTLEN = 0;
 }
 
+// See LINK7\PASS2 -- PRODUCE SAVE IMAGE FILE
 void process_pass2()
 {
 	printf("Pass 2 started\n");
