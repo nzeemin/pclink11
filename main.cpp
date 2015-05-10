@@ -200,6 +200,7 @@ int OutputBufferSize = 0;
 FILE* outfileobj = NULL;
 
 FILE* mapfileobj = NULL;
+FILE* stbfileobj = NULL;
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -330,6 +331,10 @@ void finalize()
 	{
 		fclose(mapfileobj);  mapfileobj = NULL;
 	}
+	if (stbfileobj != NULL)
+	{
+		fclose(stbfileobj);  stbfileobj = NULL;
+	}
 }
 
 void parse_commandline(int argc, char **argv)
@@ -370,7 +375,7 @@ void parse_commandline(int argc, char **argv)
 				*filenamecur = *cur;
 				filenamecur++;  cur++;
 				filenamelen++;
-				if (filenamelen > sizeof(sscur->filename))
+				if (filenamelen >= sizeof(sscur->filename))
 					fatal_error("Too long filename: %s\n", argvcur);
 			}
 			SaveStatusCount++;
@@ -915,12 +920,31 @@ static const char mon_name[][4] =
 // Map output: see LINK5 in source
 void process_pass_map_output()
 {
-	printf("Map pass started\n");
+	printf("Pass map started\n");
 
+	// Prepare MAP file name
+	char mapfilename[64];
+	memcpy(mapfilename, SaveStatusArea[0].filename, 64);
+	char* pext = strrchr(mapfilename, '.');
+	pext++; *pext++ = 'M'; *pext++ = 'A'; *pext++ = 'P';
+
+	// Open MAP file
 	assert(mapfileobj == NULL);
-	mapfileobj = fopen("OUTPUT.MAP", "wt");
+	mapfileobj = fopen(mapfilename, "wt");
 	if (mapfileobj == NULL)
-		fatal_error("ERR5: Failed to open output .MAP file, errno %d.\n", errno);
+		fatal_error("ERR5: Failed to open %s file, errno %d.\n", mapfilename, errno);
+
+	// Prepare STB file name
+	char stbfilename[64];
+	memcpy(stbfilename, SaveStatusArea[0].filename, 64);
+	pext = strrchr(stbfilename, '.');
+	pext++; *pext++ = 'S'; *pext++ = 'T'; *pext++ = 'B';
+
+	// Open STB file
+	assert(stbfileobj == NULL);
+	stbfileobj = fopen(stbfilename, "wb");
+	if (stbfileobj == NULL)
+		fatal_error("ERR5: Failed to open %s file, errno %d.\n", stbfilename, errno);
 
 	Globals.LINLFT = LINPPG;
 
@@ -977,6 +1001,8 @@ void process_pass_map_output()
 	fprintf(mapfileobj, "\n\nTransfer address = %06o, High limit = %06o = %d. words\n", taddr, highlim, highlim);
 
 	fclose(mapfileobj);  mapfileobj = NULL;
+
+	fclose(stbfileobj);  stbfileobj = NULL;
 }
 
 void process_pass2_rld_lookup(const BYTE* data, bool global)
@@ -1109,10 +1135,17 @@ void process_pass2_init()
 
 	//TODO: SYSCOM AREA FOR REL FILE
 
+	// Prepare SAV file name
+	char savfilename[64];
+	memcpy(savfilename, SaveStatusArea[0].filename, 64);
+	char* pext = strrchr(savfilename, '.');
+	pext++; *pext++ = 'S'; *pext++ = 'A'; *pext++ = 'V';
+
+	// Open SAV file for writing
 	assert(outfileobj == NULL);
-	outfileobj = fopen("OUTPUT.SAV", "wb");
+	outfileobj = fopen(savfilename, "wb");
 	if (outfileobj == NULL)
-		fatal_error("ERR6: Failed to open output .SAV file, errno %d.\n", errno);
+		fatal_error("ERR6: Failed to open %s file, errno %d.\n", savfilename, errno);
 
 	// See LINK6\INITP2
 	//TODO: Some code for REL
