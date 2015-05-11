@@ -14,98 +14,6 @@
 
 /////////////////////////////////////////////////////////////////////////////
 
-const int LMLSIZ = 0525; // DEFAULT NUMBER OF LIBRARY MOD LIST ENTRIES
-						 // EACH ENTRY IS 6 BYTES LONG
-
-const WORD LINPPG = 60;	// NUMBER OF LINES PER PAGE FOR MAP
-
-const int RECSIZ = 128;	// MAXIMUM SIZE OF A FORMATTED BINARY RECORD IN BYTES
-						// DOES NOT COUNT LEADING 1ST WORD OF 1 OR THE CHECKSUM BYTE
-
-// ****	OBJECT LIBRARY HEADER DEFINITIONS
-enum
-{
-	F_BRHC = 1,		// FORMATTED BINARY BLOCK FOR LIBRARY
-	L_HLEN = 042,	// RECORD LENGTH OF LIBRARY HEADER BLOCK
-	L_BR   = 7,		// LIBRARIAN CODE
-	L_HVER = 0305,	// LIBRARY VERSION NUMBER (VERSION # = V03.05)
-	L_HEPT = 040,	// END OF LBR HEADER (1ST EPT ENTRY SYMBOL NAME)
-	L_HX   = 010,	// OFFSET OF /X FLAG IN LIBRARY HEADER
-	L_HEAB = 030,	// OFFSET OF EPT SIZE IN LIBRARY HEADER
-};
-
-// ****	COMMAND STRING SWITCH MASKS
-// THE FOLLOWING ARE GLOBAL MASKS FOR THE "SWITCH" WORD IN THE ROOT SEGMENT,
-// INDICATING VARIOUS SWITCHES WHICH WERE SPECIFIED IN THE COMMAND STRING.
-enum
-{
-	SW_A =      01,	// ALPHABETIZE LOAD MAP ENTRIES
-	SW_B =      02, // SPECIFY BOTTOM ADRS (N)
-	SW_C =      04, // CONTINUE INPUT LINE
-	SW_E =     010, // EXTEND PROGRAM SECTION (NAME & SIZE)
-	SW_F =     020, // USE FORTRAN LIBRARY "SY:FORLIB.OBJ"
-	SW_I =     040, // INCLUDE SYMBOLS TO BE SEARCHED FROM LIBRARY
-	SW_H =    0100, // LINK TO HIGH ADR (N)
-	SW_R =    0200, // OUTPUT REL FORMAT & STACK SIZE
-	SW_K =    0400, // PUT VALUE (N) IN HEADER BLOCK OF IMAGE FILE
-	SW_S =   01000, // MAXIMUM SYMBOL TABLE SIZE
-	SW_M =   02000, // USER'S STACK ADR (NUMBER OR NAME)
-	SW_T =   04000, // TRANSFER ADR (NUMBER OR NAME)
-	SW_U =  010000, // ROUND SECTION (N POWER OF 2)
-	SW_X =  020000, // DON'T XMIT BITMAP
-	SW_Y =  040000, // START SECTION ON MULTIPLE OF VALUE GIVEN
-	SW_L = 0100000, // OUTPUT FILE IN "LDA" FORMAT
-};
-
-// THE FOLLOWING ARE GLOBAL MASKS FOR THE "SWIT1" WORD IN THE ROOT SEGMENT,
-// INDICATING VARIOUS SWITCHES WHICH WERE SPECIFIED IN THE COMMAND STRING.
-const WORD SW_D = 1; // DUPLICATE SYMBOL
-const WORD SW_J = 2; // GENERATE SEPARATED I-D SPACE .SAV IMAGE
-
-// ****	IDSWIT BIT MASKS
-// THE FOLLOWING ARE BIT ASSIGNMENTS FOR VARIOUS FLAGS IN IDSWIT.
-// IDSWIT IS ONLY USED IF /J IS USED.
-// IDSWIT LOW BYTE IS FOR D-SPACE
-enum
-{
-	D_SWB =  01,	// /B SWITCH FOR D-SPACE
-	D_SWE =	 02,	// /E SWITCH FOR D-SPACE
-	D_SWH =	 04,	// /H SWITCH FOR D-SPACE
-	D_SWU =	010,	// /U SWITCH FOR D-SPACE
-	D_SWY =	020,	// /Y SWITCH FOR D-SPACE
-	D_SWZ =	040,	// /Z SWITCH FOR D-SPACE
-};
-// IDSWIT HI BYTE IS FOR I-SPACE
-enum
-{
-	I_SWB =   0400,	// /B SWITCH FOR I-SPACE
-	I_SWE =  01000,	// /E SWITCH FOR I-SPACE
-	I_SWH =  02000,	// /H SWITCH FOR I-SPACE
-	I_SWU =  04000,	// /U SWITCH FOR I-SPACE
-	I_SWY = 010000,	// /Y SWITCH FOR I-SPACE
-	I_SWZ = 020000,	// /Z SWITCH FOR I-SPACE
-};
-
-// ****	ADDITIONAL FLAG WORD BIT MASKS
-// THE FOLLOWING ARE BIT ASSIGNMENTS FOR VARIOUS FLAGS IN "FLGWD" WORD.
-enum  // THE FOLLOWING ARE BIT ASSIGNMENTS FOR VARIOUS FLAGS IN "FLGWD" WORD.
-{
-	XM_OVR =      01,	// SET IF /V OVERLAYS ARE USED
-	SW_V   =      02,	// SET IF /XM OR /V ON FIRST LINE ONLY
-	HD_EPT =      04,	// SET IF EPT HEADER IS NOT CURRENTLY IN CORE
-	LB_OBJ =     010,	// SET WHEN PROCESSING A LIBRARY FILE
-	AD_LML =     020,	// SET TO ADD TO LML LATER
-	FG_LIB =     040,	// SET WHEN FORLIB OR SYSLIB ENTERED IN SAVESTATUS AREA
-	NO_SYS =    0100,	// SET WHEN SYSLIB NOT FOUND
-	FG_OVR =    0200,	// INDICATE PROGRAM IS OVERLAYED	*** MUST BE BIT 7 ***
-	FG_NWM =    0400,	// SET SO NO WARNING MSG FOR FILE NOT FOUND ON SYSLIB
-	FG_STB =   01000,	// STB FILE REQUESTED
-	FG_XX  =   02000,	// DO NOT DUMP CCB (USED WITH /X SWITCH)
-	FG_TT  =   04000,	// MAP OUTPUT IS TO TT:
-	FG_IP  =  010000,	// /I LIBRARY PASS INDICATOR
-	PA_SS2 = 0100000,	// SET WHEN DOING PASS 2		*** MUST BE BIT 15 ***
-};
-
 struct SaveStatusEntry
 {
 	char	filename[64];
@@ -179,22 +87,6 @@ const DWORD RAD50_ZTABL  = rad50x2("$ZTABL");  // I-D SPACE OVERLAY HANDLER PSEC
 const char* FORLIB = "FORLIB.OBJ";  // FORTRAN LIBRARY FILENAME
 const char* SYSLIB = "SYSLIB.OBJ";  // DEFAULT SYSTEM LIBRARY FILENAME
 
-// OFFSETS INTO JOB'S SYSTEM COMMUNICATION AREA, see LINK1
-enum
-{
-	SysCom_BEGIN  = 040,  // JOB STARTING ADDRESS
-	SysCom_STACK  = 042,  // INITIAL VALUE OF STACK POINTER
-	SysCom_JSW    = 044,  // JOB STATUS WORD
-	SysCom_HIGH   = 050,  // PROGRAM'S HIGHEST AVAILABLE LOCATION(ROOT+/O OVERLAYS)
-	SysCom_ERRBYT = 052,  // MONITOR ERROR INDICATOR
-	SysCom_USERRB = 053,  // SYSTEM USER ERROR BYTE
-	SysCom_RMON   = 054,  // CONTAINS THE START OF THE RESIDENT MONITOR
-	SysCom_IDS    = 060,  // RAD50 IDS - I-D SPACE IDENTIFIER IN I-SPACE CCB
-	SysCom_STOTAB = 064,  // START OF OVERLAY TABLE ($OTABL)
-
-	SysCom_BITMAP = 0360,  // START OF CORE USE BITMAP OF IMAGE FILE
-};
-
 BYTE* OutputBuffer = NULL;
 int OutputBufferSize = 0;
 
@@ -248,7 +140,7 @@ struct tagGlobals
 	GSDentry BEGBLK; // TRANSFER ADDRESS BLOCK (4 WD GSD ENTRY)
 					//   TRANS ADDR OR REL OFFSET FROM PSECT
 
-	GSDentry STKBLK; // USER STACK ADDRESS BLOCK(SYMBOL & VALUE)
+	WORD	STKBLK[3]; // USER STACK ADDRESS BLOCK(SYMBOL & VALUE)
 					// LNKSAV->TEMP 4 WORD STORAGE FOR GSD RECORD
 
 	WORD	HSWVAL;	// /H SWITCH VALUE - I-SPACE
@@ -378,7 +270,7 @@ void print_help()
 {
     printf("\n");
 	//
-    printf("Usage: link11 <input files>\n");
+    printf("Usage: link11 <input files> <options>\n");
 	//TODO
 }
 
@@ -397,7 +289,7 @@ void fatal_error(const char* message, ...)
 
 void initialize()
 {
-	printf("Initialization\n");
+	//printf("Initialization\n");
 
 	memset(&Globals, 0, sizeof(Globals));
 
@@ -417,7 +309,7 @@ void initialize()
 
 void finalize()
 {
-	printf("Finalization\n");
+	//printf("Finalization\n");
 	
 	if (SymbolTable != NULL)
 	{
@@ -432,13 +324,14 @@ void finalize()
 		
 		fclose(sscur->fileobj);
 		sscur->fileobj = NULL;
-		printf("  File closed: %s\n", sscur->filename);
+		//printf("  File closed: %s\n", sscur->filename);
 	}
 
 	if (OutputBuffer != NULL)
 	{
 		free(OutputBuffer);  OutputBuffer = NULL;  OutputBufferSize = 0;
 	}
+
 	if (outfileobj != NULL)
 	{
 		fclose(outfileobj);  outfileobj = NULL;
@@ -487,7 +380,7 @@ void parse_commandline(int argc, char **argv)
 					if (param1 & 1)
 						fatal_error("Invalid /M option value, use even address\n");
 					Globals.SWITCH |= SW_M;
-					Globals.STKBLK.code = param1;
+					Globals.STKBLK[2] = param1;
 					break;
 				// /B - SPECIFY BOTTOM ADR FOR LINK
 				case 'B':
@@ -640,6 +533,8 @@ void parse_commandline(int argc, char **argv)
 		}
 	}
 
+	if (SaveStatusCount == 0)
+		fatal_error("Input file not specified\n");
 }
 
 void symbol_table_enter(int* pindex, DWORD lkname, WORD lkwd)
@@ -814,7 +709,7 @@ void read_files()
 		size_t bytesread = fread(sscur->data, 1, filesize, file);
 		if (bytesread != filesize)
 			fatal_error("ERR2: Failed to read input file %s.\n", sscur->filename);
-		printf("  File read %s, %d bytes.\n", sscur->filename, bytesread);
+		//printf("  File read %s, %d bytes.\n", sscur->filename, bytesread);
 
 		fclose(file);
 		//printf("  File closed: %s\n", sscur->filename);
@@ -890,8 +785,10 @@ void process_pass1_gsd_block(const SaveStatusEntry* sscur, const BYTE* data)
 				break; // WE ALREADY HAVE AN EVEN ONE.  RETURN
 			{
 				DWORD lkname = MAKEDWORD(itemw0, itemw1);
+				WORD lkmsk = ~SY_SEC; // CARE ABOUT SECTION FLG
+				WORD lkwd = SY_SEC; // SECTION NAME LOOKUP IN THE ROOT
 				int index;
-				if (!symbol_table_lookup(lkname, SY_SEC, ~SY_SEC, &index))
+				if (!symbol_table_lookup(lkname, lkwd, lkmsk, &index))
 					fatal_error("ERR31: Transfer address for '%s' undefined or in overlay.\n", buffer);
 				//TODO
 			}
@@ -1079,15 +976,34 @@ void process_pass15()
 
 			if (blocktype != 7 && blocktype != 8)
 				fatal_error("Illegal record type at %06o in %s\n", offset, sscur->filename);
-			if (blocktype == 7)  // See LINK3\LIBRA
+			if (blocktype == 7)  // See LINK3\LIBRA, WE ARE ON PASS 1.5 , SO PROCESS LIBRARIES
 			{
 				printf("    Block type 7 - TITLIB at %06o size %06o\n", offset, blocksize);
 				WORD eptsize = *(WORD*)(data + L_HEAB);
 				printf("      EPT size %06o bytes, %d. records\n", eptsize, (int)(eptsize / 8));
-				//TODO: Test /X switch library flag
+				
+				Globals.SVLML = Globals.STLML; // SAVE START OF ALL LML'S FOR THIS LIB
+				Globals.FLGWD |= LB_OBJ; // IND LIB FILE TO LINKER
+				//TODO: R4 -> 1ST WD OF BUFR & C=0
+				if (Globals.SWITCH & SW_I) // ANY /I MODULES?
+					Globals.FLGWD |= FG_IP; // SET FLAG INDICATING /I PASS FIRST
+				if (Globals.SW_LML) // IS SW.LML SET?
+					Globals.SW_LML |= 0100000; // MAKE SURE BIT IS SET, /I TURNS IT OFF
+				Globals.ESZRBA = *(WORD*)(data + L_HEAB); // SIZE OF EPT IN BYTES
+				Globals.SEGBAS = 0; // SEGBAS->TEMP FOR /X LIB FLAG
+				Globals.ESZRBA = Globals.ESZRBA >> 1; // NOW WORDS
+				if (*(WORD*)(data + L_HX)) // IS /X SWITCH SET IN LIB. HEADER?
+				{
+					Globals.SW_LML &= ~0100000; // NO PREPROCESSING ON /X LIBRARIES
+					Globals.SEGBAS++; // /X LIBRARY ->SEGBAS=1
+					//TODO: WILL  /X EPT FIT IN BUFFER?
+				}
 				data += L_HEPT; offset += L_HEPT;  // Move to 1ST EPT ENTRY
-				//TODO: Resolve undefined symbols using EPT
-				break;  // Skip for now
+				
+				//TODO: Resolve undefined symbols using EPT -- CALL ANYUND
+				//TODO: if we have undefined symbols
+
+				break;
 			}
 			else if (blocktype == 8)
 			{
@@ -1104,6 +1020,8 @@ void process_pass15()
 // Map processing: see LINK4/MAP in source
 void process_pass_map_init()
 {
+	// START PROCESSING FOR MAP, AND Q,U,V,Y SWITCHES
+
 	Globals.SEGBAS = 0; // N VALUE (V:N:M) FOR /V REGION FLAG
 	Globals.VIRSIZ = 0; // SIZE OF THE LARGEST PARTITION IN /V REGION
 	Globals.HIPHYS = 0; // PARTITION EXTENDED ADDR HIGH LIMIT
@@ -1200,6 +1118,8 @@ void process_pass_map_output()
 
 	//TODO: Get ASECT entry
 	//TODO: See LINK5\RESOLV in sources
+
+	//TODO: OUTPUT SECTION NAME, BASE ADR, SIZE & ATTRIBUTES
 
 	//TODO: PRINT UNDEFINED GLOBALS IF ANY, see LINK5\DOUDFS
 	//TODO: Check UNDLST
@@ -1354,14 +1274,14 @@ void process_pass2_init()
 
 	*((WORD*)(OutputBuffer + SysCom_BEGIN)) = Globals.BEGBLK.value; // PROG START ADDR
 
-	if (Globals.STKBLK.symbol != 0)
+	if (Globals.STKBLK[0] != 0)
 	{
 		WORD lkwd = 0; // MUST BE A GLOBAL SYMBOL
 		//TODO: Lookup for the symbol address
 	}
 	else
 	{
-		*((WORD*)(OutputBuffer + SysCom_STACK)) = Globals.STKBLK.value;
+		*((WORD*)(OutputBuffer + SysCom_STACK)) = Globals.STKBLK[2];
 	}
 	//TODO: *((WORD*)(OutputBuffer + SysCom_HIGH)) = ???
 
