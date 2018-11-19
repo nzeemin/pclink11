@@ -2,3 +2,7 @@
 *.user
 *.ncb
 *.suo
+/pdp11link
+/*.OBJ
+/test
+/test11

@@ -23,6 +23,15 @@ const char* unrad50(DWORD data)
     return unrad50buffer;
 }
 
+// Decodes 6 chars of RAD50 into the temp buffer and returns buffer address
+const char* unrad50(WORD loword, WORD hiword)
+{
+    memset(unrad50buffer, 0, sizeof(unrad50buffer));
+    unrad50(loword, unrad50buffer);
+    unrad50(hiword, unrad50buffer + 3);
+    return unrad50buffer;
+}
+
 // Decodes 3 chars of RAD50 into the given buffer
 void unrad50(WORD word, char *cp)
 {

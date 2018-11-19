@@ -752,31 +752,6 @@ void process_pass1_gsd_block(const SaveStatusEntry* sscur, const BYTE* data)
             if (Globals.MODNAM == 0)
                 Globals.MODNAM = MAKEDWORD(itemw0, itemw1);
             break;
-        case 1: // 1 - CSECT NAME, see LINK3\CSECNM
-            printf("      Item '%s' type 1 - CSECT NAME  %06o\n", buffer, itemw3);
-            {
-                DWORD lkname = MAKEDWORD(itemw0, itemw1);
-                WORD lkwd = SY_SEC;
-                WORD lkmsk = ~SY_SEC;
-                if (lkname == 0)  // BLANK .CSECT = .PSECT ,LCL,REL,I,CON,RW
-                {}
-                else if (lkname == RAD50_ABS)  // Case 2: ASECT
-                {
-                    //(SWIT1 & SW_J) ?
-                    // .ASECT = .PSECT . ABS.,GBL,ABS,I,OVR,RW (NON I-D SPACE)
-                    // .ASECT = .PSECT . ABS.,GBL,ABS,D,OVR,RW (I-D SPACE)
-                    itemflags |= 0100 + 4;  // CS$GBL+CS$ALO == GBL,OVR
-                    if (Globals.SWIT1 & SW_J)
-                        itemtype = 0200;  // CS$TYP == D
-                }
-                else  // Case 3: named section
-                {
-                    itemflags |= 0100 + 4 + 040;  // CS$GBL+CS$ALO+CS$REL == GBL,OVR,REL
-                }
-                //TODO: Set flags according to case and process as PSECT
-                goto PSECT;
-            }
-            break;
         case 2: // 2 - ISD ENTRY (IGNORED), see LINK3\ISDNAM
             printf("      Item '%s' type 2 - ISD ENTRY, ignored\n", buffer);
             break;
@@ -791,41 +766,48 @@ void process_pass1_gsd_block(const SaveStatusEntry* sscur, const BYTE* data)
                 int index;
                 if (!symbol_table_lookup(lkname, lkwd, lkmsk, &index))
                     fatal_error("ERR31: Transfer address for '%s' undefined or in overlay.\n", buffer);
+                SymbolTableEntry* entry = SymbolTable + index;
+                printf("        Entry '%s' %06o %06o %06o\n", unrad50(entry->name), entry->flags, entry->value, entry->status);
                 //TODO
 
-                // MUST SCAN CURRENT MODULE TO FIND SIZE CONTRIBUTION TO
-                // TRANSFER ADDR SECTION TO CALCULATE PROPER OFFSET
-                const SaveStatusEntry* sscurtmp = sscur;
-                int offset = 0;
-                while (offset < sscur->filesize)
+                if (entry->value > 0)  // IF CURRENT SIZE IS 0 THEN OK
                 {
-                    WORD blocksize = ((WORD*)data)[1];
-                    WORD blocktype = ((WORD*)data)[2];
-                    if (blocktype == 1)
+                    // MUST SCAN CURRENT MODULE TO FIND SIZE CONTRIBUTION TO
+                    // TRANSFER ADDR SECTION TO CALCULATE PROPER OFFSET
+                    const SaveStatusEntry* sscurtmp = sscur;
+                    int offset = 0;
+                    while (offset < sscur->filesize)
                     {
-                        int itemcounttmp = (blocksize - 6) / 8;
-                        for (int itmp = 0; itmp < itemcounttmp; itmp++)
+                        WORD blocksize = ((WORD*)data)[1];
+                        WORD blocktype = ((WORD*)data)[2];
+                        if (blocktype == 1)
                         {
-                            const WORD* itemwtmp = (const WORD*)(data + 6 + 8 * itmp);
-                            char buffertmp[7];  memset(buffertmp, 0, sizeof(buffertmp));
-                            unrad50(itemwtmp[0], buffertmp);
-                            unrad50(itemwtmp[1], buffertmp + 3);
-                            int itemtypetmp = (itemwtmp[2] >> 8) & 0xff;
-                            if ((itemtypetmp == 1/*CSECT*/ || itemtypetmp == 5/*PSECT*/) &&
-                                itemw[0] == itemwtmp[0] && itemw[1] == itemwtmp[1])  // FOUND THE PROPER SECTION
+                            int itemcounttmp = (blocksize - 6) / 8;
+                            for (int itmp = 0; itmp < itemcounttmp; itmp++)
                             {
-                                WORD itemvaltmp = itemwtmp[3];
-                                WORD sectsize = (itemvaltmp + 1) & ~1;
-                                printf("        Item '%s' type %d - CSECT or PSECT size %06o\n", buffertmp, itemtypetmp, sectsize);
-                                //TODO: UPDATE OFFSET VALUE
-                                //TODO
+                                const WORD* itemwtmp = (const WORD*)(data + 6 + 8 * itmp);
+                                int itemtypetmp = (itemwtmp[2] >> 8) & 0xff;
+                                if ((itemtypetmp == 1/*CSECT*/ || itemtypetmp == 5/*PSECT*/) &&
+                                    itemw[0] == itemwtmp[0] && itemw[1] == itemwtmp[1])  // FOUND THE PROPER SECTION
+                                {
+                                    WORD itemvaltmp = itemwtmp[3];
+                                    WORD sectsize = (itemvaltmp + 1) & ~1;  // ROUND SECTION SIZE TO WORD BOUNDARY
+                                    printf("        Item '%s' type %d - CSECT or PSECT size %06o\n", unrad50(itemwtmp[0], itemwtmp[1]), itemtypetmp, sectsize);
+                                    //TODO: UPDATE OFFSET VALUE
+                                    //TODO
+                                }
                             }
                         }
+                        data += blocksize; offset += blocksize;
+                        data += 1; offset += 1;  // Skip checksum
                     }
-                    data += blocksize; offset += blocksize;
-                    data += 1; offset += 1;  // Skip checksum
                 }
-                //TODO
+
+                // See LINK3\TADDR\100$ in source
+                Globals.BEGBLK.symbol = entry->name;
+                Globals.BEGBLK.flags = entry->flags & 0xff;
+                Globals.BEGBLK.code = (entry->flags << 8) & 0xff;
+                Globals.BEGBLK.value = entry->value;
             }
             break;
         case 4: // 4 - GLOBAL SYMBOL, see LINK3\SYMNAM
@@ -849,6 +831,31 @@ void process_pass1_gsd_block(const SaveStatusEntry* sscur, const BYTE* data)
                 }
             }
             break;
+        case 1: // 1 - CSECT NAME, see LINK3\CSECNM
+            printf("      Item '%s' type 1 - CSECT NAME  %06o\n", buffer, itemw3);
+            {
+                DWORD lkname = MAKEDWORD(itemw0, itemw1);
+                WORD lkwd = SY_SEC;
+                WORD lkmsk = ~SY_SEC;
+                if (lkname == 0)  // BLANK .CSECT = .PSECT ,LCL,REL,I,CON,RW
+                {
+                }
+                else if (lkname == RAD50_ABS)  // Case 2: ASECT
+                {
+                    //(SWIT1 & SW_J) ?
+                    // .ASECT = .PSECT . ABS.,GBL,ABS,I,OVR,RW (NON I-D SPACE)
+                    // .ASECT = .PSECT . ABS.,GBL,ABS,D,OVR,RW (I-D SPACE)
+                    itemflags |= 0100 + 4;  // CS$GBL+CS$ALO == GBL,OVR
+                    if (Globals.SWIT1 & SW_J)
+                        itemtype = 0200;  // CS$TYP == D
+                }
+                else  // Case 3: named section
+                {
+                    itemflags |= 0100 + 4 + 040;  // CS$GBL+CS$ALO+CS$REL == GBL,OVR,REL
+                }
+                //TODO: Set flags according to case and process as PSECT
+            }
+            goto PSECT;
         case 5: // 5 - PSECT NAME; see LINK3\PSECNM
             printf("      Item '%s' type 5 - PSECT NAME flags %03o maxlen %06o\n", buffer, itemflags, itemw3);
 PSECT:
@@ -873,12 +880,12 @@ PSECT:
                 if (itemflags & 1/*CS$SAV*/) // DOES PSECT HAVE SAV ATTRIBUTE?
                     entry->status |= 1/*CS$SAV*/; // INDICATE SAV ATTRIBUTE IN PSECT ENTRY
                 itemflags &= ~(010/*CS$NU*/ | 2/*CS$LIB*/ | 1/*CS$SAV*/); // ALL UNSUPPORTED FLAG BITS
-                //TODO: PTR TO SYM TBL ENTRY
+                Globals.CSECT = index;  // PTR TO SYM TBL ENTRY
                 if (isnewentry)
                 {
                     //TODO: Put the entry to the list
                     entry->flags |= ((itemtype << 8) | itemflags);
-                    //TODO: LENGTH=0 INITIALLY FOR NEW SECTION
+                    entry->value = 0;  // LENGTH=0 INITIALLY FOR NEW SECTION
                 }
                 else // AT THIS POINT SYMBOL WAS ALREADY ENTERED INTO SYMBOL TBL; see LINK3\OLDPCT
                 {
@@ -908,6 +915,8 @@ PSECT:
                     if (pSect != NULL)
                         pSect->status = index;  // set link to the new segment
                 }
+
+                entry->value += itemw3; //TODO: very primitive version, depends on flags
 
                 Globals.BASE = entry->value;
             }
@@ -1210,6 +1219,8 @@ void process_pass_map_output()
     WORD blockcount = (totalsize + 511) / 512;
     printf("  Total size %06o = %u. bytes, %u. blocks\n", totalsize, totalsize, blockcount);
 
+    //TODO: OUTPUT SYMBOL NAME & VALUE
+
     //TODO: PRINT UNDEFINED GLOBALS IF ANY, see LINK5\DOUDFS
     //TODO: Check UNDLST
 
@@ -1342,7 +1353,7 @@ void process_pass2_init()
     printf("Pass 2 initialization\n");
 
     // Dump SymbolTable
-    printf("  SymbolTable count=%d.\n", SymbolTableCount);
+    printf("  SymbolTable count = %d.\n", SymbolTableCount);
     for (int i = 0; i < SymbolTableSize; i++)
     {
         const SymbolTableEntry* entry = SymbolTable + i;

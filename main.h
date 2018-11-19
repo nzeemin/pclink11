@@ -132,6 +132,7 @@ enum
 
 
 const char* unrad50(DWORD data);
+const char* unrad50(WORD loword, WORD hiword);
 void unrad50(WORD word, char *cp);
 
 WORD rad50(const char *cp, const char **endp);
