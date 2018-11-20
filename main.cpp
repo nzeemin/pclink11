@@ -47,9 +47,9 @@ struct GSDentry
 struct SymbolTableEntry
 {
     DWORD	name;		// 2 WD RAD50 NAME
-    WORD	flags;
-    WORD	value;
-    WORD	status;
+    WORD	flagseg;    // PSECT FLAGS !  SEG #
+    WORD	value;      // VALUE WORD
+    WORD	status;     // A!B!C!D!  ENTRY # PTR
 };
 
 SymbolTableEntry* SymbolTable = NULL;
@@ -568,7 +568,7 @@ void symbol_table_enter(int* pindex, DWORD lkname, WORD lkwd)
     // Save the entry
     SymbolTableCount++;
     entry->name = lkname;
-    entry->flags = lkwd;
+    entry->flagseg = lkwd;
     *pindex = index;
 }
 
@@ -618,7 +618,7 @@ bool symbol_table_search_routine(DWORD lkname, WORD lkwd, WORD lkmsk, WORD dupms
         if (entry->name = lkname)
         {
             // AT THIS POINT HAVE FOUND A MATCHING SYMBOL NAME, NOW MUST CHECK FOR MATCHING ATTRIBUTES.
-            WORD flagsmasked = (entry->flags & ~lkmsk);
+            WORD flagsmasked = (entry->flagseg & ~lkmsk);
             if (flagsmasked == lkwd)
             {
                 if (dupmsk == 0 || (entry->status & SY_DUP) == 0)
@@ -767,7 +767,7 @@ void process_pass1_gsd_block(const SaveStatusEntry* sscur, const BYTE* data)
                 if (!symbol_table_lookup(lkname, lkwd, lkmsk, &index))
                     fatal_error("ERR31: Transfer address for '%s' undefined or in overlay.\n", buffer);
                 SymbolTableEntry* entry = SymbolTable + index;
-                printf("        Entry '%s' %06o %06o %06o\n", unrad50(entry->name), entry->flags, entry->value, entry->status);
+                printf("        Entry '%s' %06o %06o %06o\n", unrad50(entry->name), entry->flagseg, entry->value, entry->status);
                 //TODO
 
                 if (entry->value > 0)  // IF CURRENT SIZE IS 0 THEN OK
@@ -805,8 +805,8 @@ void process_pass1_gsd_block(const SaveStatusEntry* sscur, const BYTE* data)
 
                 // See LINK3\TADDR\100$ in source
                 Globals.BEGBLK.symbol = entry->name;
-                Globals.BEGBLK.flags = entry->flags & 0xff;
-                Globals.BEGBLK.code = (entry->flags << 8) & 0xff;
+                Globals.BEGBLK.flags = entry->flagseg & 0xff;
+                Globals.BEGBLK.code = (entry->flagseg << 8) & 0xff;
                 Globals.BEGBLK.value = entry->value;
             }
             break;
@@ -884,12 +884,12 @@ PSECT:
                 if (isnewentry)
                 {
                     //TODO: Put the entry to the list
-                    entry->flags |= ((itemtype << 8) | itemflags);
+                    entry->flagseg |= (itemflags << 8);
                     entry->value = 0;  // LENGTH=0 INITIALLY FOR NEW SECTION
                 }
                 else // AT THIS POINT SYMBOL WAS ALREADY ENTERED INTO SYMBOL TBL; see LINK3\OLDPCT
                 {
-                    WORD R2 = (entry->flags & 0377) // GET PSECT FLAG BITS IN R2
+                    WORD R2 = (entry->flagseg & 0377) // GET PSECT FLAG BITS IN R2
                             & ~(010/*CS$NU*/ | 2/*CS$LIB*/ | 1/*CS$SAV*/); // GET RID OF UNUSED FLAG BITS
                     if (Globals.SWIT1 & SW_J) // ARE WE PROCESSING I-D SPACE?
                     {
@@ -1111,8 +1111,6 @@ void process_pass_map_init()
     //TODO: ROUND ALL XM SEGMENTS TO 32. WORDS
 }
 
-static const char LINE2[] = "             \tTitle:\t";
-static const char TTL[] = "\tIdent:\t";
 static const char LINE4[] = "Section  Addr\tSize";
 static const char MTITL4[] = "\tGlobal\tValue";
 static const char* wday_name[] =
@@ -1153,8 +1151,8 @@ void process_pass_map_output()
 
     // OUTPUT THE HEADERS
 
-    fprintf(mapfileobj, "PCLINK11  Vxx.xx");
-    fprintf(mapfileobj, "\tLoad map \t");
+    fprintf(mapfileobj, "PCLINK11  Vxx.xx");  //TODO: program version number
+    fprintf(mapfileobj, "\tLoad Map \t");
 
     time_t curtime;  time(&curtime); // DETERMINE DATE & TIME
     struct tm * timeptr = localtime(&curtime);
@@ -1163,18 +1161,21 @@ void process_pass_map_output()
             timeptr->tm_mday, mon_name[timeptr->tm_mon], 1900 + timeptr->tm_year,
             timeptr->tm_hour, timeptr->tm_min);
 
-    //TODO: Print output file name to LINE2
-    fprintf(mapfileobj, LINE2);
+    char savname[64];
+    strcpy_s(savname, SaveStatusArea[0].filename);
+    char* pdot = strrchr(savname, '.');
+    if (pdot != NULL) *pdot = 0;
+    char bufsavname[14];
+    fprintf(mapfileobj, "%-8s .SAV", savname);
+
+    fprintf(mapfileobj, "\tTitle:\t");
     if (Globals.MODNAM != 0)
     {
         fprintf(mapfileobj, unrad50(Globals.MODNAM));
     }
-    fprintf(mapfileobj, TTL);
-    if (Globals.IDENT != 0)
-    {
-        fprintf(mapfileobj, unrad50(Globals.IDENT));
-    }
-    fprintf(mapfileobj, "\n\n");
+    fprintf(mapfileobj, "\tIdent:\t");
+    fprintf(mapfileobj, unrad50(Globals.IDENT));
+    fprintf(mapfileobj, "\t\n\n");
     fprintf(mapfileobj, LINE4);
     printf("  Section  Addr   Size\n");
     for (BYTE i = 0; i < Globals.NUMCOL; i++)
@@ -1184,35 +1185,39 @@ void process_pass_map_output()
     // Show ASECT entry, see LINK5\RESOLV in sources
     WORD sectsize = Globals.DBOTTM;
     WORD baseaddr = 0; // ASECT BASE ADDRESS IS 0
-    SymbolTableEntry* pCurrEntry = ASECTentry;
-    while (pCurrEntry != NULL)
+    SymbolTableEntry* entry = ASECTentry;
+    while (entry != NULL)
     {
-        pCurrEntry->value = baseaddr;
+        entry->value = baseaddr;
+
         // OUTPUT SECTION NAME, BASE ADR, SIZE & ATTRIBUTES
-        const char* sectaccess = (pCurrEntry->flags & 0020) ? "RO" : "RW";
-        const char* secttypedi = (pCurrEntry->flags & 0200) ? "D" : "I";
-        const char* sectscope = (pCurrEntry->flags & 0100) ? "GBL" : "LCL";
-        const char* sectreloc = (pCurrEntry->flags & 0040) ? "REL" : "ABS";
-        const char* sectalloc = (pCurrEntry->flags & 0004) ? "OVR" : "CON";
-        //TODO: SAV
-        fprintf(mapfileobj, " %s\t %06o\t%06o = %u. words  (%s,%s,%s,%s,%s)\n",
-                unrad50(pCurrEntry->name), baseaddr, sectsize, sectsize / 2,
-                sectaccess, secttypedi, sectscope, sectreloc, sectalloc);
-        printf("   %s  %06o %06o = %u. words  (%s,%s,%s,%s,%s)\n",
-               unrad50(pCurrEntry->name), baseaddr, sectsize, sectsize / 2,
-               sectaccess, secttypedi, sectscope, sectreloc, sectalloc);
+        BYTE entryflags = (entry->flagseg) >> 8;
+        char bufsize[20];
+        sprintf_s(bufsize, "%06o = %u.", sectsize, sectsize / 2);
+        const char* sectaccess = (entryflags & 0020) ? "RO" : "RW";
+        const char* secttypedi = (entryflags & 0200) ? "D" : "I";
+        const char* sectscope = (entryflags & 0100) ? "GBL" : "LCL";
+        const char* sectsav = ((entryflags & 0100) && (entryflags & 010000)) ? ",SAV" : "";
+        const char* sectreloc = (entryflags & 0040) ? "REL" : "ABS";
+        const char* sectalloc = (entryflags & 0004) ? "OVR" : "CON";
+        fprintf(mapfileobj, " %s\t %06o\t%-16s words  (%s,%s,%s%s,%s,%s)\n",
+                unrad50(entry->name), baseaddr, bufsize,
+                sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
+        printf("  '%s' %06o %-16s words  (%s,%s,%s%s,%s,%s)\n",
+               unrad50(entry->name), baseaddr, bufsize,
+               sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
 
         // Next section entry index should be in status field
-        if ((pCurrEntry->status & ~0170000) == 0)
+        if ((entry->status & ~0170000) == 0)
         {
-            pCurrEntry = NULL;
+            entry = NULL;
             break;
         }
-        pCurrEntry = SymbolTable + (pCurrEntry->status & ~0170000);
+        entry = SymbolTable + (entry->status & ~0170000);
         //TODO: Check NEW SECTION?
         //TODO: Calculate new baseaddr and sectsize, see LINK5\RES1
         baseaddr += sectsize;
-        sectsize = pCurrEntry->value & ~1;
+        sectsize = (entry->value + 1) & ~1;
     }
     //TODO: see LINK5\POSTN\10$ in source
     WORD totalsize = baseaddr + sectsize;
@@ -1225,22 +1230,26 @@ void process_pass_map_output()
     //TODO: Check UNDLST
 
     // OUTPUT TRANSFER ADR & CHECK ITS VALIDITY, see LINK5\DOTADR
-    WORD lkmsk = ~(SY_SEC + SY_SEG);
-    WORD segnum = 0;
-    WORD lkwd = SY_SEC;
-    if (Globals.BEGBLK.code == 4)
-        lkwd = 0;
+    WORD lkmsk = ~(SY_SEC + SY_SEG);  // LOOK AT SECTION & SEGMENT # BITS
+    WORD segnum = 0;  // MUST BE IN ROOT SEGMENT
+    WORD lkwd = SY_SEC;  // ASSUME SECTION NAME LOOKUP
+    if (Globals.BEGBLK.code == 4)  // IS SYMBOL A GLOBAL?
+        lkwd = 0;  // GLOBAL SYM IN SEGMENT 0
     int index;
     bool found = symbol_table_lookup(Globals.BEGBLK.symbol, lkwd, lkmsk, &index);
-    //if (!found)
-    //	fatal_error("ERR31: Transfer address undefined or in overlay\n");
-    SymbolTableEntry* entry = SymbolTable + index;
+    if (!found)
+        fatal_error("ERR31: Transfer address undefined or in overlay\n");
+    SymbolTableEntry* entrybeg = SymbolTable + index;
+
     //TODO: Calculate transfer address
-    WORD taddr = 0;
+    WORD taddr = entrybeg->value;
     //TODO: Calculate high limit
-    WORD highlim = 0;
-    fprintf(mapfileobj, "\nTransfer address = %06o, High limit = %06o = %d. words\n", taddr, highlim, highlim);
-    printf("  Transfer address = %06o, High limit = %06o = %d. words\n", taddr, highlim, highlim);
+    WORD highlim = totalsize - 2; //Globals.HGHLIM;
+
+    char bufhlim[20];
+    sprintf_s(bufhlim, "%06o = %u.", highlim, highlim / 2);
+    fprintf(mapfileobj, "\nTransfer address = %06o, High limit = %-16s words\n", taddr, bufhlim);
+    printf("  Transfer address = %06o, High limit = %-16s words\n", taddr, bufhlim);
 
     fclose(mapfileobj);  mapfileobj = NULL;
 
@@ -1359,7 +1368,7 @@ void process_pass2_init()
         const SymbolTableEntry* entry = SymbolTable + i;
         if (entry->name == 0)
             continue;
-        printf("    '%s' %06o %06o %06o\n", unrad50(entry->name), entry->flags, entry->value, entry->status);
+        printf("    '%s' %06o %06o %06o\n", unrad50(entry->name), entry->flagseg, entry->value, entry->status);
     }
 
     // Allocate space for .SAV file image
