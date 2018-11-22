@@ -967,7 +967,8 @@ PSECT:
                 Globals.CSECT = index;  // PTR TO SYM TBL ENTRY
                 if (isnewentry)
                 {
-                    //TODO: Put the entry to the list
+                    //TODO: SET SEGMENT # INDEPEND. OF LCL OR GBL
+                    //TODO: CALL GEN0  ;CREATE FORWARD ENTRY # PTR TO NEW NODE
                     entry->flagseg |= (itemflags << 8);
                     entry->value = 0;  // LENGTH=0 INITIALLY FOR NEW SECTION
                 }
@@ -983,7 +984,8 @@ PSECT:
                         fatal_error("ERR10: Conflicting section attributes");
                 }
 
-                //TODO: PLOOP
+                // PLOOP
+                //TODO: CALL CHKRT
                 if (lkname == RAD50_ABS)
                     ASECTentry = entry;
                 else
@@ -1150,10 +1152,22 @@ void process_pass15()
                 }
                 data += L_HEPT; offset += L_HEPT;  // Move to 1ST EPT ENTRY
 
-                //TODO: Resolve undefined symbols using EPT -- CALL ANYUND
+                // Resolve undefined symbols using EPT
                 if (is_any_undefined())
                 {
-                    //TODO: if we have undefined symbols
+                    int index = Globals.UNDLST;  // GET A WEAK SYMBOL FROM THE UNDEFINED SYMBOL TABLE LIST
+                    while (index > 0)
+                    {
+                        SymbolTableEntry* entry = SymbolTable + index;
+                        if (entry->status & SY_WK)  // IS THIS A WEAK SYMBOL?
+                        {
+                            //TODO: WE HAVE A WEAK SYMBOL;  NOW DEFINE IT WITH ABS VALUE OF 0
+                            //TODO: CSECT = ASECT;  // ALL WEAK SYMBOLS GO IN . ABS. PSECT
+                            Globals.BASE = 0;
+                            //TODO: CALL DEFREF
+                        }
+                        index = entry->value & 07777;
+                    }
                 }
 
                 break;
@@ -1315,12 +1329,12 @@ void process_pass_map_output()
                sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
 
         // Next section entry index should be in status field
-        if ((entry->status & ~0170000) == 0)
+        if ((entry->status & 07777) == 0)
         {
             entry = NULL;
             break;
         }
-        entry = SymbolTable + (entry->status & ~0170000);
+        entry = SymbolTable + (entry->status & 07777);
         //TODO: Check NEW SECTION?
         //TODO: Calculate new baseaddr and sectsize, see LINK5\RES1
         baseaddr += sectsize;
@@ -1472,8 +1486,11 @@ void print_symbol_table()
         if (entry->name == 0)
             continue;
         printf("    %06o '%s' %06o %06o %06o  ", i, unrad50(entry->name), entry->flagseg, entry->value, entry->status);
+        if (entry->flagseg & SY_SEC) printf("SECT ");
         if (entry->status & SY_UDF) printf("UNDEF ");
         if (entry->status & SY_IND) printf("IND ");
+        if ((entry->flagseg & SY_SEC) == 0 && (entry->status & SY_WK)) printf("WEAK ");
+        if ((entry->flagseg & SY_SEC) && (entry->status & SY_SAV)) printf("SAV ");
         printf("\n");
     }
     printf("  UNDLST = %06o\n", Globals.UNDLST);
