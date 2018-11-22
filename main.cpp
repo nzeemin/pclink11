@@ -401,26 +401,39 @@ void parse_commandline(int argc, char **argv)
                     // /U - ROUND SECTION
                 case 'U':
                     result = sscanf(cur, ":%ho:%ho", &param1, &param2);
+                    Globals.SWITCH |= SW_U;
+                    //Globals.TMPIDD = D.SWU;
+                    //Globals.TMPIDI = I.SWU;
                     //TODO
                     break;
                     // /E - EXTEND SECTION
                 case 'E':
                     result = sscanf(cur, ":%ho:%ho", &param1, &param2);
+                    Globals.SWITCH |= SW_E;
+                    //Globals.TMPIDD = D.SWE;
+                    //Globals.TMPIDI = I.SWE;
                     //TODO
                     break;
                     // /Y - START SECTION ON MULTIPLE OF VALUE
                 case 'Y':
                     result = sscanf(cur, ":%ho:%ho", &param1, &param2);
+                    Globals.SWITCH |= SW_Y;
+                    //Globals.TMPIDD = D.SWY;
+                    //Globals.TMPIDI = I.SWY;
                     //TODO
                     break;
                     // /H - SPECIFY TOP ADR FOR LINK
                 case 'H':
                     result = sscanf(cur, ":%ho:%ho", &param1, &param2);
+                    Globals.SWITCH |= SW_H;
+                    //Globals.TMPIDD = D.SWH;
+                    //Globals.TMPIDI = I.SWH;
                     //TODO
                     break;
                     // /K - SPECIFY MINIMUM SIZE
                 case 'K':
                     result = sscanf(cur, ":%ho", &param1);
+                    Globals.SWITCH |= SW_K;
                     //TODO
                     break;
                     // /P:N  SIZE OF LML TABLE
@@ -431,11 +444,14 @@ void parse_commandline(int argc, char **argv)
                     // /Z - ZERO UNFILLED LOCATIONS
                 case 'Z':
                     result = sscanf(cur, ":%ho:%ho", &param1, &param2);
+                    //Globals.TMPIDD = D.SWZ;
+                    //Globals.TMPIDI = I.SWZ;
                     //TODO
                     break;
                     // /R - INDICATE FOREGROUND LINK
                 case 'R':
                     result = sscanf(cur, ":%ho", &param1);
+                    Globals.SWITCH |= SW_R;
                     //TODO
                     break;
                     // /XM, OR /V ON 1ST LINE
@@ -565,7 +581,7 @@ void symbol_table_enter(int* pindex, DWORD lkname, WORD lkwd)
             index = 0;
     }
 
-    //printf("        Saving entry: index %4d name '%s'\n", index, unrad50(lkname));
+    //printf("        Saving entry: index %4d name '%s' segment %d\n", index, unrad50(lkname), Globals.SEGNUM);
 
     if (lkname == 0)
         lkname = (Globals.SEGNUM + 1) << 2;  // USE SEGMENT # FOR BLANK SECTION NAME
@@ -597,6 +613,7 @@ void symbol_table_add_undefined(int index)
 
     SymbolTableEntry* entry = SymbolTable + index;
     entry->status |= SY_UDF;  // MAKE CUR SYM UNDEFINED
+    entry->flagseg = (entry->flagseg & ~SY_SEG) | Globals.SEGNUM;  // SET SEGMENT # WHERE INITIAL REF
     entry->value = Globals.UNDLST;
 
     Globals.UNDLST = index;
@@ -789,6 +806,23 @@ void pass1_force0(const SymbolTableEntry* entry)
     printf("DUPLICATE SYMBOL \"%s\" IS FORCED TO THE ROOT\n", entry->name);
 }
 
+void pass1_insert_entry_into_ordered_list(int index, SymbolTableEntry* entry, bool absrel)
+{
+    SymbolTableEntry* sectentry = ASECTentry;
+    if (Globals.CSECT > 0)
+    {
+        sectentry = SymbolTable + Globals.CSECT;
+        if (absrel && (sectentry->flagseg & (040 << 8)) != 0)
+            sectentry = ASECTentry;
+    }
+    assert(sectentry != NULL);
+
+    //TODO: implement proper insertion
+    int nextindex = sectentry->status & 07777;
+    sectentry->status = (sectentry->status & 0170000) | index;
+    entry->status = (entry->status & 0170000) | nextindex;
+}
+
 void process_pass1_gsd_block(const SaveStatusEntry* sscur, const BYTE* data)
 {
     assert(data != NULL);
@@ -882,35 +916,72 @@ void process_pass1_gsd_block(const SaveStatusEntry* sscur, const BYTE* data)
                 DWORD lkname = MAKEDWORD(itemw0, itemw1);
                 WORD lkwd = 0;
                 WORD lkmsk = ~SY_SEC;
-                //TODO: IS SYMBOL DEFINED HERE?
                 int index;
                 bool found;
-                if (Globals.SEGNUM == 0) // REFERENCE FROM ROOT?
+                if (itemw2 & 010/*SY$DEF*/)  // IS SYMBOL DEFINED HERE?
                 {
-                    found = symbol_table_dlooke(lkname, lkwd, lkmsk, &index);
-                    SymbolTableEntry* entry = SymbolTable + index;
-
-                    if (entry->status & SY_DUP)  // IS IT A DUP SYMBOL?
+                    if (Globals.SEGNUM == 0) // ROOT DEF?
                     {
-                        if ((entry->status & SY_UDF) == 0)  // IS SYMBOL DEFINED?
+                        found = symbol_table_dlooke(lkname, lkwd, lkmsk, &index);
+                        SymbolTableEntry* entry = SymbolTable + index;
+                        if (entry->status & SY_DUP)  // IS IT A DUP SYMBOL?
                         {
                             symbol_table_delete(index);  // DELETE ALL OTHER COPIES OF SYMBOL
-                            pass1_force0(entry);
-                        }
-                        else
-                        {
-                            entry->status |= SY_IND;  // EXT. REF.
+                            fatal_error("ERR70: Duplicate symbol '%s' is defined in non-library", buffer);
                         }
                     }
+                    else  // NOT ROOT, NORMAL LOOKUP
+                    {
+                        found = symbol_table_looke(lkname, lkwd, lkmsk, &index);
+                    }
+                    // LINK3\SYMNAM\100$
+                    if (!found)  // LINK3\SYMNAM\140$
+                    {
+                        SymbolTableEntry* entry = SymbolTable + index;
+                        entry->flagseg = (entry->flagseg & ~SY_SEG) | Globals.SEGNUM;
+                        // LINK3\SYMV
+                        entry->value = itemw3 + Globals.BASE;
+                        pass1_insert_entry_into_ordered_list(index, entry, (itemw2 & 040) == 0);
+                        //TODO: ORDER
+                        //TODO: ALPHA
+                    }
+                    else  // LINK3\DEFREF
+                    {
+                        //TODO
+                    }
                 }
-                else // NOT ROOT.  NORMAL LOOKUP
+                else  // Symbol referenced here, not defined here
                 {
-                    found = symbol_table_looke(lkname, lkwd, lkmsk, &index);
-                }
-                // LINK3\DOREF
-                if (!found)
-                {
-                    symbol_table_add_undefined(index);
+                    if (Globals.SEGNUM == 0) // REFERENCE FROM ROOT?
+                    {
+                        found = symbol_table_dlooke(lkname, lkwd, lkmsk, &index);
+                        SymbolTableEntry* entry = SymbolTable + index;
+                        if (entry->status & SY_DUP)  // IS IT A DUP SYMBOL?
+                        {
+                            if ((entry->status & SY_UDF) == 0)  // IS SYMBOL DEFINED?
+                            {
+                                symbol_table_delete(index);  // DELETE ALL OTHER COPIES OF SYMBOL
+                                pass1_force0(entry);
+                            }
+                            else
+                            {
+                                entry->status |= SY_IND;  // EXT. REF.
+                            }
+                        }
+                    }
+                    else // NOT ROOT, NORMAL LOOKUP
+                    {
+                        found = symbol_table_looke(lkname, lkwd, lkmsk, &index);
+                    }
+                    // LINK3\DOREF
+                    if (!found)
+                    {
+                        symbol_table_add_undefined(index);
+                    }
+                    else
+                    {
+                        //TODO
+                    }
                 }
                 //TODO
             }
@@ -994,17 +1065,17 @@ PSECT:
                     while (true)  // find section chain end
                     {
                         if (pSect == NULL) break;
-                        if ((pSect->status & ~0170000) == 0)
+                        if ((pSect->status & 07777) == 0)
                             break;
                         pSect = SymbolTable + (pSect->status & ~0170000);
                     }
                     if (pSect != NULL)
-                        pSect->status = index;  // set link to the new segment
+                        pSect->status |= index;  // set link to the new segment
                 }
 
                 entry->value += itemw3; //TODO: very primitive version, depends on flags
 
-                Globals.BASE = entry->value;
+                Globals.BASE = 0; //TODO
             }
             break;
         case 6: // 6 - IDENT DEFINITION; see LINK3\PGMIDN in source
@@ -1227,14 +1298,17 @@ void print_undefined_globals()
     int index = Globals.UNDLST;
     if (index == 0)
         return;
-    printf("  Undefined globals:");
+    printf("  Undefined globals:\n  ");
     fprintf(mapfileobj, "\nUndefined globals:\n");
+    int count = 0;
     while (index != 0)
     {
+        if (count > 0 && count % 8 == 0) printf("\n  ");
         SymbolTableEntry* entry = SymbolTable + index;
         printf(" '%s'", unrad50(entry->name));
         fprintf(mapfileobj, "%s\n", unrad50(entry->name));
         index = entry->value;
+        count++;
     }
     printf("\n");
 }
@@ -1297,7 +1371,7 @@ void process_pass_map_output()
     fprintf(mapfileobj, unrad50(Globals.IDENT));
     fprintf(mapfileobj, "\t\n\n");
     fprintf(mapfileobj, LINE4);
-    printf("  Section  Addr   Size\n");
+    printf("  Section  Addr   Size    Global  Value   Global  Value   Global  Value\n");
     for (BYTE i = 0; i < Globals.NUMCOL; i++)
         fprintf(mapfileobj, MTITL4);
     fprintf(mapfileobj, "\n\n");
@@ -1306,39 +1380,76 @@ void process_pass_map_output()
     WORD sectsize = Globals.DBOTTM;
     WORD baseaddr = 0; // ASECT BASE ADDRESS IS 0
     SymbolTableEntry* entry = ASECTentry;
+    int tabcount = 0;
     while (entry != NULL)
     {
-        entry->value = baseaddr;
+        if (entry->flagseg & SY_SEC)
+        {
+            entry->value = baseaddr;
 
-        // OUTPUT SECTION NAME, BASE ADR, SIZE & ATTRIBUTES
-        BYTE entryflags = (entry->flagseg) >> 8;
-        char bufsize[20];
-        sprintf_s(bufsize, "%06o = %u.", sectsize, sectsize / 2);
-        const char* sectaccess = (entryflags & 0020) ? "RO" : "RW";
-        const char* secttypedi = (entryflags & 0200) ? "D" : "I";
-        const char* sectscope = (entryflags & 0100) ? "GBL" : "LCL";
-        const char* sectsav = ((entryflags & 0100) && (entryflags & 010000)) ? ",SAV" : "";
-        const char* sectreloc = (entryflags & 0040) ? "REL" : "ABS";
-        const char* sectalloc = (entryflags & 0004) ? "OVR" : "CON";
-        const char* sectname = (entry->name & 03100) ? unrad50(entry->name) : "      ";
-        fprintf(mapfileobj, " %s\t %06o\t%-16s words  (%s,%s,%s%s,%s,%s)\n",
+            if (tabcount > 0)
+            {
+                fprintf(mapfileobj, "\n");
+                printf("\n");
+                tabcount = 0;
+            }
+            // OUTPUT SECTION NAME, BASE ADR, SIZE & ATTRIBUTES
+            BYTE entryflags = (entry->flagseg) >> 8;
+            char bufsize[20];
+            sprintf_s(bufsize, "%06o = %u.", sectsize, sectsize / 2);
+            const char* sectaccess = (entryflags & 0020) ? "RO" : "RW";
+            const char* secttypedi = (entryflags & 0200) ? "D" : "I";
+            const char* sectscope = (entryflags & 0100) ? "GBL" : "LCL";
+            const char* sectsav = ((entryflags & 0100) && (entryflags & 010000)) ? ",SAV" : "";
+            const char* sectreloc = (entryflags & 0040) ? "REL" : "ABS";
+            const char* sectalloc = (entryflags & 0004) ? "OVR" : "CON";
+            const char* sectname = (entry->name & 03100) ? unrad50(entry->name) : "      ";
+            fprintf(mapfileobj, " %s\t %06o\t%-16s words  (%s,%s,%s%s,%s,%s)\n",
                 sectname, baseaddr, bufsize,
                 sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
-        printf("  '%s' %06o %-16s words  (%s,%s,%s%s,%s,%s)\n",
-               sectname, baseaddr, bufsize,
-               sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
+            printf("  '%s' %06o %-16s words  (%s,%s,%s%s,%s,%s)\n",
+                sectname, baseaddr, bufsize,
+                sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
+        }
+        else  // OUTPUT SYMBOL NAME & VALUE, see LINK5\OUTSYM
+        {
+            entry->value += baseaddr; //TODO
 
+            if (tabcount == 0)
+            {
+                fprintf(mapfileobj, "\t\t");
+                printf("                        ");
+            }
+            fprintf(mapfileobj, "\t%s\t%06o", unrad50(entry->name), entry->value);
+            printf("  %s  %06o", unrad50(entry->name), entry->value);
+            tabcount++;
+            if (tabcount >= 3)
+            {
+                fprintf(mapfileobj, "\n");
+                printf("\n");
+                tabcount = 0;
+            }
+        }
         // Next section entry index should be in status field
         if ((entry->status & 07777) == 0)
         {
             entry = NULL;
+            if (tabcount > 0)
+            {
+                fprintf(mapfileobj, "\n");
+                printf("\n");
+            }
             break;
         }
         entry = SymbolTable + (entry->status & 07777);
-        //TODO: Check NEW SECTION?
-        //TODO: Calculate new baseaddr and sectsize, see LINK5\RES1
-        baseaddr += sectsize;
-        sectsize = (entry->value + 1) & ~1;
+
+        if (entry->flagseg & SY_SEC)
+        {
+            //TODO: Check NEW SECTION?
+            //TODO: Calculate new baseaddr and sectsize, see LINK5\RES1
+            baseaddr += sectsize;
+            sectsize = (entry->value + 1) & ~1;
+        }
     }
     //TODO: see LINK5\POSTN\10$ in source
     WORD totalsize = baseaddr + sectsize;
@@ -1680,7 +1791,7 @@ int main(int argc, char *argv[])
     process_pass_map_output();
 
     process_pass2_init();
-    process_pass2();
+    //process_pass2();
     //TODO: Pass 2.5
 
     size_t byteswrit = fwrite(OutputBuffer, 1, OutputBufferSize, outfileobj);
