@@ -106,7 +106,7 @@ struct tagGlobals
     WORD	TEMP;	// TEMPORARY STORAGE
     BYTE	TXTBLK[RECSIZ];  // SPACE FOR A FORMATTED BINARY RECORD
 
-    WORD	UNDLST; // START OF UNDEFINED SYMBOL LIST
+    int 	UNDLST; // START OF UNDEFINED SYMBOL LIST
     WORD	SYEN0;	// ADR OF SYMBOL TABLE ENTRY NUMBER 0
     // REL PTR + THIS = ABS ADDR OF SYMBOL NODE
     WORD	CSECT;	// PTR TO LATEST SECTION (PASS1)
@@ -351,6 +351,7 @@ void finalize()
     }
 }
 
+// PROCESS COMMAND STRING SWITCHES, see LINK1\SWLOOP in source
 void parse_commandline(int argc, char **argv)
 {
     for (int arg = 1; arg < argc; arg++)
@@ -542,6 +543,10 @@ void parse_commandline(int argc, char **argv)
         fatal_error("Input file not specified\n");
 }
 
+
+/////////////////////////////////////////////////////////////////////////////
+// Symbol table functions
+
 void symbol_table_enter(int* pindex, DWORD lkname, WORD lkwd)
 {
     // Find empty entry
@@ -570,6 +575,56 @@ void symbol_table_enter(int* pindex, DWORD lkname, WORD lkwd)
     entry->name = lkname;
     entry->flagseg = lkwd;
     *pindex = index;
+}
+
+// MAKE A DUPLICATE SYMBOL NON-DUPLICATE, see LINK3\DELETE
+void symbol_table_delete(int index)
+{
+    //TODO
+}
+
+// ADD A REFERENCED SYMBOL TO THE UNDEFINED LIST, see LINK3\ADDUDF
+void symbol_table_add_undefined(int index)
+{
+    assert(index > 0);
+    assert(index < SymbolTableSize);
+
+    if (Globals.UNDLST != 0)
+    {
+        SymbolTableEntry* oldentry = SymbolTable + Globals.UNDLST;
+        oldentry->status = (oldentry->status & 0170000) | index;  // set back reference
+    }
+
+    SymbolTableEntry* entry = SymbolTable + index;
+    entry->status |= SY_UDF;  // MAKE CUR SYM UNDEFINED
+    entry->value = Globals.UNDLST;
+
+    Globals.UNDLST = index;
+}
+
+// REMOVE A ENTRY FROM THE UNDEFINED LIST, see LINK3\REMOVE
+void symbol_table_remove_undefined(int index)
+{
+    assert(index > 0);
+    assert(index < SymbolTableSize);
+
+    SymbolTableEntry* entry = SymbolTable + index;
+    int previndex = entry->status & 07777;
+    if (previndex == 0)
+        Globals.UNDLST = entry->value;  // exclude entry from the list
+    else
+    {
+        SymbolTableEntry* preventry = SymbolTable + previndex;
+        preventry->value = entry->value;  // exclude entry from the list
+    }
+    entry->value = 0;
+    entry->status &= 0170000;
+}
+
+// ANYUND
+bool is_any_undefined()
+{
+    return (Globals.UNDLST != 0);
 }
 
 // SYMBOL TABLE SEARCH ROUTINE
@@ -687,6 +742,10 @@ bool symbol_table_search(DWORD lkname, WORD lkwd, WORD lkmsk, int* pindex)
     return symbol_table_search_routine(lkname, lkwd, lkmsk, 0, pindex);
 }
 
+
+/////////////////////////////////////////////////////////////////////////////
+
+
 void read_files()
 {
     for (int i = 0; i < SaveStatusCount; i++)
@@ -721,6 +780,13 @@ void read_files()
         //printf("  File closed: %s\n", sscur->filename);
         sscur->fileobj = NULL;
     }
+}
+
+// FORCE0 IS CALLED TO GENERATE THE FOLLOWING WARNING MESSAGE, see LINK3\FORCE0
+// ?LINK-W-DUPLICATE SYMBOL "SYMBOL" IS FORCED TO THE ROOT
+void pass1_force0(const SymbolTableEntry* entry)
+{
+    printf("DUPLICATE SYMBOL \"%s\" IS FORCED TO THE ROOT\n", entry->name);
 }
 
 void process_pass1_gsd_block(const SaveStatusEntry* sscur, const BYTE* data)
@@ -817,18 +883,36 @@ void process_pass1_gsd_block(const SaveStatusEntry* sscur, const BYTE* data)
                 WORD lkwd = 0;
                 WORD lkmsk = ~SY_SEC;
                 //TODO: IS SYMBOL DEFINED HERE?
+                int index;
+                bool found;
                 if (Globals.SEGNUM == 0) // REFERENCE FROM ROOT?
                 {
-                    int index;
-                    symbol_table_dlooke(lkname, lkwd, lkmsk, &index);
+                    found = symbol_table_dlooke(lkname, lkwd, lkmsk, &index);
                     SymbolTableEntry* entry = SymbolTable + index;
-                    //TODO: IS IT A DUP SYMBOL?
+
+                    if (entry->status & SY_DUP)  // IS IT A DUP SYMBOL?
+                    {
+                        if ((entry->status & SY_UDF) == 0)  // IS SYMBOL DEFINED?
+                        {
+                            symbol_table_delete(index);  // DELETE ALL OTHER COPIES OF SYMBOL
+                            pass1_force0(entry);
+                        }
+                        else
+                        {
+                            entry->status |= SY_IND;  // EXT. REF.
+                        }
+                    }
                 }
-                else // NORMAL LOOKUP
+                else // NOT ROOT.  NORMAL LOOKUP
                 {
-                    int index;
-                    symbol_table_looke(lkname, lkwd, lkmsk, &index);
+                    found = symbol_table_looke(lkname, lkwd, lkmsk, &index);
                 }
+                // LINK3\DOREF
+                if (!found)
+                {
+                    symbol_table_add_undefined(index);
+                }
+                //TODO
             }
             break;
         case 1: // 1 - CSECT NAME, see LINK3\CSECNM
@@ -936,6 +1020,7 @@ PSECT:
     }
 }
 
+// PASS1: GSD PROCESSING, see LINK3\PASS1
 void process_pass1()
 {
     printf("Pass 1 started\n");
@@ -999,6 +1084,7 @@ void process_pass1()
     }
 }
 
+// PASS 1.5 SCANS ONLY LIBRARIES
 void process_pass15()
 {
     printf("Pass 1.5 started\n");
@@ -1065,7 +1151,10 @@ void process_pass15()
                 data += L_HEPT; offset += L_HEPT;  // Move to 1ST EPT ENTRY
 
                 //TODO: Resolve undefined symbols using EPT -- CALL ANYUND
-                //TODO: if we have undefined symbols
+                if (is_any_undefined())
+                {
+                    //TODO: if we have undefined symbols
+                }
 
                 break;
             }
@@ -1118,6 +1207,24 @@ static const char* wday_name[] =
 static const char mon_name[][4] =
 { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 
+// PRINT UNDEFINED GLOBALS IF ANY, see LINK5\DOUDFS
+void print_undefined_globals()
+{
+    int index = Globals.UNDLST;
+    if (index == 0)
+        return;
+    printf("  Undefined globals:");
+    fprintf(mapfileobj, "\nUndefined globals:\n");
+    while (index != 0)
+    {
+        SymbolTableEntry* entry = SymbolTable + index;
+        printf(" '%s'", unrad50(entry->name));
+        fprintf(mapfileobj, "%s\n", unrad50(entry->name));
+        index = entry->value;
+    }
+    printf("\n");
+}
+
 // Map output: see LINK5\MAPHDR in source
 void process_pass_map_output()
 {
@@ -1165,7 +1272,6 @@ void process_pass_map_output()
     strcpy_s(savname, SaveStatusArea[0].filename);
     char* pdot = strrchr(savname, '.');
     if (pdot != NULL) *pdot = 0;
-    char bufsavname[14];
     fprintf(mapfileobj, "%-8s .SAV", savname);
 
     fprintf(mapfileobj, "\tTitle:\t");
@@ -1200,11 +1306,12 @@ void process_pass_map_output()
         const char* sectsav = ((entryflags & 0100) && (entryflags & 010000)) ? ",SAV" : "";
         const char* sectreloc = (entryflags & 0040) ? "REL" : "ABS";
         const char* sectalloc = (entryflags & 0004) ? "OVR" : "CON";
+        const char* sectname = (entry->name & 03100) ? unrad50(entry->name) : "      ";
         fprintf(mapfileobj, " %s\t %06o\t%-16s words  (%s,%s,%s%s,%s,%s)\n",
-                unrad50(entry->name), baseaddr, bufsize,
+                sectname, baseaddr, bufsize,
                 sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
         printf("  '%s' %06o %-16s words  (%s,%s,%s%s,%s,%s)\n",
-               unrad50(entry->name), baseaddr, bufsize,
+               sectname, baseaddr, bufsize,
                sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
 
         // Next section entry index should be in status field
@@ -1223,11 +1330,11 @@ void process_pass_map_output()
     WORD totalsize = baseaddr + sectsize;
     WORD blockcount = (totalsize + 511) / 512;
     printf("  Total size %06o = %u. bytes, %u. blocks\n", totalsize, totalsize, blockcount);
+    //OutputBufferSize = (blockcount == 0) ? 65536 : blockcount * 512;
 
     //TODO: OUTPUT SYMBOL NAME & VALUE
 
-    //TODO: PRINT UNDEFINED GLOBALS IF ANY, see LINK5\DOUDFS
-    //TODO: Check UNDLST
+    print_undefined_globals();
 
     // OUTPUT TRANSFER ADR & CHECK ITS VALIDITY, see LINK5\DOTADR
     WORD lkmsk = ~(SY_SEC + SY_SEG);  // LOOK AT SECTION & SEGMENT # BITS
@@ -1356,20 +1463,28 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const BYTE* data)
     }
 }
 
-// Prapare SYSCOM area, pass 2 initialization; see LINK6
-void process_pass2_init()
+void print_symbol_table()
 {
-    printf("Pass 2 initialization\n");
-
-    // Dump SymbolTable
     printf("  SymbolTable count = %d.\n", SymbolTableCount);
     for (int i = 0; i < SymbolTableSize; i++)
     {
         const SymbolTableEntry* entry = SymbolTable + i;
         if (entry->name == 0)
             continue;
-        printf("    '%s' %06o %06o %06o\n", unrad50(entry->name), entry->flagseg, entry->value, entry->status);
+        printf("    %06o '%s' %06o %06o %06o  ", i, unrad50(entry->name), entry->flagseg, entry->value, entry->status);
+        if (entry->status & SY_UDF) printf("UNDEF ");
+        if (entry->status & SY_IND) printf("IND ");
+        printf("\n");
     }
+    printf("  UNDLST = %06o\n", Globals.UNDLST);
+}
+
+// Prapare SYSCOM area, pass 2 initialization; see LINK6
+void process_pass2_init()
+{
+    printf("Pass 2 initialization\n");
+
+    print_symbol_table();
 
     // Allocate space for .SAV file image
     OutputBufferSize = 65536;
