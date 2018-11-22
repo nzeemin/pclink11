@@ -817,10 +817,25 @@ void pass1_insert_entry_into_ordered_list(int index, SymbolTableEntry* entry, bo
     }
     assert(sectentry != NULL);
 
-    //TODO: implement proper insertion
-    int nextindex = sectentry->status & 07777;
-    sectentry->status = (sectentry->status & 0170000) | index;
-    entry->status = (entry->status & 0170000) | nextindex;
+    SymbolTableEntry* preventry = sectentry;
+    while (true)
+    {
+        int nextindex = preventry->status & 07777;
+        if (nextindex == 0)  // end of chain
+            break;
+        SymbolTableEntry* nextentry = SymbolTable + nextindex;
+        if (nextentry->flagseg & SY_SEC)  // next entry is a section
+            break;
+
+        //TODO: implement alpha insertion
+        if (nextentry->value > entry->value)
+            break;
+
+        preventry = nextentry;
+    }
+    int fwdindex = preventry->status & 07777;
+    preventry->status = (preventry->status & 0170000) | index;
+    entry->status = (entry->status & 0170000) | fwdindex;
 }
 
 void process_pass1_gsd_block(const SaveStatusEntry* sscur, const BYTE* data)
@@ -1346,7 +1361,7 @@ void process_pass_map_output()
 
     // OUTPUT THE HEADERS
 
-    fprintf(mapfileobj, "PCLINK11  Vxx.xx");  //TODO: program version number
+    fprintf(mapfileobj, "PCLINK11   V0.18");  //TODO: program version number
     fprintf(mapfileobj, "\tLoad Map \t");
 
     time_t curtime;  time(&curtime); // DETERMINE DATE & TIME
@@ -1405,11 +1420,11 @@ void process_pass_map_output()
             const char* sectalloc = (entryflags & 0004) ? "OVR" : "CON";
             const char* sectname = (entry->name & 03100) ? unrad50(entry->name) : "      ";
             fprintf(mapfileobj, " %s\t %06o\t%-16s words  (%s,%s,%s%s,%s,%s)\n",
-                sectname, baseaddr, bufsize,
-                sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
+                    sectname, baseaddr, bufsize,
+                    sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
             printf("  '%s' %06o %-16s words  (%s,%s,%s%s,%s,%s)\n",
-                sectname, baseaddr, bufsize,
-                sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
+                   sectname, baseaddr, bufsize,
+                   sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
         }
         else  // OUTPUT SYMBOL NAME & VALUE, see LINK5\OUTSYM
         {
