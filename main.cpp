@@ -1361,7 +1361,7 @@ void process_pass_map_output()
 
     // OUTPUT THE HEADERS
 
-    fprintf(mapfileobj, "PCLINK11   V0.18");  //TODO: program version number
+    fprintf(mapfileobj, "PCLINK11 %-8s", APP_VERSION_STRING);
     fprintf(mapfileobj, "\tLoad Map \t");
 
     time_t curtime;  time(&curtime); // DETERMINE DATE & TIME
@@ -1391,7 +1391,7 @@ void process_pass_map_output()
         fprintf(mapfileobj, MTITL4);
     fprintf(mapfileobj, "\n\n");
 
-    // Show ASECT entry, see LINK5\RESOLV in sources
+    // LINK5\RESOLV
     WORD sectsize = Globals.DBOTTM;
     WORD baseaddr = 0; // ASECT BASE ADDRESS IS 0
     SymbolTableEntry* entry = ASECTentry;
@@ -1400,31 +1400,37 @@ void process_pass_map_output()
     {
         if (entry->flagseg & SY_SEC)
         {
-            entry->value = baseaddr;
-
             if (tabcount > 0)
             {
                 fprintf(mapfileobj, "\n");
                 printf("\n");
                 tabcount = 0;
             }
-            // OUTPUT SECTION NAME, BASE ADR, SIZE & ATTRIBUTES
-            BYTE entryflags = (entry->flagseg) >> 8;
-            char bufsize[20];
-            sprintf_s(bufsize, "%06o = %u.", sectsize, sectsize / 2);
-            const char* sectaccess = (entryflags & 0020) ? "RO" : "RW";
-            const char* secttypedi = (entryflags & 0200) ? "D" : "I";
-            const char* sectscope = (entryflags & 0100) ? "GBL" : "LCL";
-            const char* sectsav = ((entryflags & 0100) && (entryflags & 010000)) ? ",SAV" : "";
-            const char* sectreloc = (entryflags & 0040) ? "REL" : "ABS";
-            const char* sectalloc = (entryflags & 0004) ? "OVR" : "CON";
-            const char* sectname = (entry->name & 03100) ? unrad50(entry->name) : "      ";
-            fprintf(mapfileobj, " %s\t %06o\t%-16s words  (%s,%s,%s%s,%s,%s)\n",
-                    sectname, baseaddr, bufsize,
-                    sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
-            printf("  '%s' %06o %-16s words  (%s,%s,%s%s,%s,%s)\n",
-                   sectname, baseaddr, bufsize,
-                   sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
+
+            entry->value = baseaddr;
+
+            // IS THIS BLANK SECTION 0-LENGTH?
+            bool skipsect = ((entry->name & 03100) == 0 && sectsize == 0);
+            if (!skipsect)
+            {
+                // OUTPUT SECTION NAME, BASE ADR, SIZE & ATTRIBUTES
+                BYTE entryflags = (entry->flagseg) >> 8;
+                char bufsize[20];
+                sprintf_s(bufsize, "%06o = %u.", sectsize, sectsize / 2);
+                const char* sectaccess = (entryflags & 0020) ? "RO" : "RW";
+                const char* secttypedi = (entryflags & 0200) ? "D" : "I";
+                const char* sectscope = (entryflags & 0100) ? "GBL" : "LCL";
+                const char* sectsav = ((entryflags & 0100) && (entryflags & 010000)) ? ",SAV" : "";
+                const char* sectreloc = (entryflags & 0040) ? "REL" : "ABS";
+                const char* sectalloc = (entryflags & 0004) ? "OVR" : "CON";
+                const char* sectname = (entry->name & 03100) ? unrad50(entry->name) : "      ";
+                fprintf(mapfileobj, " %s\t %06o\t%-16s words  (%s,%s,%s%s,%s,%s)\n",
+                        sectname, baseaddr, bufsize,
+                        sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
+                printf("  '%s' %06o %-16s words  (%s,%s,%s%s,%s,%s)\n",
+                       sectname, baseaddr, bufsize,
+                       sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
+            }
         }
         else  // OUTPUT SYMBOL NAME & VALUE, see LINK5\OUTSYM
         {
@@ -1775,6 +1781,8 @@ void process_pass2()
 
 int main(int argc, char *argv[])
 {
+    printf("PCLINK11  %s  %s\n", APP_VERSION_STRING, __DATE__);
+
     assert(sizeof(BYTE) == 1);
     assert(sizeof(WORD) == 2);
     assert(sizeof(DWORD) == 4);
@@ -1806,7 +1814,7 @@ int main(int argc, char *argv[])
     process_pass_map_output();
 
     process_pass2_init();
-    //process_pass2();
+    process_pass2();
     //TODO: Pass 2.5
 
     size_t byteswrit = fwrite(OutputBuffer, 1, OutputBufferSize, outfileobj);

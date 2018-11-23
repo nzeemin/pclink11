@@ -19,6 +19,15 @@ typedef unsigned long DWORD;
 
 /////////////////////////////////////////////////////////////////////////////
 
+#ifdef _DEBUG
+#define APP_VERSION_STRING "DEBUG"
+#else
+#include "Version.h"
+#endif
+
+
+/////////////////////////////////////////////////////////////////////////////
+
 const int LMLSIZ = 0525; // DEFAULT NUMBER OF LIBRARY MOD LIST ENTRIES
 // EACH ENTRY IS 6 BYTES LONG
 
