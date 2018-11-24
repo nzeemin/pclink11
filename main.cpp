@@ -88,6 +88,18 @@ const DWORD RAD50_ZTABL  = rad50x2("$ZTABL");  // I-D SPACE OVERLAY HANDLER PSEC
 const char* FORLIB = "FORLIB.OBJ";  // FORTRAN LIBRARY FILENAME
 const char* SYSLIB = "SYSLIB.OBJ";  // DEFAULT SYSTEM LIBRARY FILENAME
 
+const char* GSDItemTypeNames[] =
+{
+    /*0*/ "MODULE NAME",
+    /*1*/ "CSECT NAME",
+    /*2*/ "ISD ENTRY",
+    /*3*/ "TRANSFER ADDR",
+    /*4*/ "GLOBAL SYMBOL",
+    /*5*/ "PSECT NAME",
+    /*6*/ "IDENT DEFINITION",
+    /*7*/ "VIRTUAL SECTION"
+};
+
 BYTE* OutputBuffer = NULL;
 size_t OutputBufferSize = 0;
 
@@ -845,264 +857,273 @@ void pass1_insert_entry_into_ordered_list(int index, SymbolTableEntry* entry, bo
     entry->status = (WORD) ((entry->status & 0170000) | fwdindex);
 }
 
-void process_pass1_gsd_item(const WORD* itemw, const SaveStatusEntry* sscur, const BYTE* data)
+// LINK3\TADDR
+void process_pass1_gsd_item_taddr(const WORD* itemw, const SaveStatusEntry* sscur, const BYTE* data)
 {
-    assert(itemw != NULL);
-    assert(sscur != NULL);
-    assert(data != NULL);
+    if ((Globals.BEGBLK.value & 1) == 0)  // USE ONLY 1ST EVEN ONE ENCOUNTERED
+        return; // WE ALREADY HAVE AN EVEN ONE.  RETURN
 
-    WORD itemw0 = itemw[0];
-    WORD itemw1 = itemw[1];
-    WORD itemw2 = itemw[2];
-    WORD itemw3 = itemw[3];
-    char buffer[7];  memset(buffer, 0, sizeof(buffer));
-    unrad50(itemw0, buffer);
-    unrad50(itemw1, buffer + 3);
-    int itemtype = (itemw2 >> 8) & 0xff;
-    int itemflags = (itemw2 & 0377);
+    DWORD lkname = MAKEDWORD(itemw[0], itemw[1]);
+    WORD lkmsk = (WORD)~SY_SEC; // CARE ABOUT SECTION FLG
+    WORD lkwd = (WORD)SY_SEC; // SECTION NAME LOOKUP IN THE ROOT
+    int index;
+    if (!symbol_table_lookup(lkname, lkwd, lkmsk, &index))
+        fatal_error("ERR31: Transfer address for '%s' undefined or in overlay.\n", unrad50(lkname));
+    SymbolTableEntry* entry = SymbolTable + index;
+    printf("        Entry '%s' %06o %06o %06o\n", unrad50(entry->name), entry->flagseg, entry->value, entry->status);
+    //TODO
 
-    switch (itemtype)
+    if (entry->value > 0)  // IF CURRENT SIZE IS 0 THEN OK
     {
-    case 0: // 0 - MODULE NAME FROM .TITLE, see LINK3\MODNME
-        printf("      Item '%s' type 0 - MODULE NAME\n", buffer);
-        if (Globals.MODNAM == 0)
-            Globals.MODNAM = MAKEDWORD(itemw0, itemw1);
-        break;
-    case 2: // 2 - ISD ENTRY (IGNORED), see LINK3\ISDNAM
-        printf("      Item '%s' type 2 - ISD ENTRY, ignored\n", buffer);
-        break;
-    case 3: // 3 - TRANSFER ADDRESS; see LINK3\TADDR
-        printf("      Item '%s' type 3 - TRANSFER ADDR %06o\n", buffer, itemw3);
-        if ((Globals.BEGBLK.value & 1) == 0)  // USE ONLY 1ST EVEN ONE ENCOUNTERED
-            break; // WE ALREADY HAVE AN EVEN ONE.  RETURN
+        // MUST SCAN CURRENT MODULE TO FIND SIZE CONTRIBUTION TO
+        // TRANSFER ADDR SECTION TO CALCULATE PROPER OFFSET
+        const SaveStatusEntry* sscurtmp = sscur;
+        int offset = 0;
+        while (offset < sscur->filesize)
         {
-            DWORD lkname = MAKEDWORD(itemw0, itemw1);
-            WORD lkmsk = (WORD) ~SY_SEC; // CARE ABOUT SECTION FLG
-            WORD lkwd = (WORD) SY_SEC; // SECTION NAME LOOKUP IN THE ROOT
-            int index;
-            if (!symbol_table_lookup(lkname, lkwd, lkmsk, &index))
-                fatal_error("ERR31: Transfer address for '%s' undefined or in overlay.\n", buffer);
-            SymbolTableEntry* entry = SymbolTable + index;
-            printf("        Entry '%s' %06o %06o %06o\n", unrad50(entry->name), entry->flagseg, entry->value, entry->status);
-            //TODO
-
-            if (entry->value > 0)  // IF CURRENT SIZE IS 0 THEN OK
+            WORD blocksize = ((WORD*)data)[1];
+            WORD blocktype = ((WORD*)data)[2];
+            if (blocktype == 1)
             {
-                // MUST SCAN CURRENT MODULE TO FIND SIZE CONTRIBUTION TO
-                // TRANSFER ADDR SECTION TO CALCULATE PROPER OFFSET
-                const SaveStatusEntry* sscurtmp = sscur;
-                int offset = 0;
-                while (offset < sscur->filesize)
+                int itemcounttmp = (blocksize - 6) / 8;
+                for (int itmp = 0; itmp < itemcounttmp; itmp++)
                 {
-                    WORD blocksize = ((WORD*)data)[1];
-                    WORD blocktype = ((WORD*)data)[2];
-                    if (blocktype == 1)
+                    const WORD* itemwtmp = (const WORD*)(data + 6 + 8 * itmp);
+                    int itemtypetmp = (itemwtmp[2] >> 8) & 0xff;
+                    if ((itemtypetmp == 1/*CSECT*/ || itemtypetmp == 5/*PSECT*/) &&
+                        itemw[0] == itemwtmp[0] && itemw[1] == itemwtmp[1])  // FOUND THE PROPER SECTION
                     {
-                        int itemcounttmp = (blocksize - 6) / 8;
-                        for (int itmp = 0; itmp < itemcounttmp; itmp++)
-                        {
-                            const WORD* itemwtmp = (const WORD*)(data + 6 + 8 * itmp);
-                            int itemtypetmp = (itemwtmp[2] >> 8) & 0xff;
-                            if ((itemtypetmp == 1/*CSECT*/ || itemtypetmp == 5/*PSECT*/) &&
-                                itemw[0] == itemwtmp[0] && itemw[1] == itemwtmp[1])  // FOUND THE PROPER SECTION
-                            {
-                                WORD itemvaltmp = itemwtmp[3];
-                                WORD sectsize = (itemvaltmp + 1) & ~1;  // ROUND SECTION SIZE TO WORD BOUNDARY
-                                printf("        Item '%s' type %d - CSECT or PSECT size %06o\n", unrad50(itemwtmp[0], itemwtmp[1]), itemtypetmp, sectsize);
-                                //TODO: UPDATE OFFSET VALUE
-                                //TODO
-                            }
-                        }
+                        WORD itemvaltmp = itemwtmp[3];
+                        WORD sectsize = (itemvaltmp + 1) & ~1;  // ROUND SECTION SIZE TO WORD BOUNDARY
+                        printf("        Item '%s' type %d - CSECT or PSECT size %06o\n", unrad50(itemwtmp[0], itemwtmp[1]), itemtypetmp, sectsize);
+                        //TODO: UPDATE OFFSET VALUE
+                        //TODO
                     }
-                    data += blocksize; offset += blocksize;
-                    data += 1; offset += 1;  // Skip checksum
                 }
             }
-
-            // See LINK3\TADDR\100$ in source
-            Globals.BEGBLK.symbol = entry->name;  // NAME OF THE SECTION
-            Globals.BEGBLK.flags = entry->flagseg & 0xff;
-            Globals.BEGBLK.code = (entry->flagseg << 8) & 0xff;
-            Globals.BEGBLK.value = entry->value;  // RELATIVE OFFSET FROM THE SECTION
+            data += blocksize; offset += blocksize;
+            data += 1; offset += 1;  // Skip checksum
         }
-        break;
-    case 4: // 4 - GLOBAL SYMBOL, see LINK3\SYMNAM
-        printf("      Item '%s' type 4 - GLOBAL SYMBOL flags %03o addr %06o\n", buffer, itemflags, itemw3);
-        {
-            DWORD lkname = MAKEDWORD(itemw0, itemw1);
-            WORD lkwd = 0;
-            WORD lkmsk = (WORD) ~SY_SEC;
-            int index;
-            bool found;
-            if (itemw2 & 010/*SY$DEF*/)  // IS SYMBOL DEFINED HERE?
-            {
-                if (Globals.SEGNUM == 0) // ROOT DEF?
-                {
-                    found = symbol_table_dlooke(lkname, lkwd, lkmsk, &index);
-                    SymbolTableEntry* entry = SymbolTable + index;
-                    if (entry->status & SY_DUP)  // IS IT A DUP SYMBOL?
-                    {
-                        symbol_table_delete(index);  // DELETE ALL OTHER COPIES OF SYMBOL
-                        fatal_error("ERR70: Duplicate symbol '%s' is defined in non-library", buffer);
-                    }
-                }
-                else  // NOT ROOT, NORMAL LOOKUP
-                {
-                    found = symbol_table_looke(lkname, lkwd, lkmsk, &index);
-                }
-                // LINK3\SYMNAM\100$
-                if (!found)  // LINK3\SYMNAM\140$
-                {
-                    SymbolTableEntry* entry = SymbolTable + index;
-                    entry->flagseg = (entry->flagseg & ~SY_SEG) | Globals.SEGNUM;
-                    // LINK3\SYMV
-                    entry->value = itemw3 + Globals.BASE;
+    }
 
-                    pass1_insert_entry_into_ordered_list(index, entry, (itemw2 & 040) == 0);
-                }
-                else  // LINK3\DEFREF
-                {
-                    //TODO
-                }
-            }
-            else  // Symbol referenced here, not defined here
+    // See LINK3\TADDR\100$ in source
+    Globals.BEGBLK.symbol = entry->name;  // NAME OF THE SECTION
+    Globals.BEGBLK.flags = entry->flagseg & 0xff;
+    Globals.BEGBLK.code = (entry->flagseg << 8) & 0xff;
+    Globals.BEGBLK.value = entry->value;  // RELATIVE OFFSET FROM THE SECTION
+}
+
+// LINK3\SYMNAM
+void process_pass1_gsd_item_symnam(const WORD* itemw)
+{
+    DWORD lkname = MAKEDWORD(itemw[0], itemw[1]);
+    WORD lkwd = 0;
+    WORD lkmsk = (WORD)~SY_SEC;
+    int index;
+    bool found;
+    if (itemw[2] & 010/*SY$DEF*/)  // IS SYMBOL DEFINED HERE?
+    {
+        if (Globals.SEGNUM == 0) // ROOT DEF?
+        {
+            found = symbol_table_dlooke(lkname, lkwd, lkmsk, &index);
+            SymbolTableEntry* entry = SymbolTable + index;
+            if (entry->status & SY_DUP)  // IS IT A DUP SYMBOL?
             {
-                if (Globals.SEGNUM == 0) // REFERENCE FROM ROOT?
+                symbol_table_delete(index);  // DELETE ALL OTHER COPIES OF SYMBOL
+                fatal_error("ERR70: Duplicate symbol '%s' is defined in non-library", unrad50(lkname));
+            }
+        }
+        else  // NOT ROOT, NORMAL LOOKUP
+        {
+            found = symbol_table_looke(lkname, lkwd, lkmsk, &index);
+        }
+        // LINK3\SYMNAM\100$
+        if (!found)  // LINK3\SYMNAM\140$
+        {
+            SymbolTableEntry* entry = SymbolTable + index;
+            entry->flagseg = (entry->flagseg & ~SY_SEG) | Globals.SEGNUM;
+            // LINK3\SYMV
+            entry->value = itemw[3] + Globals.BASE;
+
+            pass1_insert_entry_into_ordered_list(index, entry, (itemw[2] & 040) == 0);
+        }
+        else  // LINK3\DEFREF
+        {
+            //TODO
+        }
+    }
+    else  // Symbol referenced here, not defined here
+    {
+        if (Globals.SEGNUM == 0) // REFERENCE FROM ROOT?
+        {
+            found = symbol_table_dlooke(lkname, lkwd, lkmsk, &index);
+            SymbolTableEntry* entry = SymbolTable + index;
+            if (entry->status & SY_DUP)  // IS IT A DUP SYMBOL?
+            {
+                if ((entry->status & SY_UDF) == 0)  // IS SYMBOL DEFINED?
                 {
-                    found = symbol_table_dlooke(lkname, lkwd, lkmsk, &index);
-                    SymbolTableEntry* entry = SymbolTable + index;
-                    if (entry->status & SY_DUP)  // IS IT A DUP SYMBOL?
-                    {
-                        if ((entry->status & SY_UDF) == 0)  // IS SYMBOL DEFINED?
-                        {
-                            symbol_table_delete(index);  // DELETE ALL OTHER COPIES OF SYMBOL
-                            pass1_force0(entry);
-                        }
-                        else
-                        {
-                            entry->status |= SY_IND;  // EXT. REF.
-                        }
-                    }
-                }
-                else // NOT ROOT, NORMAL LOOKUP
-                {
-                    found = symbol_table_looke(lkname, lkwd, lkmsk, &index);
-                }
-                // LINK3\DOREF
-                if (!found)
-                {
-                    symbol_table_add_undefined(index);
+                    symbol_table_delete(index);  // DELETE ALL OTHER COPIES OF SYMBOL
+                    pass1_force0(entry);
                 }
                 else
                 {
-                    //TODO
+                    entry->status |= SY_IND;  // EXT. REF.
                 }
             }
+        }
+        else // NOT ROOT, NORMAL LOOKUP
+        {
+            found = symbol_table_looke(lkname, lkwd, lkmsk, &index);
+        }
+        // LINK3\DOREF
+        if (!found)
+        {
+            symbol_table_add_undefined(index);
+        }
+        else
+        {
             //TODO
         }
+    }
+    //TODO
+}
+
+// LINK3\CSECNM
+void process_pass1_gsd_item_csecnm(const WORD* itemw, int& itemtype, int& itemflags)
+{
+    DWORD lkname = MAKEDWORD(itemw[0], itemw[1]);
+    WORD lkwd = (WORD)SY_SEC;
+    WORD lkmsk = (WORD)~SY_SEC;
+    if (lkname == 0)  // BLANK .CSECT = .PSECT ,LCL,REL,I,CON,RW
+    {
+    }
+    else if (lkname == RAD50_ABS)  // Case 2: ASECT
+    {
+        //(SWIT1 & SW_J) ?
+        // .ASECT = .PSECT . ABS.,GBL,ABS,I,OVR,RW (NON I-D SPACE)
+        // .ASECT = .PSECT . ABS.,GBL,ABS,D,OVR,RW (I-D SPACE)
+        itemflags |= 0100 + 4;  // CS$GBL+CS$ALO == GBL,OVR
+        if (Globals.SWIT1 & SW_J)
+            itemtype = 0200;  // CS$TYP == D
+    }
+    else  // Case 3: named section
+    {
+        itemflags |= 0100 + 4 + 040;  // CS$GBL+CS$ALO+CS$REL == GBL,OVR,REL
+    }
+    //TODO: Set flags according to case and process as PSECT
+}
+
+// LINK3\PSECNM
+void process_pass1_gsd_item_psecnm(const WORD* itemw, int& itemflags)
+{
+    Globals.LRUNUM++; // COUNT SECTIONS IN A MODULE
+
+    DWORD lkname = MAKEDWORD(itemw[0], itemw[1]);
+    WORD lkmsk = (WORD)~SY_SEC;
+    WORD lkwd = (WORD)SY_SEC;
+    if (itemflags & 1/*CS$SAV*/) // DOES PSECT HAVE SAVE ATTRIBUTE?
+        itemflags |= 0100/*CS$GBL*/; // FORCE PSECT TO ROOT VIA GBL ATTRIBUTE
+    if (itemflags & 0100/*CS$GBL*/) // LOCAL OR GLOBAL SECTION ?
+    {
+        lkmsk = (WORD)~(SY_SEC + SY_SEG); // CARE ABOUT SECTION FLG & SEGMENT #
+        lkwd |= Globals.SEGNUM; // LOCAL SECTION QUALIFIED BY SEGMENT #
+    }
+
+    int index;
+    bool isnewentry = !symbol_table_looke(lkname, lkwd, lkmsk, &index);
+    SymbolTableEntry* entry = SymbolTable + index;
+
+    if (itemflags & 1/*CS$SAV*/) // DOES PSECT HAVE SAV ATTRIBUTE?
+        entry->status |= 1/*CS$SAV*/; // INDICATE SAV ATTRIBUTE IN PSECT ENTRY
+    itemflags &= ~(010/*CS$NU*/ | 2/*CS$LIB*/ | 1/*CS$SAV*/); // ALL UNSUPPORTED FLAG BITS
+    Globals.CSECT = index;  // PTR TO SYM TBL ENTRY
+    if (isnewentry)
+    {
+        //TODO: SET SEGMENT # INDEPEND. OF LCL OR GBL
+        //TODO: CALL GEN0  ;CREATE FORWARD ENTRY # PTR TO NEW NODE
+        entry->flagseg |= (itemflags << 8);
+        entry->value = 0;  // LENGTH=0 INITIALLY FOR NEW SECTION
+    }
+    else // AT THIS POINT SYMBOL WAS ALREADY ENTERED INTO SYMBOL TBL; see LINK3\OLDPCT
+    {
+        WORD R2 = (entry->flagseg & 0377) // GET PSECT FLAG BITS IN R2
+                & ~(010/*CS$NU*/ | 2/*CS$LIB*/ | 1/*CS$SAV*/); // GET RID OF UNUSED FLAG BITS
+        if (Globals.SWIT1 & SW_J) // ARE WE PROCESSING I-D SPACE?
+        {
+            //TODO
+        }
+        if (R2 != itemflags) // ARE SECTION ATTRIBUTES THE SAME?
+            fatal_error("ERR10: Conflicting section attributes");
+    }
+
+    // PLOOP
+    //TODO: CALL CHKRT
+    if (lkname == RAD50_ABS)
+        ASECTentry = entry;
+    else
+    {
+        SymbolTableEntry* pSect = ASECTentry;
+        for (;;)  // find section chain end
+        {
+            if (pSect == NULL) break;
+            if ((pSect->status & 07777) == 0)
+                break;
+            pSect = SymbolTable + (pSect->status & ~0170000);
+        }
+        if (pSect != NULL)
+            pSect->status |= index;  // set link to the new segment
+    }
+
+    entry->value += itemw[3]; //TODO: very primitive version, depends on flags
+
+    Globals.BASE = 0; //TODO
+}
+
+// PROCESS GSD TYPES, see LINK3\GSD
+void process_pass1_gsd_item(const WORD* itemw, const SaveStatusEntry* sscur, const BYTE* data)
+{
+    DWORD itemnamerad50 = MAKEDWORD(itemw[0], itemw[1]);
+    int itemtype = (itemw[2] >> 8) & 0xff;
+    int itemflags = (itemw[2] & 0377);
+
+    printf("      Item '%s' type %d - %s", unrad50(itemnamerad50), itemtype, (itemtype > 7) ? "UNKNOWN" : GSDItemTypeNames[itemtype]);
+    switch (itemtype)
+    {
+    case 0: // 0 - MODULE NAME FROM .TITLE, see LINK3\MODNME
+        printf("\n");
+        if (Globals.MODNAM == 0)
+            Globals.MODNAM = itemnamerad50;
+        break;
+    case 2: // 2 - ISD ENTRY (IGNORED), see LINK3\ISDNAM
+        printf(", ignored\n");
+        break;
+    case 3: // 3 - TRANSFER ADDRESS; see LINK3\TADDR
+        printf(" %06o\n", itemw[3]);
+        process_pass1_gsd_item_taddr(itemw, sscur, data);
+        break;
+    case 4: // 4 - GLOBAL SYMBOL, see LINK3\SYMNAM
+        printf(" flags %03o addr %06o\n", itemflags, itemw[3]);
+        process_pass1_gsd_item_symnam(itemw);
         break;
     case 1: // 1 - CSECT NAME, see LINK3\CSECNM
-        printf("      Item '%s' type 1 - CSECT NAME  %06o\n", buffer, itemw3);
-        {
-            DWORD lkname = MAKEDWORD(itemw0, itemw1);
-            WORD lkwd = (WORD) SY_SEC;
-            WORD lkmsk = (WORD) ~SY_SEC;
-            if (lkname == 0)  // BLANK .CSECT = .PSECT ,LCL,REL,I,CON,RW
-            {
-            }
-            else if (lkname == RAD50_ABS)  // Case 2: ASECT
-            {
-                //(SWIT1 & SW_J) ?
-                // .ASECT = .PSECT . ABS.,GBL,ABS,I,OVR,RW (NON I-D SPACE)
-                // .ASECT = .PSECT . ABS.,GBL,ABS,D,OVR,RW (I-D SPACE)
-                itemflags |= 0100 + 4;  // CS$GBL+CS$ALO == GBL,OVR
-                if (Globals.SWIT1 & SW_J)
-                    itemtype = 0200;  // CS$TYP == D
-            }
-            else  // Case 3: named section
-            {
-                itemflags |= 0100 + 4 + 040;  // CS$GBL+CS$ALO+CS$REL == GBL,OVR,REL
-            }
-            //TODO: Set flags according to case and process as PSECT
-        }
-        goto PSECT;
+        printf(" %06o\n", itemw[3]);
+        process_pass1_gsd_item_csecnm(itemw, itemtype, itemflags);
+        process_pass1_gsd_item_psecnm(itemw, itemflags);
     case 5: // 5 - PSECT NAME; see LINK3\PSECNM
-        printf("      Item '%s' type 5 - PSECT NAME flags %03o maxlen %06o\n", buffer, itemflags, itemw3);
-PSECT:
-        {
-            Globals.LRUNUM++; // COUNT SECTIONS IN A MODULE
-
-            DWORD lkname = MAKEDWORD(itemw0, itemw1);
-            WORD lkmsk = (WORD) ~SY_SEC;
-            WORD lkwd = (WORD) SY_SEC;
-            if (itemflags & 1/*CS$SAV*/) // DOES PSECT HAVE SAVE ATTRIBUTE?
-                itemflags |= 0100/*CS$GBL*/; // FORCE PSECT TO ROOT VIA GBL ATTRIBUTE
-            if (itemflags & 0100/*CS$GBL*/) // LOCAL OR GLOBAL SECTION ?
-            {
-                lkmsk = (WORD) ~(SY_SEC + SY_SEG); // CARE ABOUT SECTION FLG & SEGMENT #
-                lkwd |= Globals.SEGNUM; // LOCAL SECTION QUALIFIED BY SEGMENT #
-            }
-
-            int index;
-            bool isnewentry = !symbol_table_looke(lkname, lkwd, lkmsk, &index);
-            SymbolTableEntry* entry = SymbolTable + index;
-
-            if (itemflags & 1/*CS$SAV*/) // DOES PSECT HAVE SAV ATTRIBUTE?
-                entry->status |= 1/*CS$SAV*/; // INDICATE SAV ATTRIBUTE IN PSECT ENTRY
-            itemflags &= ~(010/*CS$NU*/ | 2/*CS$LIB*/ | 1/*CS$SAV*/); // ALL UNSUPPORTED FLAG BITS
-            Globals.CSECT = index;  // PTR TO SYM TBL ENTRY
-            if (isnewentry)
-            {
-                //TODO: SET SEGMENT # INDEPEND. OF LCL OR GBL
-                //TODO: CALL GEN0  ;CREATE FORWARD ENTRY # PTR TO NEW NODE
-                entry->flagseg |= (itemflags << 8);
-                entry->value = 0;  // LENGTH=0 INITIALLY FOR NEW SECTION
-            }
-            else // AT THIS POINT SYMBOL WAS ALREADY ENTERED INTO SYMBOL TBL; see LINK3\OLDPCT
-            {
-                WORD R2 = (entry->flagseg & 0377) // GET PSECT FLAG BITS IN R2
-                        & ~(010/*CS$NU*/ | 2/*CS$LIB*/ | 1/*CS$SAV*/); // GET RID OF UNUSED FLAG BITS
-                if (Globals.SWIT1 & SW_J) // ARE WE PROCESSING I-D SPACE?
-                {
-                    //TODO
-                }
-                if (R2 != itemflags) // ARE SECTION ATTRIBUTES THE SAME?
-                    fatal_error("ERR10: Conflicting section attributes");
-            }
-
-            // PLOOP
-            //TODO: CALL CHKRT
-            if (lkname == RAD50_ABS)
-                ASECTentry = entry;
-            else
-            {
-                SymbolTableEntry* pSect = ASECTentry;
-                for (;;)  // find section chain end
-                {
-                    if (pSect == NULL) break;
-                    if ((pSect->status & 07777) == 0)
-                        break;
-                    pSect = SymbolTable + (pSect->status & ~0170000);
-                }
-                if (pSect != NULL)
-                    pSect->status |= index;  // set link to the new segment
-            }
-
-            entry->value += itemw3; //TODO: very primitive version, depends on flags
-
-            Globals.BASE = 0; //TODO
-        }
+        printf(" flags %03o maxlen %06o\n", itemflags, itemw[3]);
+        process_pass1_gsd_item_psecnm(itemw, itemflags);
         break;
     case 6: // 6 - IDENT DEFINITION; see LINK3\PGMIDN in source
-        printf("      Item '%s' type 6 - IDENT DEFINITION\n", buffer);
+        printf("\n");
         if (Globals.IDENT == 0)
-            Globals.IDENT = MAKEDWORD(itemw0, itemw1);
+            Globals.IDENT = itemnamerad50;
         break;
     case 7: // 7 - VIRTUAL SECTION; see LINK3\VSECNM in source
-        printf("      Item '%s' type 7 - VIRTUAL SECTION\n", buffer);
+        printf("\n");
         //TODO
         break;
     default:
+        printf("\n");
         fatal_error("ERR21: Bad GSD type %d found in %s.\n", itemtype, sscur->filename);
     }
 }
