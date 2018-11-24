@@ -22,7 +22,7 @@ typedef unsigned long DWORD;
 #ifdef _DEBUG
 #define APP_VERSION_STRING "DEBUG"
 #else
-#include "Version.h"
+#include "version.h"
 #endif
 
 

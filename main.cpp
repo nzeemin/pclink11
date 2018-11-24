@@ -89,7 +89,7 @@ const char* FORLIB = "FORLIB.OBJ";  // FORTRAN LIBRARY FILENAME
 const char* SYSLIB = "SYSLIB.OBJ";  // DEFAULT SYSTEM LIBRARY FILENAME
 
 BYTE* OutputBuffer = NULL;
-int OutputBufferSize = 0;
+size_t OutputBufferSize = 0;
 
 FILE* outfileobj = NULL;
 FILE* mapfileobj = NULL;
@@ -109,7 +109,7 @@ struct tagGlobals
     int 	UNDLST; // START OF UNDEFINED SYMBOL LIST
     WORD	SYEN0;	// ADR OF SYMBOL TABLE ENTRY NUMBER 0
     // REL PTR + THIS = ABS ADDR OF SYMBOL NODE
-    WORD	CSECT;	// PTR TO LATEST SECTION (PASS1)
+    int     CSECT;	// PTR TO LATEST SECTION (PASS1)
 
     WORD	PA2LML;	// START OF LML BUFR
     // LNKOV1->TEMP. SEGMENT POINTER
@@ -305,11 +305,13 @@ void initialize()
     Globals.NUMCOL = 3; // 3-COLUMN MAP IS NORMAL
     Globals.NUMBUF = 3; // NUMBER OF AVAILABLE CACHING BLOCKS (DEF=3)
     Globals.BEGBLK.symbol = RAD50_ABS;
-    //Globals.BEGBLK.code = ???;
-    //Globals.BEGBLK.flags = ???;
-    Globals.BEGBLK.value = 000001;
+    Globals.BEGBLK.code = 5;
+    Globals.BEGBLK.flags = 0100/*CS$GBL*/ | 04/*CS$ALO*/;
+    Globals.BEGBLK.value = 000001;  // INITIAL TRANSFER ADR TO 1
+    //TODO
     Globals.DBOTTM = 01000;
     Globals.BOTTOM = 01000;
+    Globals.KSWVAL = 128/*RELSTK*/;
 }
 
 void finalize()
@@ -366,20 +368,19 @@ void parse_commandline(int argc, char **argv)
             WORD param1, param2;
             if (*cur != 0)
             {
-                param1 = param2 = result = 0;
-                char option = toupper(*cur++);
+                param1 = param2 = 0;  result = 0;
+                int option = toupper(*cur++);
                 switch (option)
                 {
-                    // /T - SPECIFY TRANSFER ADR
-                case 'T': // /T:address
+                case 'T': // /T:address -- SPECIFY TRANSFER ADR
                     result = sscanf(cur, ":%ho", &param1);
                     if (result < 1)
                         fatal_error("Invalid /T option, use /T:addr\n");
                     Globals.SWITCH |= SW_T;
                     Globals.BEGBLK.value = param1;
                     break;
-                    // /M - MODIFY INITIAL STACK
-                case 'M':
+
+                case 'M':  // /M - MODIFY INITIAL STACK
                     result = sscanf(cur, ":%ho", &param1);
                     if (result < 1)
                         fatal_error("Invalid /M option, use /M:addr\n");
@@ -388,8 +389,8 @@ void parse_commandline(int argc, char **argv)
                     Globals.SWITCH |= SW_M;
                     Globals.STKBLK[2] = param1;
                     break;
-                    // /B - SPECIFY BOTTOM ADR FOR LINK
-                case 'B':
+
+                case 'B':  // /B - SPECIFY BOTTOM ADR FOR LINK
                     result = sscanf(cur, ":%ho", &param1);
                     if (result < 1)
                         fatal_error("Invalid /B option, use /B:addr\n");
@@ -398,124 +399,125 @@ void parse_commandline(int argc, char **argv)
                     //Globals.TMPIDI = 0;
                     //TODO
                     break;
-                    // /U - ROUND SECTION
-                case 'U':
+
+                case 'U':  // /U - ROUND SECTION
                     result = sscanf(cur, ":%ho:%ho", &param1, &param2);
                     Globals.SWITCH |= SW_U;
                     //Globals.TMPIDD = D.SWU;
                     //Globals.TMPIDI = I.SWU;
                     //TODO
                     break;
-                    // /E - EXTEND SECTION
-                case 'E':
+
+                case 'E':  // /E - EXTEND SECTION
                     result = sscanf(cur, ":%ho:%ho", &param1, &param2);
                     Globals.SWITCH |= SW_E;
                     //Globals.TMPIDD = D.SWE;
                     //Globals.TMPIDI = I.SWE;
                     //TODO
                     break;
-                    // /Y - START SECTION ON MULTIPLE OF VALUE
-                case 'Y':
+
+                case 'Y':  // /Y - START SECTION ON MULTIPLE OF VALUE
                     result = sscanf(cur, ":%ho:%ho", &param1, &param2);
                     Globals.SWITCH |= SW_Y;
                     //Globals.TMPIDD = D.SWY;
                     //Globals.TMPIDI = I.SWY;
                     //TODO
                     break;
-                    // /H - SPECIFY TOP ADR FOR LINK
-                case 'H':
+
+                case 'H':  // /H - SPECIFY TOP ADR FOR LINK
                     result = sscanf(cur, ":%ho:%ho", &param1, &param2);
                     Globals.SWITCH |= SW_H;
                     //Globals.TMPIDD = D.SWH;
                     //Globals.TMPIDI = I.SWH;
                     //TODO
                     break;
-                    // /K - SPECIFY MINIMUM SIZE
-                case 'K':
+
+                case 'K':  // /K - SPECIFY MINIMUM SIZE
                     result = sscanf(cur, ":%ho", &param1);
                     Globals.SWITCH |= SW_K;
                     //TODO
                     break;
-                    // /P:N  SIZE OF LML TABLE
-                case 'P':
+
+                case 'P':  // /P:N  SIZE OF LML TABLE
                     result = sscanf(cur, ":%ho", &param1);
                     //TODO
                     break;
-                    // /Z - ZERO UNFILLED LOCATIONS
-                case 'Z':
+
+                case 'Z':  // /Z - ZERO UNFILLED LOCATIONS
                     result = sscanf(cur, ":%ho:%ho", &param1, &param2);
                     //Globals.TMPIDD = D.SWZ;
                     //Globals.TMPIDI = I.SWZ;
                     //TODO
                     break;
-                    // /R - INDICATE FOREGROUND LINK
-                case 'R':
+
+                case 'R':  // /R - INDICATE FOREGROUND LINK
                     result = sscanf(cur, ":%ho", &param1);
                     Globals.SWITCH |= SW_R;
                     //TODO
                     break;
-                    // /XM, OR /V ON 1ST LINE
-                case 'V':
+
+                case 'V':  // /XM, OR /V ON 1ST LINE
                     result = sscanf(cur, ":%ho", &param1);
                     //TODO
                     break;
-                    // /L - INDICATE LDA OUTPUT
-                case 'L':
+
+                case 'L':  // /L - INDICATE LDA OUTPUT
                     //TODO
                     break;
-                    // /W - SPECIFY WIDE MAP LISTING
-                case 'W':
+
+                case 'W':  // /W - SPECIFY WIDE MAP LISTING
                     Globals.NUMCOL = 6; // 6 COLUMNS
                     Globals.LSTFMT--; // WIDE CREF
                     break;
                     // /C - CONTINUE ON ANOTHER LINE
                     // /
-                    // /X - DO NOT EMIT BIT MAP
-                case 'X':
+
+                case 'X':  // /X - DO NOT EMIT BIT MAP
                     Globals.SWITCH |= SW_X;
                     break;
-                    // /I - INCLUDE MODULES FROM LIBRARY
-                case 'I':
+
+                case 'I':  // /I - INCLUDE MODULES FROM LIBRARY
                     Globals.SWITCH |= SW_I;
                     break;
-                    // /F - INCLUDE FORLIB.OBJ IN LINK
-                case 'F':
+
+                case 'F':  // /F - INCLUDE FORLIB.OBJ IN LINK
                     Globals.SWITCH |= SW_F;
                     break;
-                    // /A - ALPHABETIZE MAP
-                case 'A':
+
+                case 'A':  // /A - ALPHABETIZE MAP
                     Globals.SWITCH |= SW_A;
                     break;
-                    // /S - SYMBOL TABLE AS LARGE AS POSSIBLE
-                case 'S':
+
+                case 'S':  // /S - SYMBOL TABLE AS LARGE AS POSSIBLE
                     //TODO
                     break;
-                    // /D - ALLOW DUPLICATE SYMBOLS
-                case 'D':
+
+                case 'D':  // /D - ALLOW DUPLICATE SYMBOLS
                     Globals.SWIT1 |= SW_D;
                     break;
-                    // /N - GENERATE CROSS REFERENCE
-                case 'N':
+
+                case 'N':  // /N - GENERATE CROSS REFERENCE
                     result = sscanf(cur, ":%ho", &param1);
                     //TODO
                     break;
-                    // /G - CALC. EPT SIZE ON RT-11
-                case 'G':
+
+                case 'G':  // /G - CALC. EPT SIZE ON RT-11
                     result = sscanf(cur, ":%ho", &param1);
                     //TODO
                     break;
-                    // /Q - SET PSECTS TO ABSOLUTE ADDRESSES
-                case 'Q':
+
+                case 'Q':  // /Q - SET PSECTS TO ABSOLUTE ADDRESSES
                     result = sscanf(cur, ":%ho", &param1);
                     //TODO
                     break;
-                    // /J - USE SEPARATED I-D SPACE
-                case 'J':
+
+                case 'J':  // /J - USE SEPARATED I-D SPACE
                     if (Globals.SWITCH & SW_R)
                         fatal_error("Invalid option: /R illegal with /J\n"); //TODO: Should be warning only
                     else
                         Globals.SWIT1 |= SW_J;
                     break;
+
                 default:
                     fatal_error("Unknown command line option '%c'\n", option);
                 }
@@ -571,7 +573,7 @@ void symbol_table_enter(int* pindex, DWORD lkname, WORD lkwd)
 
     int index = *pindex;
     SymbolTableEntry* entry;
-    while (true)
+    for (;;)
     {
         entry = SymbolTable + index;
         if (entry->name == 0)
@@ -608,13 +610,13 @@ void symbol_table_add_undefined(int index)
     if (Globals.UNDLST != 0)
     {
         SymbolTableEntry* oldentry = SymbolTable + Globals.UNDLST;
-        oldentry->status = (oldentry->status & 0170000) | index;  // set back reference
+        oldentry->status = (WORD)((oldentry->status & 0170000) | index);  // set back reference
     }
 
     SymbolTableEntry* entry = SymbolTable + index;
     entry->status |= SY_UDF;  // MAKE CUR SYM UNDEFINED
     entry->flagseg = (entry->flagseg & ~SY_SEG) | Globals.SEGNUM;  // SET SEGMENT # WHERE INITIAL REF
-    entry->value = Globals.UNDLST;
+    entry->value = (WORD)Globals.UNDLST;
 
     Globals.UNDLST = index;
 }
@@ -679,7 +681,7 @@ bool symbol_table_search_routine(DWORD lkname, WORD lkwd, WORD lkmsk, WORD dupms
     bool found = false;
     int index = hash;  // Now we have starting index
     int count = SymbolTableCount;
-    while (true)
+    for (;;)
     {
         SymbolTableEntry* entry = SymbolTable + index;
         if (entry->name == 0)
@@ -687,7 +689,7 @@ bool symbol_table_search_routine(DWORD lkname, WORD lkwd, WORD lkmsk, WORD dupms
             *result = index;
             break;  // EMPTY CELL
         }
-        if (entry->name = lkname)
+        if (entry->name == lkname)
         {
             // AT THIS POINT HAVE FOUND A MATCHING SYMBOL NAME, NOW MUST CHECK FOR MATCHING ATTRIBUTES.
             WORD flagsmasked = (entry->flagseg & ~lkmsk);
@@ -769,23 +771,22 @@ void read_files()
     {
         SaveStatusEntry* sscur = SaveStatusArea + i;
         assert(sscur->fileobj == NULL);
+        assert(sscur->filename[0] != 0);
 
         FILE* file = fopen(sscur->filename, "rb");
         if (file == NULL)
             fatal_error("ERR2: Failed to open input file: %s, errno %d.\n", sscur->filename, errno);
         sscur->fileobj = file;
-        //printf("  File opened: %s\n", sscur->filename);
 
         fseek(file, 0L, SEEK_END);
-        long filesize = ftell(file);
+        size_t filesize = ftell(file);
         if (filesize > 65535)
             fatal_error("Input file %s too long.\n", sscur->filename);
         sscur->filesize = (WORD)filesize;
 
         sscur->data = malloc(filesize);
         if (sscur->data == NULL)
-            if (filesize > 65535)
-                fatal_error("Failed to allocate memory for input file %s.\n", sscur->filename);
+            fatal_error("Failed to allocate memory for input file %s.\n", sscur->filename);
 
         fseek(file, 0L, SEEK_SET);
         size_t bytesread = fread(sscur->data, 1, filesize, file);
@@ -794,7 +795,6 @@ void read_files()
         //printf("  File read %s, %d bytes.\n", sscur->filename, bytesread);
 
         fclose(file);
-        //printf("  File closed: %s\n", sscur->filename);
         sscur->fileobj = NULL;
     }
 }
@@ -803,11 +803,17 @@ void read_files()
 // ?LINK-W-DUPLICATE SYMBOL "SYMBOL" IS FORCED TO THE ROOT
 void pass1_force0(const SymbolTableEntry* entry)
 {
+    assert(entry != NULL);
+
     printf("DUPLICATE SYMBOL \"%s\" IS FORCED TO THE ROOT\n", entry->name);
 }
 
+// LINK5\ORDER, LINK5\ALPHA
 void pass1_insert_entry_into_ordered_list(int index, SymbolTableEntry* entry, bool absrel)
 {
+    assert(index > 0 && index < SymbolTableSize);
+    assert(entry != NULL);
+
     SymbolTableEntry* sectentry = ASECTentry;
     if (Globals.CSECT > 0)
     {
@@ -818,7 +824,7 @@ void pass1_insert_entry_into_ordered_list(int index, SymbolTableEntry* entry, bo
     assert(sectentry != NULL);
 
     SymbolTableEntry* preventry = sectentry;
-    while (true)
+    for (;;)
     {
         int nextindex = preventry->status & 07777;
         if (nextindex == 0)  // end of chain
@@ -827,19 +833,283 @@ void pass1_insert_entry_into_ordered_list(int index, SymbolTableEntry* entry, bo
         if (nextentry->flagseg & SY_SEC)  // next entry is a section
             break;
 
-        //TODO: implement alpha insertion
-        if (nextentry->value > entry->value)
+        if ((Globals.SWITCH & SW_A) == 0 && (nextentry->value > entry->value) ||
+            (Globals.SWITCH & SW_A) != 0 && (nextentry->name > entry->name))
             break;
 
         preventry = nextentry;
     }
+    // insert the new entry here
     int fwdindex = preventry->status & 07777;
-    preventry->status = (preventry->status & 0170000) | index;
-    entry->status = (entry->status & 0170000) | fwdindex;
+    preventry->status = (WORD) ((preventry->status & 0170000) | index);
+    entry->status = (WORD) ((entry->status & 0170000) | fwdindex);
+}
+
+void process_pass1_gsd_item(const WORD* itemw, const SaveStatusEntry* sscur, const BYTE* data)
+{
+    assert(itemw != NULL);
+    assert(sscur != NULL);
+    assert(data != NULL);
+
+    WORD itemw0 = itemw[0];
+    WORD itemw1 = itemw[1];
+    WORD itemw2 = itemw[2];
+    WORD itemw3 = itemw[3];
+    char buffer[7];  memset(buffer, 0, sizeof(buffer));
+    unrad50(itemw0, buffer);
+    unrad50(itemw1, buffer + 3);
+    int itemtype = (itemw2 >> 8) & 0xff;
+    int itemflags = (itemw2 & 0377);
+
+    switch (itemtype)
+    {
+    case 0: // 0 - MODULE NAME FROM .TITLE, see LINK3\MODNME
+        printf("      Item '%s' type 0 - MODULE NAME\n", buffer);
+        if (Globals.MODNAM == 0)
+            Globals.MODNAM = MAKEDWORD(itemw0, itemw1);
+        break;
+    case 2: // 2 - ISD ENTRY (IGNORED), see LINK3\ISDNAM
+        printf("      Item '%s' type 2 - ISD ENTRY, ignored\n", buffer);
+        break;
+    case 3: // 3 - TRANSFER ADDRESS; see LINK3\TADDR
+        printf("      Item '%s' type 3 - TRANSFER ADDR %06o\n", buffer, itemw3);
+        if ((Globals.BEGBLK.value & 1) == 0)  // USE ONLY 1ST EVEN ONE ENCOUNTERED
+            break; // WE ALREADY HAVE AN EVEN ONE.  RETURN
+        {
+            DWORD lkname = MAKEDWORD(itemw0, itemw1);
+            WORD lkmsk = (WORD) ~SY_SEC; // CARE ABOUT SECTION FLG
+            WORD lkwd = (WORD) SY_SEC; // SECTION NAME LOOKUP IN THE ROOT
+            int index;
+            if (!symbol_table_lookup(lkname, lkwd, lkmsk, &index))
+                fatal_error("ERR31: Transfer address for '%s' undefined or in overlay.\n", buffer);
+            SymbolTableEntry* entry = SymbolTable + index;
+            printf("        Entry '%s' %06o %06o %06o\n", unrad50(entry->name), entry->flagseg, entry->value, entry->status);
+            //TODO
+
+            if (entry->value > 0)  // IF CURRENT SIZE IS 0 THEN OK
+            {
+                // MUST SCAN CURRENT MODULE TO FIND SIZE CONTRIBUTION TO
+                // TRANSFER ADDR SECTION TO CALCULATE PROPER OFFSET
+                const SaveStatusEntry* sscurtmp = sscur;
+                int offset = 0;
+                while (offset < sscur->filesize)
+                {
+                    WORD blocksize = ((WORD*)data)[1];
+                    WORD blocktype = ((WORD*)data)[2];
+                    if (blocktype == 1)
+                    {
+                        int itemcounttmp = (blocksize - 6) / 8;
+                        for (int itmp = 0; itmp < itemcounttmp; itmp++)
+                        {
+                            const WORD* itemwtmp = (const WORD*)(data + 6 + 8 * itmp);
+                            int itemtypetmp = (itemwtmp[2] >> 8) & 0xff;
+                            if ((itemtypetmp == 1/*CSECT*/ || itemtypetmp == 5/*PSECT*/) &&
+                                itemw[0] == itemwtmp[0] && itemw[1] == itemwtmp[1])  // FOUND THE PROPER SECTION
+                            {
+                                WORD itemvaltmp = itemwtmp[3];
+                                WORD sectsize = (itemvaltmp + 1) & ~1;  // ROUND SECTION SIZE TO WORD BOUNDARY
+                                printf("        Item '%s' type %d - CSECT or PSECT size %06o\n", unrad50(itemwtmp[0], itemwtmp[1]), itemtypetmp, sectsize);
+                                //TODO: UPDATE OFFSET VALUE
+                                //TODO
+                            }
+                        }
+                    }
+                    data += blocksize; offset += blocksize;
+                    data += 1; offset += 1;  // Skip checksum
+                }
+            }
+
+            // See LINK3\TADDR\100$ in source
+            Globals.BEGBLK.symbol = entry->name;  // NAME OF THE SECTION
+            Globals.BEGBLK.flags = entry->flagseg & 0xff;
+            Globals.BEGBLK.code = (entry->flagseg << 8) & 0xff;
+            Globals.BEGBLK.value = entry->value;  // RELATIVE OFFSET FROM THE SECTION
+        }
+        break;
+    case 4: // 4 - GLOBAL SYMBOL, see LINK3\SYMNAM
+        printf("      Item '%s' type 4 - GLOBAL SYMBOL flags %03o addr %06o\n", buffer, itemflags, itemw3);
+        {
+            DWORD lkname = MAKEDWORD(itemw0, itemw1);
+            WORD lkwd = 0;
+            WORD lkmsk = (WORD) ~SY_SEC;
+            int index;
+            bool found;
+            if (itemw2 & 010/*SY$DEF*/)  // IS SYMBOL DEFINED HERE?
+            {
+                if (Globals.SEGNUM == 0) // ROOT DEF?
+                {
+                    found = symbol_table_dlooke(lkname, lkwd, lkmsk, &index);
+                    SymbolTableEntry* entry = SymbolTable + index;
+                    if (entry->status & SY_DUP)  // IS IT A DUP SYMBOL?
+                    {
+                        symbol_table_delete(index);  // DELETE ALL OTHER COPIES OF SYMBOL
+                        fatal_error("ERR70: Duplicate symbol '%s' is defined in non-library", buffer);
+                    }
+                }
+                else  // NOT ROOT, NORMAL LOOKUP
+                {
+                    found = symbol_table_looke(lkname, lkwd, lkmsk, &index);
+                }
+                // LINK3\SYMNAM\100$
+                if (!found)  // LINK3\SYMNAM\140$
+                {
+                    SymbolTableEntry* entry = SymbolTable + index;
+                    entry->flagseg = (entry->flagseg & ~SY_SEG) | Globals.SEGNUM;
+                    // LINK3\SYMV
+                    entry->value = itemw3 + Globals.BASE;
+
+                    pass1_insert_entry_into_ordered_list(index, entry, (itemw2 & 040) == 0);
+                }
+                else  // LINK3\DEFREF
+                {
+                    //TODO
+                }
+            }
+            else  // Symbol referenced here, not defined here
+            {
+                if (Globals.SEGNUM == 0) // REFERENCE FROM ROOT?
+                {
+                    found = symbol_table_dlooke(lkname, lkwd, lkmsk, &index);
+                    SymbolTableEntry* entry = SymbolTable + index;
+                    if (entry->status & SY_DUP)  // IS IT A DUP SYMBOL?
+                    {
+                        if ((entry->status & SY_UDF) == 0)  // IS SYMBOL DEFINED?
+                        {
+                            symbol_table_delete(index);  // DELETE ALL OTHER COPIES OF SYMBOL
+                            pass1_force0(entry);
+                        }
+                        else
+                        {
+                            entry->status |= SY_IND;  // EXT. REF.
+                        }
+                    }
+                }
+                else // NOT ROOT, NORMAL LOOKUP
+                {
+                    found = symbol_table_looke(lkname, lkwd, lkmsk, &index);
+                }
+                // LINK3\DOREF
+                if (!found)
+                {
+                    symbol_table_add_undefined(index);
+                }
+                else
+                {
+                    //TODO
+                }
+            }
+            //TODO
+        }
+        break;
+    case 1: // 1 - CSECT NAME, see LINK3\CSECNM
+        printf("      Item '%s' type 1 - CSECT NAME  %06o\n", buffer, itemw3);
+        {
+            DWORD lkname = MAKEDWORD(itemw0, itemw1);
+            WORD lkwd = (WORD) SY_SEC;
+            WORD lkmsk = (WORD) ~SY_SEC;
+            if (lkname == 0)  // BLANK .CSECT = .PSECT ,LCL,REL,I,CON,RW
+            {
+            }
+            else if (lkname == RAD50_ABS)  // Case 2: ASECT
+            {
+                //(SWIT1 & SW_J) ?
+                // .ASECT = .PSECT . ABS.,GBL,ABS,I,OVR,RW (NON I-D SPACE)
+                // .ASECT = .PSECT . ABS.,GBL,ABS,D,OVR,RW (I-D SPACE)
+                itemflags |= 0100 + 4;  // CS$GBL+CS$ALO == GBL,OVR
+                if (Globals.SWIT1 & SW_J)
+                    itemtype = 0200;  // CS$TYP == D
+            }
+            else  // Case 3: named section
+            {
+                itemflags |= 0100 + 4 + 040;  // CS$GBL+CS$ALO+CS$REL == GBL,OVR,REL
+            }
+            //TODO: Set flags according to case and process as PSECT
+        }
+        goto PSECT;
+    case 5: // 5 - PSECT NAME; see LINK3\PSECNM
+        printf("      Item '%s' type 5 - PSECT NAME flags %03o maxlen %06o\n", buffer, itemflags, itemw3);
+PSECT:
+        {
+            Globals.LRUNUM++; // COUNT SECTIONS IN A MODULE
+
+            DWORD lkname = MAKEDWORD(itemw0, itemw1);
+            WORD lkmsk = (WORD) ~SY_SEC;
+            WORD lkwd = (WORD) SY_SEC;
+            if (itemflags & 1/*CS$SAV*/) // DOES PSECT HAVE SAVE ATTRIBUTE?
+                itemflags |= 0100/*CS$GBL*/; // FORCE PSECT TO ROOT VIA GBL ATTRIBUTE
+            if (itemflags & 0100/*CS$GBL*/) // LOCAL OR GLOBAL SECTION ?
+            {
+                lkmsk = (WORD) ~(SY_SEC + SY_SEG); // CARE ABOUT SECTION FLG & SEGMENT #
+                lkwd |= Globals.SEGNUM; // LOCAL SECTION QUALIFIED BY SEGMENT #
+            }
+
+            int index;
+            bool isnewentry = !symbol_table_looke(lkname, lkwd, lkmsk, &index);
+            SymbolTableEntry* entry = SymbolTable + index;
+
+            if (itemflags & 1/*CS$SAV*/) // DOES PSECT HAVE SAV ATTRIBUTE?
+                entry->status |= 1/*CS$SAV*/; // INDICATE SAV ATTRIBUTE IN PSECT ENTRY
+            itemflags &= ~(010/*CS$NU*/ | 2/*CS$LIB*/ | 1/*CS$SAV*/); // ALL UNSUPPORTED FLAG BITS
+            Globals.CSECT = index;  // PTR TO SYM TBL ENTRY
+            if (isnewentry)
+            {
+                //TODO: SET SEGMENT # INDEPEND. OF LCL OR GBL
+                //TODO: CALL GEN0  ;CREATE FORWARD ENTRY # PTR TO NEW NODE
+                entry->flagseg |= (itemflags << 8);
+                entry->value = 0;  // LENGTH=0 INITIALLY FOR NEW SECTION
+            }
+            else // AT THIS POINT SYMBOL WAS ALREADY ENTERED INTO SYMBOL TBL; see LINK3\OLDPCT
+            {
+                WORD R2 = (entry->flagseg & 0377) // GET PSECT FLAG BITS IN R2
+                        & ~(010/*CS$NU*/ | 2/*CS$LIB*/ | 1/*CS$SAV*/); // GET RID OF UNUSED FLAG BITS
+                if (Globals.SWIT1 & SW_J) // ARE WE PROCESSING I-D SPACE?
+                {
+                    //TODO
+                }
+                if (R2 != itemflags) // ARE SECTION ATTRIBUTES THE SAME?
+                    fatal_error("ERR10: Conflicting section attributes");
+            }
+
+            // PLOOP
+            //TODO: CALL CHKRT
+            if (lkname == RAD50_ABS)
+                ASECTentry = entry;
+            else
+            {
+                SymbolTableEntry* pSect = ASECTentry;
+                for (;;)  // find section chain end
+                {
+                    if (pSect == NULL) break;
+                    if ((pSect->status & 07777) == 0)
+                        break;
+                    pSect = SymbolTable + (pSect->status & ~0170000);
+                }
+                if (pSect != NULL)
+                    pSect->status |= index;  // set link to the new segment
+            }
+
+            entry->value += itemw3; //TODO: very primitive version, depends on flags
+
+            Globals.BASE = 0; //TODO
+        }
+        break;
+    case 6: // 6 - IDENT DEFINITION; see LINK3\PGMIDN in source
+        printf("      Item '%s' type 6 - IDENT DEFINITION\n", buffer);
+        if (Globals.IDENT == 0)
+            Globals.IDENT = MAKEDWORD(itemw0, itemw1);
+        break;
+    case 7: // 7 - VIRTUAL SECTION; see LINK3\VSECNM in source
+        printf("      Item '%s' type 7 - VIRTUAL SECTION\n", buffer);
+        //TODO
+        break;
+    default:
+        fatal_error("ERR21: Bad GSD type %d found in %s.\n", itemtype, sscur->filename);
+    }
 }
 
 void process_pass1_gsd_block(const SaveStatusEntry* sscur, const BYTE* data)
 {
+    assert(sscur != NULL);
     assert(data != NULL);
 
     WORD blocksize = ((WORD*)data)[1];
@@ -850,261 +1120,8 @@ void process_pass1_gsd_block(const SaveStatusEntry* sscur, const BYTE* data)
     {
         const WORD* itemw = (const WORD*)(data + 6 + 8 * i);
         memcpy(Globals.TXTBLK, itemw, 8);
-        WORD itemw0 = itemw[0];
-        WORD itemw1 = itemw[1];
-        WORD itemw2 = itemw[2];
-        WORD itemw3 = itemw[3];
-        char buffer[7];  memset(buffer, 0, sizeof(buffer));
-        unrad50(itemw0, buffer);
-        unrad50(itemw1, buffer + 3);
-        int itemtype = (itemw2 >> 8) & 0xff;
-        int itemflags = (itemw2 & 0377);
 
-        switch (itemtype)
-        {
-        case 0: // 0 - MODULE NAME FROM .TITLE, see LINK3\MODNME
-            printf("      Item '%s' type 0 - MODULE NAME\n", buffer);
-            if (Globals.MODNAM == 0)
-                Globals.MODNAM = MAKEDWORD(itemw0, itemw1);
-            break;
-        case 2: // 2 - ISD ENTRY (IGNORED), see LINK3\ISDNAM
-            printf("      Item '%s' type 2 - ISD ENTRY, ignored\n", buffer);
-            break;
-        case 3: // 3 - TRANSFER ADDRESS; see LINK3\TADDR
-            printf("      Item '%s' type 3 - TRANSFER ADDR %06o\n", buffer, itemw3);
-            if ((Globals.BEGBLK.value & 1) == 0)  // USE ONLY 1ST EVEN ONE ENCOUNTERED
-                break; // WE ALREADY HAVE AN EVEN ONE.  RETURN
-            {
-                DWORD lkname = MAKEDWORD(itemw0, itemw1);
-                WORD lkmsk = ~SY_SEC; // CARE ABOUT SECTION FLG
-                WORD lkwd = SY_SEC; // SECTION NAME LOOKUP IN THE ROOT
-                int index;
-                if (!symbol_table_lookup(lkname, lkwd, lkmsk, &index))
-                    fatal_error("ERR31: Transfer address for '%s' undefined or in overlay.\n", buffer);
-                SymbolTableEntry* entry = SymbolTable + index;
-                printf("        Entry '%s' %06o %06o %06o\n", unrad50(entry->name), entry->flagseg, entry->value, entry->status);
-                //TODO
-
-                if (entry->value > 0)  // IF CURRENT SIZE IS 0 THEN OK
-                {
-                    // MUST SCAN CURRENT MODULE TO FIND SIZE CONTRIBUTION TO
-                    // TRANSFER ADDR SECTION TO CALCULATE PROPER OFFSET
-                    const SaveStatusEntry* sscurtmp = sscur;
-                    int offset = 0;
-                    while (offset < sscur->filesize)
-                    {
-                        WORD blocksize = ((WORD*)data)[1];
-                        WORD blocktype = ((WORD*)data)[2];
-                        if (blocktype == 1)
-                        {
-                            int itemcounttmp = (blocksize - 6) / 8;
-                            for (int itmp = 0; itmp < itemcounttmp; itmp++)
-                            {
-                                const WORD* itemwtmp = (const WORD*)(data + 6 + 8 * itmp);
-                                int itemtypetmp = (itemwtmp[2] >> 8) & 0xff;
-                                if ((itemtypetmp == 1/*CSECT*/ || itemtypetmp == 5/*PSECT*/) &&
-                                    itemw[0] == itemwtmp[0] && itemw[1] == itemwtmp[1])  // FOUND THE PROPER SECTION
-                                {
-                                    WORD itemvaltmp = itemwtmp[3];
-                                    WORD sectsize = (itemvaltmp + 1) & ~1;  // ROUND SECTION SIZE TO WORD BOUNDARY
-                                    printf("        Item '%s' type %d - CSECT or PSECT size %06o\n", unrad50(itemwtmp[0], itemwtmp[1]), itemtypetmp, sectsize);
-                                    //TODO: UPDATE OFFSET VALUE
-                                    //TODO
-                                }
-                            }
-                        }
-                        data += blocksize; offset += blocksize;
-                        data += 1; offset += 1;  // Skip checksum
-                    }
-                }
-
-                // See LINK3\TADDR\100$ in source
-                Globals.BEGBLK.symbol = entry->name;
-                Globals.BEGBLK.flags = entry->flagseg & 0xff;
-                Globals.BEGBLK.code = (entry->flagseg << 8) & 0xff;
-                Globals.BEGBLK.value = entry->value;
-            }
-            break;
-        case 4: // 4 - GLOBAL SYMBOL, see LINK3\SYMNAM
-            printf("      Item '%s' type 4 - GLOBAL SYMBOL flags %03o addr %06o\n", buffer, itemflags, itemw3);
-            {
-                DWORD lkname = MAKEDWORD(itemw0, itemw1);
-                WORD lkwd = 0;
-                WORD lkmsk = ~SY_SEC;
-                int index;
-                bool found;
-                if (itemw2 & 010/*SY$DEF*/)  // IS SYMBOL DEFINED HERE?
-                {
-                    if (Globals.SEGNUM == 0) // ROOT DEF?
-                    {
-                        found = symbol_table_dlooke(lkname, lkwd, lkmsk, &index);
-                        SymbolTableEntry* entry = SymbolTable + index;
-                        if (entry->status & SY_DUP)  // IS IT A DUP SYMBOL?
-                        {
-                            symbol_table_delete(index);  // DELETE ALL OTHER COPIES OF SYMBOL
-                            fatal_error("ERR70: Duplicate symbol '%s' is defined in non-library", buffer);
-                        }
-                    }
-                    else  // NOT ROOT, NORMAL LOOKUP
-                    {
-                        found = symbol_table_looke(lkname, lkwd, lkmsk, &index);
-                    }
-                    // LINK3\SYMNAM\100$
-                    if (!found)  // LINK3\SYMNAM\140$
-                    {
-                        SymbolTableEntry* entry = SymbolTable + index;
-                        entry->flagseg = (entry->flagseg & ~SY_SEG) | Globals.SEGNUM;
-                        // LINK3\SYMV
-                        entry->value = itemw3 + Globals.BASE;
-                        pass1_insert_entry_into_ordered_list(index, entry, (itemw2 & 040) == 0);
-                        //TODO: ORDER
-                        //TODO: ALPHA
-                    }
-                    else  // LINK3\DEFREF
-                    {
-                        //TODO
-                    }
-                }
-                else  // Symbol referenced here, not defined here
-                {
-                    if (Globals.SEGNUM == 0) // REFERENCE FROM ROOT?
-                    {
-                        found = symbol_table_dlooke(lkname, lkwd, lkmsk, &index);
-                        SymbolTableEntry* entry = SymbolTable + index;
-                        if (entry->status & SY_DUP)  // IS IT A DUP SYMBOL?
-                        {
-                            if ((entry->status & SY_UDF) == 0)  // IS SYMBOL DEFINED?
-                            {
-                                symbol_table_delete(index);  // DELETE ALL OTHER COPIES OF SYMBOL
-                                pass1_force0(entry);
-                            }
-                            else
-                            {
-                                entry->status |= SY_IND;  // EXT. REF.
-                            }
-                        }
-                    }
-                    else // NOT ROOT, NORMAL LOOKUP
-                    {
-                        found = symbol_table_looke(lkname, lkwd, lkmsk, &index);
-                    }
-                    // LINK3\DOREF
-                    if (!found)
-                    {
-                        symbol_table_add_undefined(index);
-                    }
-                    else
-                    {
-                        //TODO
-                    }
-                }
-                //TODO
-            }
-            break;
-        case 1: // 1 - CSECT NAME, see LINK3\CSECNM
-            printf("      Item '%s' type 1 - CSECT NAME  %06o\n", buffer, itemw3);
-            {
-                DWORD lkname = MAKEDWORD(itemw0, itemw1);
-                WORD lkwd = SY_SEC;
-                WORD lkmsk = ~SY_SEC;
-                if (lkname == 0)  // BLANK .CSECT = .PSECT ,LCL,REL,I,CON,RW
-                {
-                }
-                else if (lkname == RAD50_ABS)  // Case 2: ASECT
-                {
-                    //(SWIT1 & SW_J) ?
-                    // .ASECT = .PSECT . ABS.,GBL,ABS,I,OVR,RW (NON I-D SPACE)
-                    // .ASECT = .PSECT . ABS.,GBL,ABS,D,OVR,RW (I-D SPACE)
-                    itemflags |= 0100 + 4;  // CS$GBL+CS$ALO == GBL,OVR
-                    if (Globals.SWIT1 & SW_J)
-                        itemtype = 0200;  // CS$TYP == D
-                }
-                else  // Case 3: named section
-                {
-                    itemflags |= 0100 + 4 + 040;  // CS$GBL+CS$ALO+CS$REL == GBL,OVR,REL
-                }
-                //TODO: Set flags according to case and process as PSECT
-            }
-            goto PSECT;
-        case 5: // 5 - PSECT NAME; see LINK3\PSECNM
-            printf("      Item '%s' type 5 - PSECT NAME flags %03o maxlen %06o\n", buffer, itemflags, itemw3);
-PSECT:
-            {
-                Globals.LRUNUM++; // COUNT SECTIONS IN A MODULE
-
-                DWORD lkname = MAKEDWORD(itemw0, itemw1);
-                WORD lkmsk = ~SY_SEC;
-                WORD lkwd = SY_SEC;
-                if (itemflags & 1/*CS$SAV*/) // DOES PSECT HAVE SAVE ATTRIBUTE?
-                    itemflags |= 0100/*CS$GBL*/; // FORCE PSECT TO ROOT VIA GBL ATTRIBUTE
-                if (itemflags & 0100/*CS$GBL*/) // LOCAL OR GLOBAL SECTION ?
-                {
-                    lkmsk = ~(SY_SEC + SY_SEG); // CARE ABOUT SECTION FLG & SEGMENT #
-                    lkwd |= Globals.SEGNUM; // LOCAL SECTION QUALIFIED BY SEGMENT #
-                }
-
-                int index;
-                bool isnewentry = !symbol_table_looke(lkname, lkwd, lkmsk, &index);
-                SymbolTableEntry* entry = SymbolTable + index;
-
-                if (itemflags & 1/*CS$SAV*/) // DOES PSECT HAVE SAV ATTRIBUTE?
-                    entry->status |= 1/*CS$SAV*/; // INDICATE SAV ATTRIBUTE IN PSECT ENTRY
-                itemflags &= ~(010/*CS$NU*/ | 2/*CS$LIB*/ | 1/*CS$SAV*/); // ALL UNSUPPORTED FLAG BITS
-                Globals.CSECT = index;  // PTR TO SYM TBL ENTRY
-                if (isnewentry)
-                {
-                    //TODO: SET SEGMENT # INDEPEND. OF LCL OR GBL
-                    //TODO: CALL GEN0  ;CREATE FORWARD ENTRY # PTR TO NEW NODE
-                    entry->flagseg |= (itemflags << 8);
-                    entry->value = 0;  // LENGTH=0 INITIALLY FOR NEW SECTION
-                }
-                else // AT THIS POINT SYMBOL WAS ALREADY ENTERED INTO SYMBOL TBL; see LINK3\OLDPCT
-                {
-                    WORD R2 = (entry->flagseg & 0377) // GET PSECT FLAG BITS IN R2
-                            & ~(010/*CS$NU*/ | 2/*CS$LIB*/ | 1/*CS$SAV*/); // GET RID OF UNUSED FLAG BITS
-                    if (Globals.SWIT1 & SW_J) // ARE WE PROCESSING I-D SPACE?
-                    {
-                        //TODO
-                    }
-                    if (R2 != itemflags) // ARE SECTION ATTRIBUTES THE SAME?
-                        fatal_error("ERR10: Conflicting section attributes");
-                }
-
-                // PLOOP
-                //TODO: CALL CHKRT
-                if (lkname == RAD50_ABS)
-                    ASECTentry = entry;
-                else
-                {
-                    SymbolTableEntry* pSect = ASECTentry;
-                    while (true)  // find section chain end
-                    {
-                        if (pSect == NULL) break;
-                        if ((pSect->status & 07777) == 0)
-                            break;
-                        pSect = SymbolTable + (pSect->status & ~0170000);
-                    }
-                    if (pSect != NULL)
-                        pSect->status |= index;  // set link to the new segment
-                }
-
-                entry->value += itemw3; //TODO: very primitive version, depends on flags
-
-                Globals.BASE = 0; //TODO
-            }
-            break;
-        case 6: // 6 - IDENT DEFINITION; see LINK3\PGMIDN in source
-            printf("      Item '%s' type 6 - IDENT DEFINITION\n", buffer);
-            if (Globals.IDENT == 0)
-                Globals.IDENT = MAKEDWORD(itemw0, itemw1);
-            break;
-        case 7: // 7 - VIRTUAL SECTION; see LINK3\VSECNM in source
-            printf("      Item '%s' type 7 - VIRTUAL SECTION\n", buffer);
-            //TODO
-            break;
-        default:
-            fatal_error("ERR21: Bad GSD type %d found in %s.\n", itemtype, sscur->filename);
-        }
+        process_pass1_gsd_item(itemw, sscur, data);
     }
 }
 
@@ -1386,10 +1403,14 @@ void process_pass_map_output()
     fprintf(mapfileobj, unrad50(Globals.IDENT));
     fprintf(mapfileobj, "\t\n\n");
     fprintf(mapfileobj, LINE4);
-    printf("  Section  Addr   Size    Global  Value   Global  Value   Global  Value\n");
+    printf("  Section  Addr   Size ");
     for (BYTE i = 0; i < Globals.NUMCOL; i++)
+    {
         fprintf(mapfileobj, MTITL4);
+        printf("   Global  Value");
+    }
     fprintf(mapfileobj, "\n\n");
+    printf("\n");
 
     // LINK5\RESOLV
     WORD sectsize = Globals.DBOTTM;
@@ -1438,13 +1459,13 @@ void process_pass_map_output()
 
             if (tabcount == 0)
             {
-                fprintf(mapfileobj, "\t\t");
+                fprintf(mapfileobj, "\t\t\t");
                 printf("                        ");
             }
-            fprintf(mapfileobj, "\t%s\t%06o", unrad50(entry->name), entry->value);
+            fprintf(mapfileobj, "%s\t%06o\t", unrad50(entry->name), entry->value);
             printf("  %s  %06o", unrad50(entry->name), entry->value);
             tabcount++;
-            if (tabcount >= 3)
+            if (tabcount >= Globals.NUMCOL)
             {
                 fprintf(mapfileobj, "\n");
                 printf("\n");
@@ -1478,12 +1499,10 @@ void process_pass_map_output()
     printf("  Total size %06o = %u. bytes, %u. blocks\n", totalsize, totalsize, blockcount);
     //OutputBufferSize = (blockcount == 0) ? 65536 : blockcount * 512;
 
-    //TODO: OUTPUT SYMBOL NAME & VALUE
-
     print_undefined_globals();
 
     // OUTPUT TRANSFER ADR & CHECK ITS VALIDITY, see LINK5\DOTADR
-    WORD lkmsk = ~(SY_SEC + SY_SEG);  // LOOK AT SECTION & SEGMENT # BITS
+    WORD lkmsk = (WORD) ~(SY_SEC + SY_SEG);  // LOOK AT SECTION & SEGMENT # BITS
     WORD segnum = 0;  // MUST BE IN ROOT SEGMENT
     WORD lkwd = SY_SEC;  // ASSUME SECTION NAME LOOKUP
     if (Globals.BEGBLK.code == 4)  // IS SYMBOL A GLOBAL?
@@ -1511,6 +1530,8 @@ void process_pass_map_output()
 
 void process_pass2_rld_lookup(const BYTE* data, bool global)
 {
+    assert(data != NULL);
+
     DWORD lkname = *((DWORD*)data);
     WORD lkwd = global ? (SY_SEC | Globals.SEGNUM) : 0;
     WORD lkmsk = global ? ~(SY_SEC | SY_SEG) : ~SY_SEC;
@@ -1738,10 +1759,9 @@ void process_pass2()
 
             if (blocktype == 0 || blocktype > 8)
                 fatal_error("ERR4: Illegal record type at %06o in %s\n", offset, sscur->filename);
-            else if (blocktype == 1)
+            else if (blocktype == 1)  // START GSD RECORD, see LINK7\GSD
             {
                 printf("    Block type 1 - GSD at %06o size %06o\n", offset, blocksize);
-                //TODO
             }
             else if (blocktype == 3)  // See LINK7\DMPTXT
             {
@@ -1786,8 +1806,6 @@ int main(int argc, char *argv[])
     assert(sizeof(BYTE) == 1);
     assert(sizeof(WORD) == 2);
     assert(sizeof(DWORD) == 4);
-
-    //assert(sizeof(SymbolTableEntry) == 10);
 
     if (argc <= 1)
     {
