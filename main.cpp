@@ -108,6 +108,7 @@ static const char month_names[][4] =
 
 BYTE* OutputBuffer = NULL;
 size_t OutputBufferSize = 0;
+int OutputBlockCount = 0;
 
 FILE* outfileobj = NULL;
 FILE* mapfileobj = NULL;
@@ -1011,7 +1012,7 @@ void process_pass1()
             {
                 WORD libver = ((WORD*)data)[3];
                 if (libver < L_HVER)
-                    fatal_error("ERR23 Old library format (%03ho) in %s.\n", libver, sscur->filename);
+                    fatal_error("ERR23: Old library format (%03ho) in %s.\n", libver, sscur->filename);
                 sscur->islibrary = true;
                 break;  // Skipping library files on Pass 1
             }
@@ -1354,7 +1355,7 @@ void process_pass_map_output()
     WORD totalsize = baseaddr + sectsize;
     WORD blockcount = (totalsize + 511) / 512;
     printf("  Total size %06ho = %u. bytes, %u. blocks\n", totalsize, totalsize, blockcount);
-    //OutputBufferSize = (blockcount == 0) ? 65536 : blockcount * 512;
+    OutputBlockCount = blockcount;  //HACK for now
 
     print_undefined_globals();
 
@@ -1527,11 +1528,18 @@ void process_pass2_init()
     {
         WORD lkwd = 0; // MUST BE A GLOBAL SYMBOL
         //TODO: Lookup for the symbol address
+        NOTIMPLEMENTED
     }
-    else
+    else if (Globals.STKBLK[2] != NULL)
     {
         *((WORD*)(OutputBuffer + SysCom_STACK)) = Globals.STKBLK[2];
     }
+    else
+    {
+        //TODO: ARE WE DOING I-D SPACE?
+        *((WORD*)(OutputBuffer + SysCom_STACK)) = Globals.BOTTOM;
+    }
+
     //TODO: *((WORD*)(OutputBuffer + SysCom_HIGH)) = ???
 
     //TODO: For /K switch STORE IT AT LOC. 56 IN SYSCOM AREA
@@ -1735,8 +1743,13 @@ void parse_commandline(int argc, char **argv)
 
                 case 'K':  // /K - SPECIFY MINIMUM SIZE
                     result = sscanf(cur, ":%ho", &param1);
+                    if (result < 1)
+                        fatal_error("Invalid /K option, use /K:value\n");
+                    if (param1 < 2 || param1 > 28)
+                        fatal_error("Invalid /K option value, should be: 2 < value < 28. \n");
                     Globals.SWITCH |= SW_K;
-                    //TODO
+                    //TODO: if (Globals.SWITCH & SW_R)
+                    Globals.KSWVAL = param1;
                     break;
 
                 case 'P':  // /P:N  SIZE OF LML TABLE
@@ -1820,7 +1833,7 @@ void parse_commandline(int argc, char **argv)
                     break;
 
                 default:
-                    fatal_error("Unknown command line option '%c'\n", option);
+                    fatal_error("Unknown command line option /'%c'\n", option);
                 }
             }
         }
@@ -1906,8 +1919,9 @@ int main(int argc, char *argv[])
     process_pass2();
     //TODO: Pass 2.5
 
-    size_t byteswrit = fwrite(OutputBuffer, 1, OutputBufferSize, outfileobj);
-    if (byteswrit != OutputBufferSize)
+    size_t bytestowrite = OutputBlockCount == 0 ? 65536 : OutputBlockCount * 512;
+    size_t byteswrit = fwrite(OutputBuffer, 1, bytestowrite, outfileobj);
+    if (byteswrit != bytestowrite)
         fatal_error("ERR6: Failed to write output file.\n");
 
     printf("SUCCESS\n");
