@@ -100,12 +100,19 @@ const char* GSDItemTypeNames[] =
     /*7*/ "VIRTUAL SECTION"
 };
 
+static const char* weekday_names[] =
+{ "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
+static const char month_names[][4] =
+{ "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+
+
 BYTE* OutputBuffer = NULL;
 size_t OutputBufferSize = 0;
 
 FILE* outfileobj = NULL;
 FILE* mapfileobj = NULL;
 FILE* stbfileobj = NULL;
+
 
 // Macros used to mark and detect unimplemented but needed
 #define NOTIMPLEMENTED { printf("*** NOT IMPLEMENTED, line %d\n", __LINE__); }
@@ -863,7 +870,7 @@ void pass1_insert_entry_into_ordered_list(int index, SymbolTableEntry* entry, bo
 }
 
 // LINK3\TADDR
-void process_pass1_gsd_item_taddr(const WORD* itemw, const SaveStatusEntry* sscur, const BYTE* data)
+void process_pass1_gsd_item_taddr(const WORD* itemw, const SaveStatusEntry* sscur)
 {
     if ((Globals.BEGBLK.value & 1) == 0)  // USE ONLY 1ST EVEN ONE ENCOUNTERED
         return; // WE ALREADY HAVE AN EVEN ONE.  RETURN
@@ -886,6 +893,7 @@ void process_pass1_gsd_item_taddr(const WORD* itemw, const SaveStatusEntry* sscu
         int offset = 0;
         while (offset < sscur->filesize)
         {
+            const BYTE* data = (BYTE*)(sscur->data) + offset;
             WORD blocksize = ((WORD*)data)[1];
             WORD blocktype = ((WORD*)data)[2];
             if (blocktype == 1)
@@ -901,8 +909,15 @@ void process_pass1_gsd_item_taddr(const WORD* itemw, const SaveStatusEntry* sscu
                         WORD itemvaltmp = itemwtmp[3];
                         WORD sectsize = (itemvaltmp + 1) & ~1;  // ROUND SECTION SIZE TO WORD BOUNDARY
                         printf("        Item '%s' type %d - CSECT or PSECT size %06ho\n", unrad50(itemwtmp[0], itemwtmp[1]), itemtypetmp, sectsize);
+                        int newvalue = /*entry->value - sectsize +*/ itemw[3];
                         //TODO: UPDATE OFFSET VALUE
                         //TODO
+                        // See LINK3\TADDR\100$ in source
+                        Globals.BEGBLK.symbol = entry->name;  // NAME OF THE SECTION
+                        Globals.BEGBLK.flags = entry->flagseg & 0xff;
+                        Globals.BEGBLK.code = (entry->flagseg << 8) & 0xff;
+                        Globals.BEGBLK.value = newvalue /*entry->value*/;  // RELATIVE OFFSET FROM THE SECTION
+                        break;
                     }
                 }
             }
@@ -910,12 +925,6 @@ void process_pass1_gsd_item_taddr(const WORD* itemw, const SaveStatusEntry* sscu
             data += 1; offset += 1;  // Skip checksum
         }
     }
-
-    // See LINK3\TADDR\100$ in source
-    Globals.BEGBLK.symbol = entry->name;  // NAME OF THE SECTION
-    Globals.BEGBLK.flags = entry->flagseg & 0xff;
-    Globals.BEGBLK.code = (entry->flagseg << 8) & 0xff;
-    Globals.BEGBLK.value = entry->value;  // RELATIVE OFFSET FROM THE SECTION
 }
 
 // LINK3\SYMNAM
@@ -1046,8 +1055,8 @@ void process_pass1_gsd_item_psecnm(const WORD* itemw, int& itemflags)
     Globals.CSECT = index;  // PTR TO SYM TBL ENTRY
     if (isnewentry)
     {
-        //TODO: SET SEGMENT # INDEPEND. OF LCL OR GBL
-        //TODO: CALL GEN0  ;CREATE FORWARD ENTRY # PTR TO NEW NODE
+        entry->flagseg |= Globals.SEGNUM; // SET SEGMENT # INDEPEND. OF LCL OR GBL
+        //TODO: CREATE FORWARD ENTRY # PTR TO NEW NODE
         entry->flagseg |= (itemflags << 8);
         entry->value = 0;  // LENGTH=0 INITIALLY FOR NEW SECTION
     }
@@ -1082,13 +1091,22 @@ void process_pass1_gsd_item_psecnm(const WORD* itemw, int& itemflags)
             pSect->status |= index;  // set link to the new segment
     }
 
-    entry->value += itemw[3]; //TODO: very primitive version, depends on flags
+    //TODO: primitive version, depends on section flags
+    int sectsize = itemw[3];
+    if ((itemflags & 0200/*CS$TYP*/) != 0 || (itemflags & 4/*CS$ALO*/) != 0)
+        sectsize = (sectsize + 1) & ~1;  // ROUND SECTION SIZE TO WORD BOUNDARY
+    if (itemflags & 4/*CS$ALO*/)  // OVERLAYED SECTION?
+    {
+        Globals.BASE = 0;  // OVR PSECT, GBL SYM OFFSET IS FROM START OF SECTION
+        //if (itemw[3] > entry->value)
+    }
+    entry->value = sectsize;
 
     Globals.BASE = 0; //TODO
 }
 
 // PROCESS GSD TYPES, see LINK3\GSD
-void process_pass1_gsd_item(const WORD* itemw, const SaveStatusEntry* sscur, const BYTE* data)
+void process_pass1_gsd_item(const WORD* itemw, const SaveStatusEntry* sscur)
 {
     DWORD itemnamerad50 = MAKEDWORD(itemw[0], itemw[1]);
     int itemtype = (itemw[2] >> 8) & 0xff;
@@ -1107,7 +1125,7 @@ void process_pass1_gsd_item(const WORD* itemw, const SaveStatusEntry* sscur, con
         break;
     case 3: // 3 - TRANSFER ADDRESS; see LINK3\TADDR
         printf(" %06ho\n", itemw[3]);
-        process_pass1_gsd_item_taddr(itemw, sscur, data);
+        process_pass1_gsd_item_taddr(itemw, sscur);
         break;
     case 4: // 4 - GLOBAL SYMBOL, see LINK3\SYMNAM
         printf(" flags %03o addr %06ho\n", itemflags, itemw[3]);
@@ -1151,14 +1169,14 @@ void process_pass1_gsd_block(const SaveStatusEntry* sscur, const BYTE* data)
         const WORD* itemw = (const WORD*)(data + 6 + 8 * i);
         memcpy(Globals.TXTBLK, itemw, 8);
 
-        process_pass1_gsd_item(itemw, sscur, data);
+        process_pass1_gsd_item(itemw, sscur);
     }
 }
 
 // PASS1: GSD PROCESSING, see LINK3\PASS1
 void process_pass1()
 {
-    printf("Pass 1 started\n");
+    printf("PASS 1\n");
     Globals.PAS1_5 = 0;  // PASS 1 PHASE INDICATOR
     // PROCESS FORMATTED BINARY RECORDS, see LINK3\PA1 in source
     for (int i = 0; i < SaveStatusCount; i++)
@@ -1223,7 +1241,7 @@ void process_pass1()
 // PASS 1.5 SCANS ONLY LIBRARIES
 void process_pass15()
 {
-    printf("Pass 1.5 started\n");
+    printf("PASS 1.5\n");
     Globals.PAS1_5 = 0200;
     Globals.LIBNB = 0;
     for (int i = 0; i < SaveStatusCount; i++)
@@ -1350,12 +1368,17 @@ void process_pass_map_init()
     //TODO: ROUND ALL XM SEGMENTS TO 32. WORDS
 }
 
-static const char LINE4[] = "Section  Addr\tSize";
-static const char MTITL4[] = "\tGlobal\tValue";
-static const char* wday_name[] =
-{ "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
-static const char mon_name[][4] =
-{ "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+void process_pass_map_done()
+{
+    if (mapfileobj != NULL)
+    {
+        fclose(mapfileobj);  mapfileobj = NULL;
+    }
+    if (stbfileobj != NULL)
+    {
+        fclose(stbfileobj);  stbfileobj = NULL;
+    }
+}
 
 // PRINT UNDEFINED GLOBALS IF ANY, see LINK5\DOUDFS
 void print_undefined_globals()
@@ -1381,7 +1404,7 @@ void print_undefined_globals()
 // Map output: see LINK5\MAPHDR in source
 void process_pass_map_output()
 {
-    printf("Pass map started\n");
+    printf("PASS MAP\n");
 
     // Prepare MAP file name
     char mapfilename[64];
@@ -1417,8 +1440,8 @@ void process_pass_map_output()
     time_t curtime;  time(&curtime); // DETERMINE DATE & TIME
     struct tm * timeptr = localtime(&curtime);
     fprintf(mapfileobj, "%s %.2d-%s-%d %.2d:%.2d\n",
-            wday_name[timeptr->tm_wday],
-            timeptr->tm_mday, mon_name[timeptr->tm_mon], 1900 + timeptr->tm_year,
+            weekday_names[timeptr->tm_wday],
+            timeptr->tm_mday, month_names[timeptr->tm_mon], 1900 + timeptr->tm_year,
             timeptr->tm_hour, timeptr->tm_min);
 
     char savname[64];
@@ -1435,20 +1458,20 @@ void process_pass_map_output()
     fprintf(mapfileobj, "\tIdent:\t");
     fprintf(mapfileobj, unrad50(Globals.IDENT));
     fprintf(mapfileobj, "\t\n\n");
-    fprintf(mapfileobj, LINE4);
+    fprintf(mapfileobj, "Section  Addr\tSize");
     printf("  Section  Addr   Size ");
     for (BYTE i = 0; i < Globals.NUMCOL; i++)
     {
-        fprintf(mapfileobj, MTITL4);
+        fprintf(mapfileobj, "\tGlobal\tValue");
         printf("   Global  Value");
     }
     fprintf(mapfileobj, "\n\n");
     printf("\n");
 
     // LINK5\RESOLV
-    WORD sectsize = Globals.DBOTTM;
     WORD baseaddr = 0; // ASECT BASE ADDRESS IS 0
     SymbolTableEntry* entry = ASECTentry;
+    WORD sectsize = (entry != NULL && entry->value > 0) ? entry->value : Globals.DBOTTM;
     int tabcount = 0;
     while (entry != NULL)
     {
@@ -1505,7 +1528,7 @@ void process_pass_map_output()
                 tabcount = 0;
             }
         }
-        // Next section entry index should be in status field
+        // Next entry index should be in status field
         if ((entry->status & 07777) == 0)
         {
             entry = NULL;
@@ -1516,7 +1539,7 @@ void process_pass_map_output()
             }
             break;
         }
-        entry = SymbolTable + (entry->status & 07777);
+        entry = SymbolTable + (entry->status & 07777);  // next entry
 
         if (entry->flagseg & SY_SEC)
         {
@@ -1545,9 +1568,9 @@ void process_pass_map_output()
     if (!found)
         fatal_error("ERR31: Transfer address undefined or in overlay\n");
     SymbolTableEntry* entrybeg = SymbolTable + index;
-
     //TODO: Calculate transfer address
-    WORD taddr = entrybeg->value;
+    Globals.BEGBLK.value += entrybeg->value;
+    WORD taddr = Globals.BEGBLK.value;
     //TODO: Calculate high limit
     WORD highlim = totalsize - 2; //Globals.HGHLIM;
 
@@ -1555,10 +1578,6 @@ void process_pass_map_output()
     sprintf_s(bufhlim, "%06ho = %d.", highlim, highlim / 2);
     fprintf(mapfileobj, "\nTransfer address = %06ho, High limit = %-16s words\n", taddr, bufhlim);
     printf("  Transfer address = %06ho, High limit = %-16s words\n", taddr, bufhlim);
-
-    fclose(mapfileobj);  mapfileobj = NULL;
-
-    fclose(stbfileobj);  stbfileobj = NULL;
 }
 
 void process_pass2_rld_lookup(const BYTE* data, bool global)
@@ -1679,13 +1698,14 @@ void print_symbol_table()
         if ((entry->flagseg & SY_SEC) && (entry->status & SY_SAV)) printf("SAV ");
         printf("\n");
     }
+    printf("  BEGBLK '%s' %06ho\n", unrad50(Globals.BEGBLK.symbol), Globals.BEGBLK.value);
     printf("  UNDLST = %06ho\n", (WORD)Globals.UNDLST);
 }
 
 // Prapare SYSCOM area, pass 2 initialization; see LINK6
 void process_pass2_init()
 {
-    printf("Pass 2 initialization\n");
+    printf("PASS 2 init\n");
 
     print_symbol_table();
 
@@ -1757,10 +1777,10 @@ void process_pass2_dump_txtblk()  // See TDMP0
     Globals.TXTLEN = 0;
 }
 
-// See LINK7\PASS2 -- PRODUCE SAVE IMAGE FILE
+// PRODUCE SAVE IMAGE FILE, see LINK7\PASS2
 void process_pass2()
 {
-    printf("Pass 2 started\n");
+    printf("PASS 2\n");
     for (int i = 0; i < SaveStatusCount; i++)
     {
         SaveStatusEntry* sscur = SaveStatusArea + i;
@@ -1858,9 +1878,11 @@ int main(int argc, char *argv[])
 
     //TODO: Check if we need Pass 1.5
     process_pass15();
+    print_symbol_table();//DEBUG
 
     process_pass_map_init();
     process_pass_map_output();
+    process_pass_map_done();
 
     process_pass2_init();
     process_pass2();
@@ -1871,7 +1893,8 @@ int main(int argc, char *argv[])
         fatal_error("ERR6: Failed to write output file.\n");
 
     printf("SUCCESS\n");
-    exit(EXIT_SUCCESS);
+    finalize();
+    return EXIT_SUCCESS;
 }
 
 
