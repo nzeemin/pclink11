@@ -289,14 +289,6 @@ Globals;
 /////////////////////////////////////////////////////////////////////////////
 
 
-void print_help()
-{
-    printf("\n");
-    //
-    printf("Usage: link11 <input files> <options>\n");
-    //TODO
-}
-
 void fatal_error(const char* message, ...)
 {
     printf("ERROR: ");
@@ -308,279 +300,6 @@ void fatal_error(const char* message, ...)
     }
 
     exit(EXIT_FAILURE);
-}
-
-void initialize()
-{
-    //printf("Initialization\n");
-
-    memset(&Globals, 0, sizeof(Globals));
-
-    memset(SaveStatusArea, 0, sizeof(SaveStatusArea));
-    SaveStatusCount = 0;
-
-    SymbolTable = (SymbolTableEntry*) ::malloc(SymbolTableLength);
-    memset(SymbolTable, 0, SymbolTableLength);
-    SymbolTableCount = 0;
-
-    // Set globals defaults, see LINK1\START1
-    Globals.NUMCOL = 3; // 3-COLUMN MAP IS NORMAL
-    Globals.NUMBUF = 3; // NUMBER OF AVAILABLE CACHING BLOCKS (DEF=3)
-    Globals.BEGBLK.symbol = RAD50_ABS;
-    Globals.BEGBLK.code = 5;
-    Globals.BEGBLK.flags = 0100/*CS$GBL*/ | 04/*CS$ALO*/;
-    Globals.BEGBLK.value = 000001;  // INITIAL TRANSFER ADR TO 1
-    //TODO
-    Globals.DBOTTM = 01000;
-    Globals.BOTTOM = 01000;
-    Globals.KSWVAL = 128/*RELSTK*/;
-}
-
-void finalize()
-{
-    //printf("Finalization\n");
-
-    if (SymbolTable != NULL)
-    {
-        free(SymbolTable);  SymbolTable = NULL;
-    }
-
-    for (int i = 0; i < SaveStatusCount; i++)
-    {
-        SaveStatusEntry* sscur = SaveStatusArea + i;
-        if (sscur->fileobj == NULL)
-            continue;
-
-        fclose(sscur->fileobj);
-        sscur->fileobj = NULL;
-        //printf("  File closed: %s\n", sscur->filename);
-    }
-
-    if (OutputBuffer != NULL)
-    {
-        free(OutputBuffer);  OutputBuffer = NULL;  OutputBufferSize = 0;
-    }
-
-    if (outfileobj != NULL)
-    {
-        fclose(outfileobj);  outfileobj = NULL;
-    }
-    if (mapfileobj != NULL)
-    {
-        fclose(mapfileobj);  mapfileobj = NULL;
-    }
-    if (stbfileobj != NULL)
-    {
-        fclose(stbfileobj);  stbfileobj = NULL;
-    }
-}
-
-// PROCESS COMMAND STRING SWITCHES, see LINK1\SWLOOP in source
-void parse_commandline(int argc, char **argv)
-{
-    for (int arg = 1; arg < argc; arg++)
-    {
-        const char* argvcur = argv[arg];
-
-        if (*argvcur == '/' || *argvcur == '-')  // Parse global arguments
-        {
-            //TODO: Parse arguments like Command String Interpreter
-            const char* cur = argvcur + 1;
-            WORD param1, param2;
-            if (*cur != 0)
-            {
-                int result;
-                param1 = param2 = 0;  result = 0;
-                int option = toupper(*cur++);
-                switch (option)
-                {
-                case 'T': // /T:address -- SPECIFY TRANSFER ADR
-                    result = sscanf(cur, ":%ho", &param1);
-                    if (result < 1)
-                        fatal_error("Invalid /T option, use /T:addr\n");
-                    Globals.SWITCH |= SW_T;
-                    Globals.BEGBLK.value = param1;
-                    break;
-
-                case 'M':  // /M - MODIFY INITIAL STACK
-                    result = sscanf(cur, ":%ho", &param1);
-                    if (result < 1)
-                        fatal_error("Invalid /M option, use /M:addr\n");
-                    if (param1 & 1)
-                        fatal_error("Invalid /M option value, use even address\n");
-                    Globals.SWITCH |= SW_M;
-                    Globals.STKBLK[2] = param1;
-                    break;
-
-                case 'B':  // /B - SPECIFY BOTTOM ADR FOR LINK
-                    result = sscanf(cur, ":%ho", &param1);
-                    if (result < 1)
-                        fatal_error("Invalid /B option, use /B:addr\n");
-                    Globals.SWITCH |= SW_B;
-                    //Globals.TMPIDD = 0;
-                    //Globals.TMPIDI = 0;
-                    //TODO
-                    break;
-
-                case 'U':  // /U - ROUND SECTION
-                    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
-                    Globals.SWITCH |= SW_U;
-                    //Globals.TMPIDD = D.SWU;
-                    //Globals.TMPIDI = I.SWU;
-                    //TODO
-                    break;
-
-                case 'E':  // /E - EXTEND SECTION
-                    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
-                    Globals.SWITCH |= SW_E;
-                    //Globals.TMPIDD = D.SWE;
-                    //Globals.TMPIDI = I.SWE;
-                    //TODO
-                    break;
-
-                case 'Y':  // /Y - START SECTION ON MULTIPLE OF VALUE
-                    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
-                    Globals.SWITCH |= SW_Y;
-                    //Globals.TMPIDD = D.SWY;
-                    //Globals.TMPIDI = I.SWY;
-                    //TODO
-                    break;
-
-                case 'H':  // /H - SPECIFY TOP ADR FOR LINK
-                    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
-                    Globals.SWITCH |= SW_H;
-                    //Globals.TMPIDD = D.SWH;
-                    //Globals.TMPIDI = I.SWH;
-                    //TODO
-                    break;
-
-                case 'K':  // /K - SPECIFY MINIMUM SIZE
-                    result = sscanf(cur, ":%ho", &param1);
-                    Globals.SWITCH |= SW_K;
-                    //TODO
-                    break;
-
-                case 'P':  // /P:N  SIZE OF LML TABLE
-                    result = sscanf(cur, ":%ho", &param1);
-                    //TODO
-                    break;
-
-                case 'Z':  // /Z - ZERO UNFILLED LOCATIONS
-                    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
-                    //Globals.TMPIDD = D.SWZ;
-                    //Globals.TMPIDI = I.SWZ;
-                    //TODO
-                    break;
-
-                case 'R':  // /R - INDICATE FOREGROUND LINK
-                    result = sscanf(cur, ":%ho", &param1);
-                    Globals.SWITCH |= SW_R;
-                    //TODO
-                    break;
-
-                case 'V':  // /XM, OR /V ON 1ST LINE
-                    result = sscanf(cur, ":%ho", &param1);
-                    //TODO
-                    break;
-
-                case 'L':  // /L - INDICATE LDA OUTPUT
-                    //TODO
-                    break;
-
-                case 'W':  // /W - SPECIFY WIDE MAP LISTING
-                    Globals.NUMCOL = 6; // 6 COLUMNS
-                    Globals.LSTFMT--; // WIDE CREF
-                    break;
-                    // /C - CONTINUE ON ANOTHER LINE
-                    // /
-
-                case 'X':  // /X - DO NOT EMIT BIT MAP
-                    Globals.SWITCH |= SW_X;
-                    break;
-
-                case 'I':  // /I - INCLUDE MODULES FROM LIBRARY
-                    Globals.SWITCH |= SW_I;
-                    break;
-
-                case 'F':  // /F - INCLUDE FORLIB.OBJ IN LINK
-                    Globals.SWITCH |= SW_F;
-                    break;
-
-                case 'A':  // /A - ALPHABETIZE MAP
-                    Globals.SWITCH |= SW_A;
-                    break;
-
-                case 'S':  // /S - SYMBOL TABLE AS LARGE AS POSSIBLE
-                    //TODO
-                    break;
-
-                case 'D':  // /D - ALLOW DUPLICATE SYMBOLS
-                    Globals.SWIT1 |= SW_D;
-                    break;
-
-                case 'N':  // /N - GENERATE CROSS REFERENCE
-                    result = sscanf(cur, ":%ho", &param1);
-                    //TODO
-                    break;
-
-                case 'G':  // /G - CALC. EPT SIZE ON RT-11
-                    result = sscanf(cur, ":%ho", &param1);
-                    //TODO
-                    break;
-
-                case 'Q':  // /Q - SET PSECTS TO ABSOLUTE ADDRESSES
-                    result = sscanf(cur, ":%ho", &param1);
-                    //TODO
-                    break;
-
-                case 'J':  // /J - USE SEPARATED I-D SPACE
-                    if (Globals.SWITCH & SW_R)
-                        fatal_error("Invalid option: /R illegal with /J\n"); //TODO: Should be warning only
-                    else
-                        Globals.SWIT1 |= SW_J;
-                    break;
-
-                default:
-                    fatal_error("Unknown command line option '%c'\n", option);
-                }
-            }
-        }
-        else  // Parse filename and arguments
-        {
-            if (SaveStatusCount == SaveStatusAreaSize)
-                fatal_error("Too many files specified.\n");
-
-            SaveStatusEntry* sscur = SaveStatusArea + SaveStatusCount;
-
-            // Parse filename
-            char* filenamecur = sscur->filename;
-            const char* cur = argvcur;
-            int filenamelen = 0;
-            while (*cur != 0 && (isalnum(*cur) || *cur == '.' || *cur == '_' || *cur == '-'))
-            {
-                *filenamecur = *cur;
-                filenamecur++;  cur++;
-                filenamelen++;
-                if (filenamelen >= sizeof(sscur->filename))
-                    fatal_error("Too long filename: %s\n", argvcur);
-            }
-            SaveStatusCount++;
-
-            //TODO: Parse options associated with the file
-            //while (*cur == '/')
-            //{
-            //	cur++;
-            //	switch (*cur)
-            //	{
-            //	default:
-            //		fatal_error("Bad switch: %s\n", argvcur);
-            //	}
-            //}
-        }
-    }
-
-    if (SaveStatusCount == 0)
-        fatal_error("Input file not specified\n");
 }
 
 
@@ -789,6 +508,71 @@ bool symbol_table_search(DWORD lkname, WORD lkwd, WORD lkmsk, int* pindex)
 /////////////////////////////////////////////////////////////////////////////
 
 
+void initialize()
+{
+    //printf("Initialization\n");
+
+    memset(&Globals, 0, sizeof(Globals));
+
+    memset(SaveStatusArea, 0, sizeof(SaveStatusArea));
+    SaveStatusCount = 0;
+
+    SymbolTable = (SymbolTableEntry*) ::malloc(SymbolTableLength);
+    memset(SymbolTable, 0, SymbolTableLength);
+    SymbolTableCount = 0;
+
+    // Set globals defaults, see LINK1\START1
+    Globals.NUMCOL = 3; // 3-COLUMN MAP IS NORMAL
+    Globals.NUMBUF = 3; // NUMBER OF AVAILABLE CACHING BLOCKS (DEF=3)
+    Globals.BEGBLK.symbol = RAD50_ABS;
+    Globals.BEGBLK.code = 5;
+    Globals.BEGBLK.flags = 0100/*CS$GBL*/ | 04/*CS$ALO*/;
+    Globals.BEGBLK.value = 000001;  // INITIAL TRANSFER ADR TO 1
+    //TODO
+    Globals.DBOTTM = 01000;
+    Globals.BOTTOM = 01000;
+    Globals.KSWVAL = 128/*RELSTK*/;
+}
+
+void finalize()
+{
+    //printf("Finalization\n");
+
+    if (SymbolTable != NULL)
+    {
+        free(SymbolTable);  SymbolTable = NULL;
+    }
+
+    for (int i = 0; i < SaveStatusCount; i++)
+    {
+        SaveStatusEntry* sscur = SaveStatusArea + i;
+        if (sscur->fileobj == NULL)
+            continue;
+
+        fclose(sscur->fileobj);
+        sscur->fileobj = NULL;
+        //printf("  File closed: %s\n", sscur->filename);
+    }
+
+    if (OutputBuffer != NULL)
+    {
+        free(OutputBuffer);  OutputBuffer = NULL;  OutputBufferSize = 0;
+    }
+
+    if (outfileobj != NULL)
+    {
+        fclose(outfileobj);  outfileobj = NULL;
+    }
+    if (mapfileobj != NULL)
+    {
+        fclose(mapfileobj);  mapfileobj = NULL;
+    }
+    if (stbfileobj != NULL)
+    {
+        fclose(stbfileobj);  stbfileobj = NULL;
+    }
+}
+
 void read_files()
 {
     for (int i = 0; i < SaveStatusCount; i++)
@@ -916,7 +700,7 @@ void process_pass1_gsd_item_taddr(const WORD* itemw, const SaveStatusEntry* sscu
                         Globals.BEGBLK.symbol = entry->name;  // NAME OF THE SECTION
                         Globals.BEGBLK.flags = entry->flagseg & 0xff;
                         Globals.BEGBLK.code = (entry->flagseg << 8) & 0xff;
-                        Globals.BEGBLK.value = newvalue /*entry->value*/;  // RELATIVE OFFSET FROM THE SECTION
+                        Globals.BEGBLK.value = (WORD)newvalue /*entry->value*/;  // RELATIVE OFFSET FROM THE SECTION
                         break;
                     }
                 }
@@ -1100,7 +884,7 @@ void process_pass1_gsd_item_psecnm(const WORD* itemw, int& itemflags)
         Globals.BASE = 0;  // OVR PSECT, GBL SYM OFFSET IS FROM START OF SECTION
         //if (itemw[3] > entry->value)
     }
-    entry->value = sectsize;
+    entry->value = (WORD)sectsize;
 
     Globals.BASE = 0; //TODO
 }
@@ -1227,7 +1011,7 @@ void process_pass1()
             {
                 WORD libver = ((WORD*)data)[3];
                 if (libver < L_HVER)
-                    fatal_error("ERR23 Old library format (%03o).\n", (int)libver);
+                    fatal_error("ERR23 Old library format (%03ho) in %s.\n", libver, sscur->filename);
                 sscur->islibrary = true;
                 break;  // Skipping library files on Pass 1
             }
@@ -1251,7 +1035,7 @@ void process_pass15()
         assert(sscur->data != NULL);
 
         // Skipping non-library files on Pass 1.5
-        if (!sscur->islibrary)
+        if (!sscur->islibrary)  // SKIP ALL NON-LIBRARY FILES ON LIBRARY PASS
             continue;
 
         printf("  Processing %s\n", sscur->filename);
@@ -1305,7 +1089,7 @@ void process_pass15()
                 data += L_HEPT; offset += L_HEPT;  // Move to 1ST EPT ENTRY
 
                 // Resolve undefined symbols using EPT
-                if (is_any_undefined())
+                if (is_any_undefined())  // IF NO UNDEFS, THEN END LIBRARY
                 {
                     int index = Globals.UNDLST;  // GET A WEAK SYMBOL FROM THE UNDEFINED SYMBOL TABLE LIST
                     while (index > 0)
@@ -1328,13 +1112,30 @@ void process_pass15()
             else if (blocktype == 8)
             {
                 printf("    Block type 10 - ENDLIB at %06ho size %06ho\n", (WORD)offset, blocksize);
-                //TODO
-                NOTIMPLEMENTED
             }
 
             data += blocksize; offset += blocksize;
             data += 1; offset += 1;  // Skip checksum
         }
+
+        //TODO: LINK3\ENDLIB
+    }
+}
+
+// END PASS ONE PROCESSING; see LINK4\ENDP1
+void process_pass1_endp1()
+{
+    //TODO
+
+    if (ASECTentry == NULL)  //HACK: add default ABS section if we still don't have one
+    {
+        // Enter ABS section into the symbol table
+        WORD lkwd = (WORD)SY_SEC;
+        WORD lkmsk = (WORD)~SY_SEC;
+        int index;
+        symbol_table_dlooke(RAD50_ABS, lkwd, lkmsk, &index);
+        ASECTentry = SymbolTable + index;
+        ASECTentry->flagseg |= (0100/*CS$GBL*/ | 04/*CS$ALO*/) << 8;
     }
 }
 
@@ -1437,7 +1238,7 @@ void process_pass_map_output()
     fprintf(mapfileobj, "PCLINK11 %-8s", APP_VERSION_STRING);
     fprintf(mapfileobj, "\tLoad Map \t");
 
-    time_t curtime;  time(&curtime); // DETERMINE DATE & TIME
+    time_t curtime;  time(&curtime); // DETERMINE DATE & TIME; see LINK5\MAPHDR
     struct tm * timeptr = localtime(&curtime);
     fprintf(mapfileobj, "%s %.2d-%s-%d %.2d:%.2d\n",
             weekday_names[timeptr->tm_wday],
@@ -1468,7 +1269,7 @@ void process_pass_map_output()
     fprintf(mapfileobj, "\n\n");
     printf("\n");
 
-    // LINK5\RESOLV
+    // RESOLV	SECTION STARTS & GLOBAL SYMBOL VALUES; see LINK5\RESOLV
     WORD baseaddr = 0; // ASECT BASE ADDRESS IS 0
     SymbolTableEntry* entry = ASECTentry;
     WORD sectsize = (entry != NULL && entry->value > 0) ? entry->value : Globals.DBOTTM;
@@ -1843,6 +1644,7 @@ void process_pass2()
             {
                 printf("    Block type 7 - TITLIB at %06ho size %06ho\n", (WORD)offset, blocksize);
                 //TODO
+                NOTIMPLEMENTED
                 break;  // Skip for now
             }
 
@@ -1850,6 +1652,222 @@ void process_pass2()
             data += 1; offset += 1;  // Skip checksum
         }
     }
+}
+
+// PROCESS COMMAND STRING SWITCHES, see LINK1\SWLOOP in source
+void parse_commandline(int argc, char **argv)
+{
+    for (int arg = 1; arg < argc; arg++)
+    {
+        const char* argvcur = argv[arg];
+
+        if (*argvcur == '/' || *argvcur == '-')  // Parse global arguments
+        {
+            //TODO: Parse arguments like Command String Interpreter
+            const char* cur = argvcur + 1;
+            WORD param1, param2;
+            if (*cur != 0)
+            {
+                int result;
+                param1 = param2 = 0;  result = 0;
+                int option = toupper(*cur++);
+                switch (option)
+                {
+                case 'T': // /T:address -- SPECIFY TRANSFER ADR
+                    result = sscanf(cur, ":%ho", &param1);
+                    if (result < 1)
+                        fatal_error("Invalid /T option, use /T:addr\n");
+                    Globals.SWITCH |= SW_T;
+                    Globals.BEGBLK.value = param1;
+                    break;
+
+                case 'M':  // /M - MODIFY INITIAL STACK
+                    result = sscanf(cur, ":%ho", &param1);
+                    if (result < 1)
+                        fatal_error("Invalid /M option, use /M:addr\n");
+                    if (param1 & 1)
+                        fatal_error("Invalid /M option value, use even address\n");
+                    Globals.SWITCH |= SW_M;
+                    Globals.STKBLK[2] = param1;
+                    break;
+
+                case 'B':  // /B - SPECIFY BOTTOM ADR FOR LINK
+                    result = sscanf(cur, ":%ho", &param1);
+                    if (result < 1)
+                        fatal_error("Invalid /B option, use /B:addr\n");
+                    Globals.SWITCH |= SW_B;
+                    //Globals.TMPIDD = 0;
+                    //Globals.TMPIDI = 0;
+                    //TODO
+                    break;
+
+                case 'U':  // /U - ROUND SECTION
+                    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
+                    Globals.SWITCH |= SW_U;
+                    //Globals.TMPIDD = D.SWU;
+                    //Globals.TMPIDI = I.SWU;
+                    //TODO
+                    break;
+
+                case 'E':  // /E - EXTEND SECTION
+                    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
+                    Globals.SWITCH |= SW_E;
+                    //Globals.TMPIDD = D.SWE;
+                    //Globals.TMPIDI = I.SWE;
+                    //TODO
+                    break;
+
+                case 'Y':  // /Y - START SECTION ON MULTIPLE OF VALUE
+                    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
+                    Globals.SWITCH |= SW_Y;
+                    //Globals.TMPIDD = D.SWY;
+                    //Globals.TMPIDI = I.SWY;
+                    //TODO
+                    break;
+
+                case 'H':  // /H - SPECIFY TOP ADR FOR LINK
+                    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
+                    Globals.SWITCH |= SW_H;
+                    //Globals.TMPIDD = D.SWH;
+                    //Globals.TMPIDI = I.SWH;
+                    //TODO
+                    break;
+
+                case 'K':  // /K - SPECIFY MINIMUM SIZE
+                    result = sscanf(cur, ":%ho", &param1);
+                    Globals.SWITCH |= SW_K;
+                    //TODO
+                    break;
+
+                case 'P':  // /P:N  SIZE OF LML TABLE
+                    result = sscanf(cur, ":%ho", &param1);
+                    //TODO
+                    break;
+
+                case 'Z':  // /Z - ZERO UNFILLED LOCATIONS
+                    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
+                    //Globals.TMPIDD = D.SWZ;
+                    //Globals.TMPIDI = I.SWZ;
+                    //TODO
+                    break;
+
+                case 'R':  // /R - INDICATE FOREGROUND LINK
+                    result = sscanf(cur, ":%ho", &param1);
+                    Globals.SWITCH |= SW_R;
+                    //TODO
+                    break;
+
+                case 'V':  // /XM, OR /V ON 1ST LINE
+                    result = sscanf(cur, ":%ho", &param1);
+                    //TODO
+                    break;
+
+                case 'L':  // /L - INDICATE LDA OUTPUT
+                    //TODO
+                    break;
+
+                case 'W':  // /W - SPECIFY WIDE MAP LISTING
+                    Globals.NUMCOL = 6; // 6 COLUMNS
+                    Globals.LSTFMT--; // WIDE CREF
+                    break;
+                    // /C - CONTINUE ON ANOTHER LINE
+                    // /
+
+                case 'X':  // /X - DO NOT EMIT BIT MAP
+                    Globals.SWITCH |= SW_X;
+                    break;
+
+                case 'I':  // /I - INCLUDE MODULES FROM LIBRARY
+                    Globals.SWITCH |= SW_I;
+                    break;
+
+                case 'F':  // /F - INCLUDE FORLIB.OBJ IN LINK
+                    Globals.SWITCH |= SW_F;
+                    break;
+
+                case 'A':  // /A - ALPHABETIZE MAP
+                    Globals.SWITCH |= SW_A;
+                    break;
+
+                case 'S':  // /S - SYMBOL TABLE AS LARGE AS POSSIBLE
+                    //TODO
+                    break;
+
+                case 'D':  // /D - ALLOW DUPLICATE SYMBOLS
+                    Globals.SWIT1 |= SW_D;
+                    break;
+
+                case 'N':  // /N - GENERATE CROSS REFERENCE
+                    result = sscanf(cur, ":%ho", &param1);
+                    //TODO
+                    break;
+
+                case 'G':  // /G - CALC. EPT SIZE ON RT-11
+                    result = sscanf(cur, ":%ho", &param1);
+                    //TODO
+                    break;
+
+                case 'Q':  // /Q - SET PSECTS TO ABSOLUTE ADDRESSES
+                    result = sscanf(cur, ":%ho", &param1);
+                    //TODO
+                    break;
+
+                case 'J':  // /J - USE SEPARATED I-D SPACE
+                    if (Globals.SWITCH & SW_R)
+                        fatal_error("Invalid option: /R illegal with /J\n"); //TODO: Should be warning only
+                    else
+                        Globals.SWIT1 |= SW_J;
+                    break;
+
+                default:
+                    fatal_error("Unknown command line option '%c'\n", option);
+                }
+            }
+        }
+        else  // Parse filename and arguments
+        {
+            if (SaveStatusCount == SaveStatusAreaSize)
+                fatal_error("Too many files specified.\n");
+
+            SaveStatusEntry* sscur = SaveStatusArea + SaveStatusCount;
+
+            // Parse filename
+            char* filenamecur = sscur->filename;
+            const char* cur = argvcur;
+            int filenamelen = 0;
+            while (*cur != 0 && (isalnum(*cur) || *cur == '.' || *cur == '_' || *cur == '-'))
+            {
+                *filenamecur = *cur;
+                filenamecur++;  cur++;
+                filenamelen++;
+                if (filenamelen >= sizeof(sscur->filename))
+                    fatal_error("Too long filename: %s\n", argvcur);
+            }
+            SaveStatusCount++;
+
+            //TODO: Parse options associated with the file
+            //while (*cur == '/')
+            //{
+            //	cur++;
+            //	switch (*cur)
+            //	{
+            //	default:
+            //		fatal_error("Bad switch: %s\n", argvcur);
+            //	}
+            //}
+        }
+    }
+
+    if (SaveStatusCount == 0)
+        fatal_error("Input file not specified\n");
+}
+
+void print_help()
+{
+    printf("\n");
+    //
+    printf("Usage: link11 <input files> <options>\n");
+    //TODO
 }
 
 int main(int argc, char *argv[])
@@ -1875,10 +1893,10 @@ int main(int argc, char *argv[])
     read_files();
 
     process_pass1();
-
     //TODO: Check if we need Pass 1.5
     process_pass15();
     print_symbol_table();//DEBUG
+    process_pass1_endp1();
 
     process_pass_map_init();
     process_pass_map_output();
