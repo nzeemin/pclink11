@@ -107,6 +107,9 @@ FILE* outfileobj = NULL;
 FILE* mapfileobj = NULL;
 FILE* stbfileobj = NULL;
 
+// Macros used to mark and detect unimplemented but needed
+#define NOTIMPLEMENTED { printf("*** NOT IMPLEMENTED, line %d\n", __LINE__); }
+
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -376,10 +379,10 @@ void parse_commandline(int argc, char **argv)
         {
             //TODO: Parse arguments like Command String Interpreter
             const char* cur = argvcur + 1;
-            int result;
             WORD param1, param2;
             if (*cur != 0)
             {
+                int result;
                 param1 = param2 = 0;  result = 0;
                 int option = toupper(*cur++);
                 switch (option)
@@ -611,6 +614,7 @@ void symbol_table_enter(int* pindex, DWORD lkname, WORD lkwd)
 void symbol_table_delete(int index)
 {
     //TODO
+    NOTIMPLEMENTED
 }
 
 // ADD A REFERENCED SYMBOL TO THE UNDEFINED LIST, see LINK3\ADDUDF
@@ -715,6 +719,7 @@ bool symbol_table_search_routine(DWORD lkname, WORD lkwd, WORD lkmsk, WORD dupms
                 }
 
                 //TODO: Process dups
+                NOTIMPLEMENTED
             }
         }
 
@@ -817,7 +822,7 @@ void pass1_force0(const SymbolTableEntry* entry)
 {
     assert(entry != NULL);
 
-    printf("DUPLICATE SYMBOL \"%s\" IS FORCED TO THE ROOT\n", entry->name);
+    printf("DUPLICATE SYMBOL \"%s\" IS FORCED TO THE ROOT\n", unrad50(entry->name));
 }
 
 // LINK5\ORDER, LINK5\ALPHA
@@ -870,7 +875,7 @@ void process_pass1_gsd_item_taddr(const WORD* itemw, const SaveStatusEntry* sscu
     if (!symbol_table_lookup(lkname, lkwd, lkmsk, &index))
         fatal_error("ERR31: Transfer address for '%s' undefined or in overlay.\n", unrad50(lkname));
     SymbolTableEntry* entry = SymbolTable + index;
-    printf("        Entry '%s' %06o %06o %06o\n", unrad50(entry->name), entry->flagseg, entry->value, entry->status);
+    printf("        Entry '%s' %06ho %06ho %06ho\n", unrad50(entry->name), entry->flagseg, entry->value, entry->status);
     //TODO
 
     if (entry->value > 0)  // IF CURRENT SIZE IS 0 THEN OK
@@ -895,7 +900,7 @@ void process_pass1_gsd_item_taddr(const WORD* itemw, const SaveStatusEntry* sscu
                     {
                         WORD itemvaltmp = itemwtmp[3];
                         WORD sectsize = (itemvaltmp + 1) & ~1;  // ROUND SECTION SIZE TO WORD BOUNDARY
-                        printf("        Item '%s' type %d - CSECT or PSECT size %06o\n", unrad50(itemwtmp[0], itemwtmp[1]), itemtypetmp, sectsize);
+                        printf("        Item '%s' type %d - CSECT or PSECT size %06ho\n", unrad50(itemwtmp[0], itemwtmp[1]), itemtypetmp, sectsize);
                         //TODO: UPDATE OFFSET VALUE
                         //TODO
                     }
@@ -950,6 +955,7 @@ void process_pass1_gsd_item_symnam(const WORD* itemw)
         else  // LINK3\DEFREF
         {
             //TODO
+            NOTIMPLEMENTED
         }
     }
     else  // Symbol referenced here, not defined here
@@ -983,6 +989,7 @@ void process_pass1_gsd_item_symnam(const WORD* itemw)
         else
         {
             //TODO
+            NOTIMPLEMENTED
         }
     }
     //TODO
@@ -1051,6 +1058,7 @@ void process_pass1_gsd_item_psecnm(const WORD* itemw, int& itemflags)
         if (Globals.SWIT1 & SW_J) // ARE WE PROCESSING I-D SPACE?
         {
             //TODO
+            NOTIMPLEMENTED
         }
         if (R2 != itemflags) // ARE SECTION ATTRIBUTES THE SAME?
             fatal_error("ERR10: Conflicting section attributes");
@@ -1098,19 +1106,19 @@ void process_pass1_gsd_item(const WORD* itemw, const SaveStatusEntry* sscur, con
         printf(", ignored\n");
         break;
     case 3: // 3 - TRANSFER ADDRESS; see LINK3\TADDR
-        printf(" %06o\n", itemw[3]);
+        printf(" %06ho\n", itemw[3]);
         process_pass1_gsd_item_taddr(itemw, sscur, data);
         break;
     case 4: // 4 - GLOBAL SYMBOL, see LINK3\SYMNAM
-        printf(" flags %03o addr %06o\n", itemflags, itemw[3]);
+        printf(" flags %03o addr %06ho\n", itemflags, itemw[3]);
         process_pass1_gsd_item_symnam(itemw);
         break;
     case 1: // 1 - CSECT NAME, see LINK3\CSECNM
-        printf(" %06o\n", itemw[3]);
+        printf(" %06ho\n", itemw[3]);
         process_pass1_gsd_item_csecnm(itemw, itemtype, itemflags);
         process_pass1_gsd_item_psecnm(itemw, itemflags);
     case 5: // 5 - PSECT NAME; see LINK3\PSECNM
-        printf(" flags %03o maxlen %06o\n", itemflags, itemw[3]);
+        printf(" flags %03o maxlen %06ho\n", itemflags, itemw[3]);
         process_pass1_gsd_item_psecnm(itemw, itemflags);
         break;
     case 6: // 6 - IDENT DEFINITION; see LINK3\PGMIDN in source
@@ -1121,6 +1129,7 @@ void process_pass1_gsd_item(const WORD* itemw, const SaveStatusEntry* sscur, con
     case 7: // 7 - VIRTUAL SECTION; see LINK3\VSECNM in source
         printf("\n");
         //TODO
+        NOTIMPLEMENTED
         break;
     default:
         printf("\n");
@@ -1150,6 +1159,7 @@ void process_pass1_gsd_block(const SaveStatusEntry* sscur, const BYTE* data)
 void process_pass1()
 {
     printf("Pass 1 started\n");
+    Globals.PAS1_5 = 0;  // PASS 1 PHASE INDICATOR
     // PROCESS FORMATTED BINARY RECORDS, see LINK3\PA1 in source
     for (int i = 0; i < SaveStatusCount; i++)
     {
@@ -1174,22 +1184,22 @@ void process_pass1()
                     if (offset == sscur->filesize)
                         break;  // End of file
                 }
-                fatal_error("Unexpected word %06o at %06o in %s\n", *dataw, offset, sscur->filename);
+                fatal_error("Unexpected word %06ho at %06ho in %s\n", *dataw, offset, sscur->filename);
             }
 
             WORD blocksize = ((WORD*)data)[1];
             WORD blocktype = ((WORD*)data)[2];
 
             if (blocktype == 0 || blocktype > 8)
-                fatal_error("Illegal record type at %06o in %s\n", offset, sscur->filename);
+                fatal_error("Illegal record type at %06ho in %s\n", offset, sscur->filename);
             else if (blocktype == 1)  // 1 - START GSD RECORD, see LINK3\GSD
             {
-                printf("    Block type 1 - GSD at %06o size %06o\n", offset, blocksize);
+                printf("    Block type 1 - GSD at %06ho size %06ho\n", (WORD)offset, blocksize);
                 process_pass1_gsd_block(sscur, data);
             }
             else if (blocktype == 6)  // 6 - MODULE END, see LINK3\MODND
             {
-                printf("    Block type 6 - ENDMOD at %06o size %06o\n", offset, blocksize);
+                printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (WORD)offset, blocksize);
                 if (Globals.HGHLIM < Globals.LRUNUM)
                     Globals.HGHLIM = Globals.LRUNUM;
                 Globals.LRUNUM = 0;
@@ -1214,7 +1224,7 @@ void process_pass1()
 void process_pass15()
 {
     printf("Pass 1.5 started\n");
-
+    Globals.PAS1_5 = 0200;
     Globals.LIBNB = 0;
     for (int i = 0; i < SaveStatusCount; i++)
     {
@@ -1244,19 +1254,19 @@ void process_pass15()
                     if (offset == sscur->filesize)
                         break;  // End of file
                 }
-                fatal_error("Unexpected word %06o at %06o in %s\n", *dataw, offset, sscur->filename);
+                fatal_error("Unexpected word %06ho at %06ho in %s\n", *dataw, offset, sscur->filename);
             }
 
             WORD blocksize = ((WORD*)data)[1];
             WORD blocktype = ((WORD*)data)[2];
 
             if (blocktype != 7 && blocktype != 8)
-                fatal_error("Illegal record type at %06o in %s\n", offset, sscur->filename);
+                fatal_error("Illegal record type at %06ho in %s\n", offset, sscur->filename);
             if (blocktype == 7)  // See LINK3\LIBRA, WE ARE ON PASS 1.5 , SO PROCESS LIBRARIES
             {
-                printf("    Block type 7 - TITLIB at %06o size %06o\n", offset, blocksize);
+                printf("    Block type 7 - TITLIB at %06ho size %06ho\n", (WORD)offset, blocksize);
                 WORD eptsize = *(WORD*)(data + L_HEAB);
-                printf("      EPT size %06o bytes, %d. records\n", eptsize, (int)(eptsize / 8));
+                printf("      EPT size %06ho bytes, %d. records\n", eptsize, (int)(eptsize / 8));
 
                 Globals.SVLML = Globals.STLML; // SAVE START OF ALL LML'S FOR THIS LIB
                 Globals.FLGWD |= LB_OBJ; // IND LIB FILE TO LINKER
@@ -1289,6 +1299,7 @@ void process_pass15()
                             //TODO: CSECT = ASECT;  // ALL WEAK SYMBOLS GO IN . ABS. PSECT
                             Globals.BASE = 0;
                             //TODO: CALL DEFREF
+                            NOTIMPLEMENTED
                         }
                         index = entry->value & 07777;
                     }
@@ -1298,8 +1309,9 @@ void process_pass15()
             }
             else if (blocktype == 8)
             {
-                printf("    Block type 10 - ENDLIB at %06o size %06o\n", offset, blocksize);
+                printf("    Block type 10 - ENDLIB at %06ho size %06ho\n", (WORD)offset, blocksize);
                 //TODO
+                NOTIMPLEMENTED
             }
 
             data += blocksize; offset += blocksize;
@@ -1458,7 +1470,7 @@ void process_pass_map_output()
                 // OUTPUT SECTION NAME, BASE ADR, SIZE & ATTRIBUTES
                 BYTE entryflags = (entry->flagseg) >> 8;
                 char bufsize[20];
-                sprintf_s(bufsize, "%06o = %u.", sectsize, sectsize / 2);
+                sprintf_s(bufsize, "%06ho = %d.", sectsize, sectsize / 2);
                 const char* sectaccess = (entryflags & 0020) ? "RO" : "RW";
                 const char* secttypedi = (entryflags & 0200) ? "D" : "I";
                 const char* sectscope = (entryflags & 0100) ? "GBL" : "LCL";
@@ -1466,10 +1478,10 @@ void process_pass_map_output()
                 const char* sectreloc = (entryflags & 0040) ? "REL" : "ABS";
                 const char* sectalloc = (entryflags & 0004) ? "OVR" : "CON";
                 const char* sectname = (entry->name & 03100) ? unrad50(entry->name) : "      ";
-                fprintf(mapfileobj, " %s\t %06o\t%-16s words  (%s,%s,%s%s,%s,%s)\n",
+                fprintf(mapfileobj, " %s\t %06ho\t%-16s words  (%s,%s,%s%s,%s,%s)\n",
                         sectname, baseaddr, bufsize,
                         sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
-                printf("  '%s' %06o %-16s words  (%s,%s,%s%s,%s,%s)\n",
+                printf("  '%s' %06ho %-16s words  (%s,%s,%s%s,%s,%s)\n",
                        sectname, baseaddr, bufsize,
                        sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
             }
@@ -1483,8 +1495,8 @@ void process_pass_map_output()
                 fprintf(mapfileobj, "\t\t\t");
                 printf("                        ");
             }
-            fprintf(mapfileobj, "%s\t%06o\t", unrad50(entry->name), entry->value);
-            printf("  %s  %06o", unrad50(entry->name), entry->value);
+            fprintf(mapfileobj, "%s\t%06ho\t", unrad50(entry->name), entry->value);
+            printf("  %s  %06ho", unrad50(entry->name), entry->value);
             tabcount++;
             if (tabcount >= Globals.NUMCOL)
             {
@@ -1517,7 +1529,7 @@ void process_pass_map_output()
     //TODO: see LINK5\POSTN\10$ in source
     WORD totalsize = baseaddr + sectsize;
     WORD blockcount = (totalsize + 511) / 512;
-    printf("  Total size %06o = %u. bytes, %u. blocks\n", totalsize, totalsize, blockcount);
+    printf("  Total size %06ho = %u. bytes, %u. blocks\n", totalsize, totalsize, blockcount);
     //OutputBufferSize = (blockcount == 0) ? 65536 : blockcount * 512;
 
     print_undefined_globals();
@@ -1540,9 +1552,9 @@ void process_pass_map_output()
     WORD highlim = totalsize - 2; //Globals.HGHLIM;
 
     char bufhlim[20];
-    sprintf_s(bufhlim, "%06o = %u.", highlim, highlim / 2);
-    fprintf(mapfileobj, "\nTransfer address = %06o, High limit = %-16s words\n", taddr, bufhlim);
-    printf("  Transfer address = %06o, High limit = %-16s words\n", taddr, bufhlim);
+    sprintf_s(bufhlim, "%06ho = %d.", highlim, highlim / 2);
+    fprintf(mapfileobj, "\nTransfer address = %06ho, High limit = %-16s words\n", taddr, bufhlim);
+    printf("  Transfer address = %06ho, High limit = %-16s words\n", taddr, bufhlim);
 
     fclose(mapfileobj);  mapfileobj = NULL;
 
@@ -1587,7 +1599,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const BYTE* data)
         switch (command & 0177)
         {
         case 1:  // See LINK7\RLDIR
-            printf("      Item type 001 INTERNAL RELOCATION  %03o %06o\n", (int)disbyte, *((WORD*)data));
+            printf("      Item type 001 INTERNAL RELOCATION  %03o %06ho\n", (int)disbyte, *((WORD*)data));
             data += 2;  offset += 2;
             break;
         case 2:
@@ -1609,17 +1621,17 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const BYTE* data)
             break;
         case 6:
             constdata = ((WORD*)data)[2];
-            printf("      Item type 006 GLOBAL ADDITIVE DISPLACED  %03o '%s' %06o\n", (int)disbyte, unrad50(*((DWORD*)data)), constdata);
+            printf("      Item type 006 GLOBAL ADDITIVE DISPLACED  %03o '%s' %06ho\n", (int)disbyte, unrad50(*((DWORD*)data)), constdata);
             data += 6;  offset += 6;
             break;
         case 7:
             constdata = ((WORD*)data)[2];
-            printf("      Item type 007 LOCATION COUNTER DEFINITION  %03o '%s' %06o\n", (int)disbyte, unrad50(*((DWORD*)data)), constdata);
+            printf("      Item type 007 LOCATION COUNTER DEFINITION  %03o '%s' %06ho\n", (int)disbyte, unrad50(*((DWORD*)data)), constdata);
             data += 6;  offset += 6;
             break;
         case 010:
             constdata = ((WORD*)data)[0];
-            printf("      Item type 010 LOCATION COUNTER MODIFICATION\n  %06o", constdata);
+            printf("      Item type 010 LOCATION COUNTER MODIFICATION\n  %06ho", constdata);
             data += 2;  offset += 2;
             break;
         case 011:
@@ -1659,7 +1671,7 @@ void print_symbol_table()
         const SymbolTableEntry* entry = SymbolTable + i;
         if (entry->name == 0)
             continue;
-        printf("    %06o '%s' %06o %06o %06o  ", i, unrad50(entry->name), entry->flagseg, entry->value, entry->status);
+        printf("    %06ho '%s' %06ho %06ho %06ho  ", (WORD)i, unrad50(entry->name), entry->flagseg, entry->value, entry->status);
         if (entry->flagseg & SY_SEC) printf("SECT ");
         if (entry->status & SY_UDF) printf("UNDEF ");
         if (entry->status & SY_IND) printf("IND ");
@@ -1667,7 +1679,7 @@ void print_symbol_table()
         if ((entry->flagseg & SY_SEC) && (entry->status & SY_SAV)) printf("SAV ");
         printf("\n");
     }
-    printf("  UNDLST = %06o\n", Globals.UNDLST);
+    printf("  UNDLST = %06ho\n", (WORD)Globals.UNDLST);
 }
 
 // Prapare SYSCOM area, pass 2 initialization; see LINK6
@@ -1772,17 +1784,17 @@ void process_pass2()
                     if (offset == sscur->filesize)
                         break;  // End of file
                 }
-                fatal_error("Unexpected word %06o at %06o in %s\n", *dataw, offset, sscur->filename);
+                fatal_error("Unexpected word %06ho at %06ho in %s\n", *dataw, offset, sscur->filename);
             }
 
             WORD blocksize = ((WORD*)data)[1];
             WORD blocktype = ((WORD*)data)[2];
 
             if (blocktype == 0 || blocktype > 8)
-                fatal_error("ERR4: Illegal record type at %06o in %s\n", offset, sscur->filename);
+                fatal_error("ERR4: Illegal record type at %06ho in %s\n", offset, sscur->filename);
             else if (blocktype == 1)  // START GSD RECORD, see LINK7\GSD
             {
-                printf("    Block type 1 - GSD at %06o size %06o\n", offset, blocksize);
+                printf("    Block type 1 - GSD at %06ho size %06ho\n", (WORD)offset, blocksize);
             }
             else if (blocktype == 3)  // See LINK7\DMPTXT
             {
@@ -1790,26 +1802,26 @@ void process_pass2()
 
                 WORD addr = ((WORD*)data)[3];
                 WORD datasize = blocksize - 8;
-                printf("    Block type 3 - TXT at %06o size %06o addr %06o len %06o\n", offset, blocksize, addr, datasize);
+                printf("    Block type 3 - TXT at %06ho size %06ho addr %06ho len %06ho\n", (WORD)offset, blocksize, addr, datasize);
                 Globals.TXTLEN = datasize;
                 assert(datasize <= sizeof(Globals.TXTBLK));
                 memcpy(Globals.TXTBLK, data + 6, blocksize - 6);
             }
             else if (blocktype == 4)  // See LINK\RLD
             {
-                printf("    Block type 4 - RLD at %06o size %06o\n", offset, blocksize);
+                printf("    Block type 4 - RLD at %06ho size %06ho\n", (WORD)offset, blocksize);
                 process_pass2_rld(sscur, data);
             }
             else if (blocktype == 6)  // See LINK7\MODND
             {
-                printf("    Block type 6 - ENDMOD at %06o size %06o\n", offset, blocksize);
+                printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (WORD)offset, blocksize);
 
                 process_pass2_dump_txtblk();
                 //TODO
             }
             else if (blocktype == 7)  // See LINK7\LIBPA2
             {
-                printf("    Block type 7 - TITLIB at %06o size %06o\n", offset, blocksize);
+                printf("    Block type 7 - TITLIB at %06ho size %06ho\n", (WORD)offset, blocksize);
                 //TODO
                 break;  // Skip for now
             }
@@ -1842,11 +1854,9 @@ int main(int argc, char *argv[])
 
     read_files();
 
-    Globals.PAS1_5 = 0;  // PASS 1 PHASE INDICATOR
     process_pass1();
 
     //TODO: Check if we need Pass 1.5
-    Globals.PAS1_5 = 0200;
     process_pass15();
 
     process_pass_map_init();
