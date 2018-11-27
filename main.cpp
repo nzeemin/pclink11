@@ -1374,7 +1374,8 @@ void process_pass_map_output()
     Globals.BEGBLK.value += entrybeg->value;
     WORD taddr = Globals.BEGBLK.value;
     //TODO: Calculate high limit
-    WORD highlim = totalsize - 2; //Globals.HGHLIM;
+    WORD highlim = totalsize - 2;
+    Globals.HGHLIM = totalsize;
 
     char bufhlim[20];
     sprintf_s(bufhlim, "%06ho = %d.", highlim, highlim / 2);
@@ -1520,29 +1521,43 @@ void process_pass2_init()
 
     // See LINK6\DOCASH
     Globals.LRUNUM = 0; // INIT LEAST RECENTLY USED TIME STAMP
+    Globals.BITBAD = Globals.LMLPTR + 2 + Globals.STLML * 4;  // START OF SAV FILE MASTER BITMAP IN BLK 0
     //TODO
 
-    *((WORD*)(OutputBuffer + SysCom_BEGIN)) = Globals.BEGBLK.value; // PROG START ADDR
+    // CLEAR & SETUP SYSCOM AREA OF IMAGE FILE
 
-    if (Globals.STKBLK[0] != 0)
+    Globals.BITMAP = Globals.BITBAD;
+
+    *((WORD*)(OutputBuffer + SysCom_BEGIN)) = Globals.BEGBLK.value; // PROG START ADDR
+    //TODO: ARE WE DOING I-D SPACE?
+
+    if (Globals.STKBLK[0] != 0)  // GET USER SUPLIED STK SYM ADR, SYMBOL SUPPLIED ?
     {
+        DWORD lkname = MAKEDWORD(Globals.STKBLK[0], Globals.STKBLK[1]);
         WORD lkwd = 0; // MUST BE A GLOBAL SYMBOL
-        //TODO: Lookup for the symbol address
+        WORD lkmsk = 0; //TODO
+        int index;
+        if (!symbol_table_lookup(lkname, lkwd, lkmsk, &index))
+        {
+            fatal_error("ERR32: Stack address undefined or in overlay");  // ERROR IF UNDEF STACK ADR
+            //TODO: USE DEFALULT ADR
+        }
         NOTIMPLEMENTED
     }
-    else if (Globals.STKBLK[2] != NULL)
+    else if (Globals.STKBLK[2] != NULL)  // GET USER'S SUPPLIED STK ADR
     {
         *((WORD*)(OutputBuffer + SysCom_STACK)) = Globals.STKBLK[2];
     }
     else
     {
-        //TODO: ARE WE DOING I-D SPACE?
-        *((WORD*)(OutputBuffer + SysCom_STACK)) = Globals.BOTTOM;
+        WORD stack = (Globals.SWIT1 & SW_J) ? Globals.DBOTTM : Globals.BOTTOM;
+        *((WORD*)(OutputBuffer + SysCom_STACK)) = stack;
     }
 
-    //TODO: *((WORD*)(OutputBuffer + SysCom_HIGH)) = ???
-
-    //TODO: For /K switch STORE IT AT LOC. 56 IN SYSCOM AREA
+    WORD highlim = (Globals.SWIT1 & SW_J) ? Globals.DHGHLM : Globals.HGHLIM;
+    *((WORD*)(OutputBuffer + SysCom_HIGH)) = highlim - 2;  // HIGH LIMIT
+    if (Globals.SWITCH & SW_K)  // For /K switch STORE IT AT LOC. 56 IN SYSCOM AREA
+        *((WORD*)(OutputBuffer + SysCom_HIGH + 6)) = Globals.KSWVAL;
 
     //TODO: SYSCOM AREA FOR REL FILE
 
@@ -1918,6 +1933,12 @@ int main(int argc, char *argv[])
     process_pass2_init();
     process_pass2();
     //TODO: Pass 2.5
+
+    //STUB: Prepare the simplest bitmap
+    for (int i = 0; i < OutputBlockCount; i++)
+    {
+        *(OutputBuffer + SysCom_BITMAP + (i / 8)) |= (1 << (7 - i % 8));
+    }
 
     size_t bytestowrite = OutputBlockCount == 0 ? 65536 : OutputBlockCount * 512;
     size_t byteswrit = fwrite(OutputBuffer, 1, bytestowrite, outfileobj);
