@@ -1,6 +1,8 @@
 # pclink11
 Attempt to port PDP-11 LINKer to PC.
 
+[![Build status](https://ci.appveyor.com/api/projects/status/3lt4c9rxx2bv0g0g?svg=true)](https://ci.appveyor.com/project/nzeemin/pclink11)
+
 The code (partially) ported from MACRO-11 sources to C/C++.
 Port source: RT-11 LINK V05.45.
 
