@@ -1383,7 +1383,7 @@ void process_pass_map_output()
     printf("  Transfer address = %06ho, High limit = %-16s words\n", taddr, bufhlim);
 }
 
-void process_pass2_rld_lookup(const BYTE* data, bool global)
+SymbolTableEntry* process_pass2_rld_lookup(const BYTE* data, bool global)
 {
     assert(data != NULL);
 
@@ -1402,8 +1402,9 @@ void process_pass2_rld_lookup(const BYTE* data, bool global)
         fatal_error("ERR46: Invalid RLD symbol '%s'", unrad50(lkname));
 
     SymbolTableEntry* entry = SymbolTable + index;
-    WORD R3 = entry->value; // GET SYMBOL'S VALUE
+    //WORD R3 = entry->value; // GET SYMBOL'S VALUE
     //TODO
+    return entry;
 }
 
 void process_pass2_rld(const SaveStatusEntry* sscur, const BYTE* data)
@@ -1416,67 +1417,88 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const BYTE* data)
     {
         BYTE command = *data;  data++;  offset++;  // CMD BYTE OF RLD
         BYTE disbyte = *data;  data++;  offset++;  // DISPLACEMENT BYTE
+        BYTE* dest = Globals.TXTBLK + (disbyte - 2);
 
         WORD constdata;
         switch (command & 0177)
         {
         case 1:  // See LINK7\RLDIR
             printf("      Item type 001 INTERNAL RELOCATION  %03o %06ho\n", (int)disbyte, *((WORD*)data));
+            *((WORD*)dest) = *((WORD*)data) + 512; //TODO: Globals.BASE;
             data += 2;  offset += 2;
             break;
         case 2:
             printf("      Item type 002 GLOBAL\n");
+            NOTIMPLEMENTED
             data += 4;  offset += 4;
             break;
         case 3:
             printf("      Item type 003 INTERNAL DISPLACED\n");
+            NOTIMPLEMENTED
             data += 2;  offset += 2;
             break;
         case 4:  // See LINK7\RLDGDR
             printf("      Item type 004 GLOBAL DISPLACED  %03o '%s'\n", (int)disbyte, unrad50(*((DWORD*)data)));
-            process_pass2_rld_lookup(data, false);
+            {
+                SymbolTableEntry* entry = process_pass2_rld_lookup(data, false);
+                *((WORD*)dest) = entry->value; //TODO: wrong value
+            }
             data += 4;  offset += 4;
             break;
         case 5:
             printf("      Item type 005 GLOBAL ADDITIVE\n");
+            NOTIMPLEMENTED
             data += 6;  offset += 6;
             break;
         case 6:
             constdata = ((WORD*)data)[2];
             printf("      Item type 006 GLOBAL ADDITIVE DISPLACED  %03o '%s' %06ho\n", (int)disbyte, unrad50(*((DWORD*)data)), constdata);
+            NOTIMPLEMENTED
             data += 6;  offset += 6;
             break;
-        case 7:
+        case 7:  // see LINK7\RLDLCD
             constdata = ((WORD*)data)[2];
             printf("      Item type 007 LOCATION COUNTER DEFINITION  %03o '%s' %06ho\n", (int)disbyte, unrad50(*((DWORD*)data)), constdata);
+            {
+                DWORD sectname = MAKEDWORD(((WORD*)data)[0], ((WORD*)data)[1]);
+                //TODO: LOOKUP SECTION NAME
+                NOTIMPLEMENTED
+            }
             data += 6;  offset += 6;
             break;
         case 010:
             constdata = ((WORD*)data)[0];
             printf("      Item type 010 LOCATION COUNTER MODIFICATION\n  %06ho", constdata);
+            NOTIMPLEMENTED
             data += 2;  offset += 2;
             break;
         case 011:
             printf("      Item type 011 SET PROGRAM LIMITS\n");
+            NOTIMPLEMENTED
             break;
         case 012:
             printf("      Item type 012 PSECT  '%s'\n", unrad50(*((DWORD*)data)));
+            NOTIMPLEMENTED
             data += 4;  offset += 4;
             break;
         case 014:
             printf("      Item type 014 PSECT DISPLACED  '%s'\n", unrad50(*((DWORD*)data)));
+            NOTIMPLEMENTED
             data += 4;  offset += 4;
             break;
         case 015:
             printf("      Item type 015 PSECT ADDITIVE\n");
+            NOTIMPLEMENTED
             data += 6;  offset += 6;
             break;
         case 016:
             printf("      Item type 016 PSECT ADDITIVE DISPLACED\n");
+            NOTIMPLEMENTED
             data += 6;  offset += 6;
             break;
         case 017:
             printf("      Item type 017 COMPLEX\n");
+            NOTIMPLEMENTED
             data += 4;  offset += 4;  //TODO: length is variable
             break;
         default:
@@ -1593,7 +1615,7 @@ void process_pass2_dump_txtblk()  // See TDMP0
         return;
 
     WORD addr = *((WORD*)Globals.TXTBLK);
-    WORD baseaddr = 512; //Globals.BASE;
+    WORD baseaddr = 512; //TODO: Globals.BASE;
     BYTE* dest = OutputBuffer + (baseaddr + addr);
     BYTE* src = Globals.TXTBLK + 2;
     memcpy(dest, src, Globals.TXTLEN);
