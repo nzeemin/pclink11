@@ -3,6 +3,8 @@
 *.user
 *.ncb
 *.suo
+/*.sdf
+/*.opensdf
 /pdp11link
 /*.OBJ
 /test

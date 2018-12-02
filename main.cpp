@@ -1155,9 +1155,13 @@ void process_pass_map_init()
         //TODO: Start .STB file preparation
     }
 
-    WORD R4 = (Globals.SWIT1 & SW_J) ? Globals.DBOTTM : Globals.BOTTOM;
-    //TODO: IS "BOTTOM" .GE. SIZE OF ASECT ?
-    //TODO
+    WORD& bottom = (Globals.SWIT1 & SW_J) ? Globals.DBOTTM : Globals.BOTTOM;
+    if (ASECTentry->value > bottom)  // IS "BOTTOM" .GE. SIZE OF ASECT ?
+    {
+        //TODO: IF /R  GIVE ERROR
+        bottom = ASECTentry->value;  // USE SIZE OF ASECT AS BOTTOM ADDRESS
+    }
+    //TODO: IS PROGRAM OVERLAID?
 
     //TODO: PROCESS /H SWITCH
 
@@ -1418,86 +1422,98 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const BYTE* data)
         BYTE command = *data;  data++;  offset++;  // CMD BYTE OF RLD
         BYTE disbyte = *data;  data++;  offset++;  // DISPLACEMENT BYTE
         BYTE* dest = Globals.TXTBLK + (disbyte - 2);
+        WORD baseaddr = *((WORD*)Globals.TXTBLK) + Globals.BASE;
+        WORD addr = baseaddr + (disbyte - 2) - 2;
 
+        printf("      %06ho Item type %03ho ", addr, (WORD)(command & 0177));
         WORD constdata;
         switch (command & 0177)
         {
         case 1:  // See LINK7\RLDIR
-            printf("      Item type 001 INTERNAL RELOCATION  %03o %06ho\n", (int)disbyte, *((WORD*)data));
-            *((WORD*)dest) = *((WORD*)data) + 512; //TODO: Globals.BASE;
+            printf(" INTERNAL RELOCATION  %03o %06ho\n", (int)disbyte, *((WORD*)data));
+            *((WORD*)dest) = *((WORD*)data) + Globals.BASE;
             data += 2;  offset += 2;
             break;
         case 2:
-            printf("      Item type 002 GLOBAL\n");
+            printf(" GLOBAL\n");
             NOTIMPLEMENTED
             data += 4;  offset += 4;
             break;
         case 3:
-            printf("      Item type 003 INTERNAL DISPLACED\n");
+            printf(" INTERNAL DISPLACED\n");
             NOTIMPLEMENTED
             data += 2;  offset += 2;
             break;
         case 4:  // See LINK7\RLDGDR
-            printf("      Item type 004 GLOBAL DISPLACED  %03o '%s'\n", (int)disbyte, unrad50(*((DWORD*)data)));
+            printf(" GLOBAL DISPLACED  %03o '%s'\n", (int)disbyte, unrad50(*((DWORD*)data)));
             {
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, false);
                 *((WORD*)dest) = entry->value; //TODO: wrong value
+                printf("        Entry '%s' value = %06ho %04X dest = %06ho\n", unrad50(entry->name), entry->value, entry->value, *((WORD*)dest));
             }
             data += 4;  offset += 4;
             break;
         case 5:
-            printf("      Item type 005 GLOBAL ADDITIVE\n");
+            printf(" GLOBAL ADDITIVE\n");
             NOTIMPLEMENTED
             data += 6;  offset += 6;
             break;
         case 6:
             constdata = ((WORD*)data)[2];
-            printf("      Item type 006 GLOBAL ADDITIVE DISPLACED  %03o '%s' %06ho\n", (int)disbyte, unrad50(*((DWORD*)data)), constdata);
+            printf(" GLOBAL ADDITIVE DISPLACED  %03o '%s' %06ho\n", (int)disbyte, unrad50(*((DWORD*)data)), constdata);
             NOTIMPLEMENTED
             data += 6;  offset += 6;
             break;
-        case 7:  // see LINK7\RLDLCD
+        case 7:  // DECLARES A CURRENT SECTION & LOCATION COUNTER VALUE, see LINK7\RLDLCD
             constdata = ((WORD*)data)[2];
-            printf("      Item type 007 LOCATION COUNTER DEFINITION  %03o '%s' %06ho\n", (int)disbyte, unrad50(*((DWORD*)data)), constdata);
+            printf(" LOCATION COUNTER DEFINITION  %03o '%s' %06ho\n", (int)disbyte, unrad50(*((DWORD*)data)), constdata);
             {
-                DWORD sectname = MAKEDWORD(((WORD*)data)[0], ((WORD*)data)[1]);
-                //TODO: LOOKUP SECTION NAME
-                NOTIMPLEMENTED
+                Globals.MBPTR = 0;  // 0 SAYS TO STORE TXT INFO
+                SymbolTableEntry* entry = process_pass2_rld_lookup(data, false);
+                if (entry->flagseg & (040/*SY$REL*/ << 8))  // IS SYMBOL ABSOLUTE ?
+                {
+                    if (entry->name != RAD50_ABS)  // ARE WE LOOKING AT THE ASECT?
+                        Globals.MBPTR++;  // SAY NOT TO STORE TXT FOR ABS SECTION
+                }
+                Globals.BASE = entry->value;
+                //printf("        BASE %06ho\n", Globals.BASE);
+                //TODO: ARE WE DOING I-D SPACE?
             }
             data += 6;  offset += 6;
             break;
-        case 010:
+        case 010:  // RLDLCM
+            // THE CURRENT SECTION BASE IS ADDED TO THE SPECIFIED CONSTANT & RESULT IS STORED AS THE CURRENT LOCATION CTR.
             constdata = ((WORD*)data)[0];
-            printf("      Item type 010 LOCATION COUNTER MODIFICATION\n  %06ho", constdata);
-            NOTIMPLEMENTED
+            printf(" LOCATION COUNTER MODIFICATION  %06ho\n", constdata);
+            *((WORD*)dest) = constdata + Globals.BASE;
             data += 2;  offset += 2;
             break;
         case 011:
-            printf("      Item type 011 SET PROGRAM LIMITS\n");
+            printf(" SET PROGRAM LIMITS\n");
             NOTIMPLEMENTED
             break;
         case 012:
-            printf("      Item type 012 PSECT  '%s'\n", unrad50(*((DWORD*)data)));
+            printf(" PSECT  '%s'\n", unrad50(*((DWORD*)data)));
             NOTIMPLEMENTED
             data += 4;  offset += 4;
             break;
         case 014:
-            printf("      Item type 014 PSECT DISPLACED  '%s'\n", unrad50(*((DWORD*)data)));
+            printf(" PSECT DISPLACED  '%s'\n", unrad50(*((DWORD*)data)));
             NOTIMPLEMENTED
             data += 4;  offset += 4;
             break;
         case 015:
-            printf("      Item type 015 PSECT ADDITIVE\n");
+            printf(" PSECT ADDITIVE\n");
             NOTIMPLEMENTED
             data += 6;  offset += 6;
             break;
         case 016:
-            printf("      Item type 016 PSECT ADDITIVE DISPLACED\n");
+            printf(" PSECT ADDITIVE DISPLACED\n");
             NOTIMPLEMENTED
             data += 6;  offset += 6;
             break;
         case 017:
-            printf("      Item type 017 COMPLEX\n");
+            printf(" COMPLEX\n");
             NOTIMPLEMENTED
             data += 4;  offset += 4;  //TODO: length is variable
             break;
@@ -1609,13 +1625,13 @@ void process_pass2_init()
     //TODO: FORCE BASE OF ZERO FOR VSECT IF ANY
 }
 
-void process_pass2_dump_txtblk()  // See TDMP0
+void process_pass2_dump_txtblk()  // DUMP TEXT SUBROUTINE, see LINK7\TDMP0, LINK7\DMP0
 {
     if (Globals.TXTLEN == 0)
         return;
 
     WORD addr = *((WORD*)Globals.TXTBLK);
-    WORD baseaddr = 512; //TODO: Globals.BASE;
+    WORD baseaddr = Globals.BASE;
     BYTE* dest = OutputBuffer + (baseaddr + addr);
     BYTE* src = Globals.TXTBLK + 2;
     memcpy(dest, src, Globals.TXTLEN);
@@ -1673,12 +1689,12 @@ void process_pass2()
                 assert(datasize <= sizeof(Globals.TXTBLK));
                 memcpy(Globals.TXTBLK, data + 6, blocksize - 6);
             }
-            else if (blocktype == 4)  // See LINK\RLD
+            else if (blocktype == 4)  // See LINK7\RLD
             {
                 printf("    Block type 4 - RLD at %06ho size %06ho\n", (WORD)offset, blocksize);
                 process_pass2_rld(sscur, data);
             }
-            else if (blocktype == 6)  // See LINK7\MODND
+            else if (blocktype == 6)  // MODULE END RECORD, See LINK7\MODND
             {
                 printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (WORD)offset, blocksize);
 
@@ -1702,6 +1718,9 @@ void process_pass2()
 // PROCESS COMMAND STRING SWITCHES, see LINK1\SWLOOP in source
 void parse_commandline(int argc, char **argv)
 {
+    WORD TMPIDD = 0;  // D BIT TO TEST FOR /J PROCESSING
+    WORD TMPIDI = 0;  // I BIT TO TEST FOR /J PROCESSING
+
     for (int arg = 1; arg < argc; arg++)
     {
         const char* argvcur = argv[arg];
