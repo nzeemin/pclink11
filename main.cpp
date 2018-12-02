@@ -100,6 +100,26 @@ const char* GSDItemTypeNames[] =
     /*7*/ "VIRTUAL SECTION"
 };
 
+const char* RLDCommandNames[] =
+{
+    /*000*/ "NOT USED",
+    /*001*/ "INTERNAL RELOCATION",
+    /*002*/ "GLOBAL",
+    /*003*/ "INTERNAL DISPLACED",
+    /*004*/ "GLOBAL DISPLACED",
+    /*005*/ "GLOBAL ADDITIVE",
+    /*006*/ "GLOBAL ADDITIVE DISPLACED",
+    /*007*/ "LOCATION COUNTER DEFINITION",
+    /*010*/ "LOCATION COUNTER MODIFICATION",
+    /*011*/ "SET PROGRAM LIMITS",
+    /*012*/ "PSECT",
+    /*013*/ "NOT USED",
+    /*014*/ "PSECT DISPLACED",
+    /*015*/ "PSECT ADDITIVE",
+    /*016*/ "PSECT ADDITIVE DISPLACED",
+    /*017*/ "COMPLEX",
+};
+
 const char* CPXCommandNames[] =
 {
     /*000*/ "NOP",
@@ -1437,7 +1457,8 @@ WORD process_pass2_rld_complex(const SaveStatusEntry* sscur, const BYTE* &data, 
 {
     bool cpxbreak = false;
     WORD cpxresult = 0;
-    WORD cpxstack[16];  memset(cpxstack, 0, sizeof(cpxstack));
+    const int cpxstacksize = 16;
+    WORD cpxstack[cpxstacksize];  memset(cpxstack, 0, sizeof(cpxstack));
     WORD cpxstacktop = 0;
     while (!cpxbreak && offset < blocksize)
     {
@@ -1532,24 +1553,29 @@ WORD process_pass2_rld_complex(const SaveStatusEntry* sscur, const BYTE* &data, 
             printf(" '%s'\n", unrad50(cpxname));
             cpxentry = process_pass2_rld_lookup(data, true);
             data += 4;  offset += 4;
-            cpxstacktop++;  //TODO
+            cpxstacktop++;
+            if (cpxstacktop >= cpxstacksize)
+                fatal_error("ERR35: Complex relocation stack overflow in %s", sscur->filename);
             cpxstack[cpxstacktop] = cpxentry->value;  //TODO
             break;
         case 017:  // PUSH RELOCATABLE VALUE
             // GET SECTION NUMBER
             cpxsect = *data;  data += 1;  offset += 1;
-            cpxval = *((WORD*)data);  data += 2;  offset += 2;
+            cpxval = *((WORD*)data);  data += 2;  offset += 2;  // GET OFFSET WITHIN SECTION
             printf(" %03ho %06ho\n", (WORD)cpxsect, cpxval);
-            //TODO GET OFFSET WITHIN SECTION
             //TODO: SEE IF SECTION NO. OK
             NOTIMPLEMENTED;
-            cpxstacktop++;  //TODO
+            cpxstacktop++;
+            if (cpxstacktop >= cpxstacksize)
+                fatal_error("ERR35: Complex relocation stack overflow in %s", sscur->filename);
             cpxstack[cpxstacktop] = 0;  //TODO
             break;
         case 020:  // PUSH CONSTANT
             cpxval = *((WORD*)data);  data += 2;  offset += 2;
             printf(" %06ho\n", cpxval);
-            cpxstacktop++;  //TODO
+            cpxstacktop++;
+            if (cpxstacktop >= cpxstacksize)
+                fatal_error("ERR35: Complex relocation stack overflow in %s", sscur->filename);
             cpxstack[cpxstacktop] = cpxval;
             break;
         default:
@@ -1574,52 +1600,78 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const BYTE* data)
         WORD baseaddr = *((WORD*)Globals.TXTBLK) + Globals.BASE;
         WORD addr = baseaddr + (disbyte - 2) - 2;
 
-        printf("      %06ho Item type %03ho ", addr, (WORD)(command & 0177));
+        printf("      %06ho Item type %03ho %s",
+               addr, (WORD)(command & 0177), ((command & 0177) > 017) ? "UNKNOWN" : RLDCommandNames[command & 0177]);
         WORD constdata;
         switch (command & 0177)
         {
-        case 1:  // See LINK7\RLDIR
-            printf(" INTERNAL RELOCATION  %03o %06ho\n", (int)disbyte, *((WORD*)data));
+        case 001:  // INTERNAL REL, see LINK7\RLDIR
+            // DIRECT POINTER TO AN ADDRESS WITHIN A MODULE. THE CURRENT SECTION BASE ADDRESS IS ADDED
+            // TO A SPECIFIED CONSTANT ANT THE RESULT STORED IN THE IMAGE FILE AT THE CALCULATED ADDRESS
+            // (I.E., DISPLACEMENT BYTE ADDED TO VALUE CALCULATED FROM THE LOAD ADDRESS OF THE PREVIOUS TEXT BLOCK).
+            printf(" %06ho\n", *((WORD*)data));
             *((WORD*)dest) = *((WORD*)data) + Globals.BASE;
             data += 2;  offset += 2;
             break;
-        case 2:  // RELOCATES A DIRECT POINTER TO A GLOBAL SYMBOL. THE VALUE OF THE GLOBAL SYMBOL IS OBTAINED & STORED.
-            printf(" GLOBAL\n");
+        case 002:  // GLOBAL
+        case 012:  // PSECT
+            // RELOCATES A DIRECT POINTER TO A GLOBAL SYMBOL. THE VALUE OF THE GLOBAL SYMBOL IS OBTAINED & STORED.
+            printf(" '%s'\n", unrad50(*((DWORD*)data)));
             {
-                SymbolTableEntry* entry = process_pass2_rld_lookup(data, true);
+                SymbolTableEntry* entry = process_pass2_rld_lookup(data, (command & 010) == 0);
                 //printf("        Entry '%s' value = %06ho %04X dest = %06ho\n", unrad50(entry->name), entry->value, entry->value, *((WORD*)dest));
                 //TODO: *((WORD*)dest) = entry->value;
             }
             data += 4;  offset += 4;
             break;
-        case 3:
-            printf(" INTERNAL DISPLACED\n");
+        case 003:  // INTERNAL DISPLACED
+            // RELATIVE REFERENCE TO AN ABSOLUTE ADDRESS FROM WITHIN A RELOCATABLE SECTION.
+            // THE ADDRESS + 2 THAT THE RELOCATED VALUE IS TO BE WRITTEN INTO IS SUBTRACTED FROM THE SPECIFIED CONSTANT & RESULTS STORED.
+            constdata = ((WORD*)data)[0];
+            printf(" %06ho\n", constdata);
             NOTIMPLEMENTED
             data += 2;  offset += 2;
             break;
-        case 4:  // See LINK7\RLDGDR
-            printf(" GLOBAL DISPLACED  %03o '%s'\n", (int)disbyte, unrad50(*((DWORD*)data)));
+        case 004:  // GLOBAL DISPLACED, see LINK7\RLDGDR
+        case 014:  // PSECT DISPLACED
+            printf(" '%s'\n", unrad50(*((DWORD*)data)));
             {
-                SymbolTableEntry* entry = process_pass2_rld_lookup(data, true);
+                SymbolTableEntry* entry = process_pass2_rld_lookup(data, (command & 010) == 0);
                 //printf("        Entry '%s' value = %06ho %04X dest = %06ho\n", unrad50(entry->name), entry->value, entry->value, *((WORD*)dest));
-                *((WORD*)dest) = entry->value; //TODO: wrong value
+                *((WORD*)dest) = entry->value; //TODO: fix wrong value
             }
             data += 4;  offset += 4;
             break;
-        case 5:
-            printf(" GLOBAL ADDITIVE\n");
-            NOTIMPLEMENTED
+        case 005:  // GLOBAL ADDITIVE REL
+        case 015:  // PSECT ADDITIVE
+            // RELOCATED A DIRECT POINTER TO A GLOBAL SYMBOL WITH AN ADDITIVE CONSTANT
+            // THE SYMBOL VALUE IS ADDED TO THE SPECIFIED CONSTANT & STORED.
+            constdata = ((WORD*)data)[2];
+            printf(" '%s' %06ho\n", unrad50(*((DWORD*)data)), constdata);
+            {
+                SymbolTableEntry* entry = process_pass2_rld_lookup(data, (command & 010) == 0);
+                *((WORD*)dest) = entry->value + constdata; //TODO: fix wrong value
+            }
             data += 6;  offset += 6;
             break;
-        case 6:
+        case 006:  // GLOBAL ADDITIVE DISPLACED
+        case 016:  // PSECT ADDITIVE DISPLACED
+            // RELATIVE REFERENCE TO A GLOBAL SYMBOL WITH AN ADDITIVE CONSTANT.
+            // THE GLOBAL VALUE AND THE CONSTANT ARE ADDED. THE ADDRESS + 2 THAT THE RELOCATED VALUE IS
+            // TO BE WRITTEN INTO IS SUBTRACTED FROM THE RESULTANT ADDITIVE VALUE & STORED.
             constdata = ((WORD*)data)[2];
-            printf(" GLOBAL ADDITIVE DISPLACED  %03o '%s' %06ho\n", (int)disbyte, unrad50(*((DWORD*)data)), constdata);
-            NOTIMPLEMENTED
+            printf(" '%s' %06ho\n", unrad50(*((DWORD*)data)), constdata);
+            {
+                SymbolTableEntry* entry = process_pass2_rld_lookup(data, false);
+                *((WORD*)dest) = entry->value + constdata - addr - 2;
+                //TODO: IS SYMBOL IN OVERLAY BY ISOLATING THE SEGMENT #
+            }
             data += 6;  offset += 6;
             break;
-        case 7:  // DECLARES A CURRENT SECTION & LOCATION COUNTER VALUE, see LINK7\RLDLCD
+        case 007:  // LOCATION COUNTER DEFINITION, see LINK7\RLDLCD
+            // DECLARES A CURRENT SECTION & LOCATION COUNTER VALUE
             constdata = ((WORD*)data)[2];
-            printf(" LOCATION COUNTER DEFINITION  %03o '%s' %06ho\n", (int)disbyte, unrad50(*((DWORD*)data)), constdata);
+            printf(" '%s' %06ho\n", unrad50(*((DWORD*)data)), constdata);
             {
                 Globals.MBPTR = 0;  // 0 SAYS TO STORE TXT INFO
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, false);
@@ -1634,39 +1686,19 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const BYTE* data)
             }
             data += 6;  offset += 6;
             break;
-        case 010:  // RLDLCM
+        case 010:  // LOCATION COUNTER MODIFICATION, see LINK7\RLDLCM
             // THE CURRENT SECTION BASE IS ADDED TO THE SPECIFIED CONSTANT & RESULT IS STORED AS THE CURRENT LOCATION CTR.
             constdata = ((WORD*)data)[0];
-            printf(" LOCATION COUNTER MODIFICATION  %06ho\n", constdata);
+            printf(" %06ho\n", constdata);
             *((WORD*)dest) = constdata + Globals.BASE;
             data += 2;  offset += 2;
             break;
-        case 011:
-            printf(" SET PROGRAM LIMITS\n");
+        case 011:  // SET PROGRAM LIMITS
+            printf("\n");
             NOTIMPLEMENTED
-            break;
-        case 012:
-            printf(" PSECT  '%s'\n", unrad50(*((DWORD*)data)));
-            NOTIMPLEMENTED
-            data += 4;  offset += 4;
-            break;
-        case 014:
-            printf(" PSECT DISPLACED  '%s'\n", unrad50(*((DWORD*)data)));
-            NOTIMPLEMENTED
-            data += 4;  offset += 4;
-            break;
-        case 015:
-            printf(" PSECT ADDITIVE\n");
-            NOTIMPLEMENTED
-            data += 6;  offset += 6;
-            break;
-        case 016:
-            printf(" PSECT ADDITIVE DISPLACED\n");
-            NOTIMPLEMENTED
-            data += 6;  offset += 6;
             break;
         case 017:  // COMPLEX RELOCATION STRING PROCESSING (GLOBAL ARITHMETIC)
-            printf(" COMPLEX\n");
+            printf("\n");
             *((WORD*)dest) = process_pass2_rld_complex(sscur, data, offset, blocksize);
             break;
         default:
@@ -1782,9 +1814,8 @@ void process_pass2_dump_txtblk()  // DUMP TEXT SUBROUTINE, see LINK7\TDMP0, LINK
     if (Globals.TXTLEN == 0)
         return;
 
-    WORD addr = *((WORD*)Globals.TXTBLK);
-    WORD baseaddr = Globals.BASE;
-    BYTE* dest = OutputBuffer + (baseaddr + addr);
+    WORD addr = *((WORD*)Globals.TXTBLK);  //NOTE: Should be absoulte address
+    BYTE* dest = OutputBuffer + addr;
     BYTE* src = Globals.TXTBLK + 2;
     memcpy(dest, src, Globals.TXTLEN);
 
@@ -1840,6 +1871,8 @@ void process_pass2()
                 Globals.TXTLEN = datasize;
                 assert(datasize <= sizeof(Globals.TXTBLK));
                 memcpy(Globals.TXTBLK, data + 6, blocksize - 6);
+
+                *((WORD*)Globals.TXTBLK) = addr + Globals.BASE;  // ADD BASE TO GIVE ABS LOAD ADDR
             }
             else if (blocktype == 4)  // See LINK7\RLD
             {
@@ -1912,40 +1945,40 @@ void parse_commandline(int argc, char **argv)
                     if (result < 1)
                         fatal_error("Invalid /B option, use /B:addr\n");
                     Globals.SWITCH |= SW_B;
-                    //Globals.TMPIDD = 0;
-                    //Globals.TMPIDI = 0;
+                    TMPIDD = 0;
+                    TMPIDI = 0;
                     //TODO
                     break;
 
                 case 'U':  // /U - ROUND SECTION
                     result = sscanf(cur, ":%ho:%ho", &param1, &param2);
                     Globals.SWITCH |= SW_U;
-                    //Globals.TMPIDD = D.SWU;
-                    //Globals.TMPIDI = I.SWU;
+                    //TMPIDD = D.SWU;
+                    //TMPIDI = I.SWU;
                     //TODO
                     break;
 
                 case 'E':  // /E - EXTEND SECTION
                     result = sscanf(cur, ":%ho:%ho", &param1, &param2);
                     Globals.SWITCH |= SW_E;
-                    //Globals.TMPIDD = D.SWE;
-                    //Globals.TMPIDI = I.SWE;
+                    //TMPIDD = D.SWE;
+                    //TMPIDI = I.SWE;
                     //TODO
                     break;
 
                 case 'Y':  // /Y - START SECTION ON MULTIPLE OF VALUE
                     result = sscanf(cur, ":%ho:%ho", &param1, &param2);
                     Globals.SWITCH |= SW_Y;
-                    //Globals.TMPIDD = D.SWY;
-                    //Globals.TMPIDI = I.SWY;
+                    //TMPIDD = D.SWY;
+                    //TMPIDI = I.SWY;
                     //TODO
                     break;
 
                 case 'H':  // /H - SPECIFY TOP ADR FOR LINK
                     result = sscanf(cur, ":%ho:%ho", &param1, &param2);
                     Globals.SWITCH |= SW_H;
-                    //Globals.TMPIDD = D.SWH;
-                    //Globals.TMPIDI = I.SWH;
+                    //TMPIDD = D.SWH;
+                    //TMPIDI = I.SWH;
                     //TODO
                     break;
 
@@ -1967,8 +2000,8 @@ void parse_commandline(int argc, char **argv)
 
                 case 'Z':  // /Z - ZERO UNFILLED LOCATIONS
                     result = sscanf(cur, ":%ho:%ho", &param1, &param2);
-                    //Globals.TMPIDD = D.SWZ;
-                    //Globals.TMPIDI = I.SWZ;
+                    //TMPIDD = D.SWZ;
+                    //TMPIDI = I.SWZ;
                     //TODO
                     break;
 
@@ -2086,8 +2119,16 @@ void parse_commandline(int argc, char **argv)
 void print_help()
 {
     printf("\n");
-    //
-    printf("Usage: link11 <input files> <options>\n");
+    printf(
+        "Usage: link11 <input files> <options>\n"
+        "Options:\n"
+        "  /T:addr  Specifies the starting address of the linked program\n"
+        "  /M:addr  Specifies the stack address for the linked program\n"
+        "  /B:addr  Specifies the lowest address to be used by the linked program\n"
+        "  /W       Produces a load map that is 132 columns wide\n"
+        "  /X       Do not emit bit map\n"
+        "  /A       Lists global symbols on the link map in alphabetical order\n"
+        "\n");
     //TODO
 }
 
