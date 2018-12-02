@@ -100,6 +100,27 @@ const char* GSDItemTypeNames[] =
     /*7*/ "VIRTUAL SECTION"
 };
 
+const char* CPXCommandNames[] =
+{
+    /*000*/ "NOP",
+    /*001*/ "ADD",
+    /*002*/ "SUB",
+    /*003*/ "MUL",
+    /*004*/ "DIV",
+    /*005*/ "AND",
+    /*006*/ "OR",
+    /*007*/ "XOR",
+    /*010*/ "NEG",
+    /*011*/ "COM",
+    /*012*/ "STORE",
+    /*013*/ "STORED",
+    /*014*/ "ILLFMT",
+    /*015*/ "ILLFMT",
+    /*016*/ "PUSHGLO",
+    /*017*/ "PUSHREL",
+    /*020*/ "PUSHVAL",
+};
+
 static const char* weekday_names[] =
 { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
 static const char month_names[][4] =
@@ -1392,8 +1413,8 @@ SymbolTableEntry* process_pass2_rld_lookup(const BYTE* data, bool global)
     assert(data != NULL);
 
     DWORD lkname = *((DWORD*)data);
-    WORD lkwd = global ? (SY_SEC | Globals.SEGNUM) : 0;
-    WORD lkmsk = global ? ~(SY_SEC | SY_SEG) : ~SY_SEC;
+    WORD lkwd = global ? 0 : (SY_SEC | Globals.SEGNUM);
+    WORD lkmsk = global ? ~SY_SEC : ~(SY_SEC | SY_SEG);
 
     int index;
     bool found = symbol_table_lookup(lkname, lkwd, lkmsk, &index);
@@ -1403,12 +1424,140 @@ SymbolTableEntry* process_pass2_rld_lookup(const BYTE* data, bool global)
         found = symbol_table_lookup(lkname, lkwd, lkmsk, &index);
     }
     if (!found) // MUST FIND IT THIS TIME
-        fatal_error("ERR46: Invalid RLD symbol '%s'", unrad50(lkname));
+        fatal_error("ERR46: Invalid RLD symbol '%s'\n", unrad50(lkname));
 
     SymbolTableEntry* entry = SymbolTable + index;
     //WORD R3 = entry->value; // GET SYMBOL'S VALUE
     //TODO
     return entry;
+}
+
+// COMPLEX RELOCATION STRING PROCESSING (GLOBAL ARITHMETIC), see LINK7\RLDCPX
+WORD process_pass2_rld_complex(const SaveStatusEntry* sscur, const BYTE* &data, WORD &offset, WORD blocksize)
+{
+    bool cpxbreak = false;
+    WORD cpxresult = 0;
+    WORD cpxstack[16];  memset(cpxstack, 0, sizeof(cpxstack));
+    WORD cpxstacktop = 0;
+    while (!cpxbreak && offset < blocksize)
+    {
+        BYTE cpxcmd = *data;  data += 1;  offset += 1;
+        SymbolTableEntry* cpxentry = NULL;
+        BYTE cpxsect;
+        WORD cpxval;
+        DWORD cpxname;
+        printf("        Complex cmd %03ho %s", (WORD)cpxcmd, (cpxcmd > 020) ? "UNKNOWN" : CPXCommandNames[cpxcmd]);
+        switch (cpxcmd)
+        {
+        case 000:  // NOP
+            printf("\n");
+            break;
+        case 001:  // ADD -- ADD TOP 2 ITEMS
+            printf("\n");
+            if (cpxstacktop > 0)
+            {
+                cpxstacktop--;
+                cpxstack[cpxstacktop] = cpxstack[cpxstacktop] + cpxstack[cpxstacktop + 1];
+            }
+            break;
+        case 002:  // SUBTRACT -- NEGATE TOP ITEM ON STACK
+            printf("\n");
+            if (cpxstacktop > 0)
+            {
+                cpxstacktop--;
+                cpxstack[cpxstacktop] = cpxstack[cpxstacktop] - cpxstack[cpxstacktop + 1];
+            }
+            break;
+        case 003:  // MULTIPLY
+            printf("\n");
+            if (cpxstacktop > 0)
+            {
+                cpxstacktop--;
+                cpxstack[cpxstacktop] = cpxstack[cpxstacktop] * cpxstack[cpxstacktop + 1];
+            }
+            break;
+        case 004:  // DIVIDE
+            printf("\n");
+            NOTIMPLEMENTED;
+            break;
+        case 005:  // AND
+            printf("\n");
+            if (cpxstacktop > 0)
+            {
+                cpxstacktop--;
+                cpxstack[cpxstacktop] = cpxstack[cpxstacktop] & cpxstack[cpxstacktop + 1];
+            }
+            break;
+        case 006:  // OR
+            printf("\n");
+            if (cpxstacktop > 0)
+            {
+                cpxstacktop--;
+                cpxstack[cpxstacktop] = cpxstack[cpxstacktop] | cpxstack[cpxstacktop + 1];
+            }
+            break;
+        case 007:  // XOR
+            printf("\n");
+            if (cpxstacktop > 0)
+            {
+                cpxstacktop--;
+                cpxstack[cpxstacktop] = cpxstack[cpxstacktop] ^ cpxstack[cpxstacktop + 1];
+            }
+            break;
+        case 010:  // NEGATE -- DECREMENT TOP ITEM
+            printf("\n");
+            cpxstack[cpxstacktop]--;
+            break;
+        case 011:  // COMPLEMENT -- COMPLEMENT TOP ITEM
+            printf("\n");
+            cpxstack[cpxstacktop] = ~cpxstack[cpxstacktop];
+            break;
+        case 012:  // STORE NOT DISPLACED
+            cpxresult = cpxstack[cpxstacktop];
+            printf(" %06ho\n", cpxresult);
+            cpxbreak = true;
+            break;
+        case 013:  // STORE DISPLACED
+            cpxresult = cpxstack[cpxstacktop];  //TODO
+            printf(" %06ho\n", cpxresult);
+            cpxbreak = true;
+            break;
+        case 014:  // ILLEGAL FORMAT
+        case 015:  // ILLEGAL FORMAT
+            printf("\n");
+            fatal_error("ERR35: Invalid complex relocation in %s", sscur->filename);
+            break;
+        case 016:  // PUSH GLOBAL SYMBOL VALUE
+            cpxname = MAKEDWORD(((WORD*)data)[0], ((WORD*)data)[1]);
+            printf(" '%s'\n", unrad50(cpxname));
+            cpxentry = process_pass2_rld_lookup(data, true);
+            data += 4;  offset += 4;
+            cpxstacktop++;  //TODO
+            cpxstack[cpxstacktop] = cpxentry->value;  //TODO
+            break;
+        case 017:  // PUSH RELOCATABLE VALUE
+            // GET SECTION NUMBER
+            cpxsect = *data;  data += 1;  offset += 1;
+            cpxval = *((WORD*)data);  data += 2;  offset += 2;
+            printf(" %03ho %06ho\n", (WORD)cpxsect, cpxval);
+            //TODO GET OFFSET WITHIN SECTION
+            //TODO: SEE IF SECTION NO. OK
+            NOTIMPLEMENTED;
+            cpxstacktop++;  //TODO
+            cpxstack[cpxstacktop] = 0;  //TODO
+            break;
+        case 020:  // PUSH CONSTANT
+            cpxval = *((WORD*)data);  data += 2;  offset += 2;
+            printf(" %06ho\n", cpxval);
+            cpxstacktop++;  //TODO
+            cpxstack[cpxstacktop] = cpxval;
+            break;
+        default:
+            printf("\n");
+            fatal_error("ERR36: Unknown complex relocation command %03ho in %s\n", (WORD)cpxcmd, sscur->filename);
+        }
+    }
+    return cpxresult;
 }
 
 void process_pass2_rld(const SaveStatusEntry* sscur, const BYTE* data)
@@ -1434,9 +1583,13 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const BYTE* data)
             *((WORD*)dest) = *((WORD*)data) + Globals.BASE;
             data += 2;  offset += 2;
             break;
-        case 2:
+        case 2:  // RELOCATES A DIRECT POINTER TO A GLOBAL SYMBOL. THE VALUE OF THE GLOBAL SYMBOL IS OBTAINED & STORED.
             printf(" GLOBAL\n");
-            NOTIMPLEMENTED
+            {
+                SymbolTableEntry* entry = process_pass2_rld_lookup(data, true);
+                //printf("        Entry '%s' value = %06ho %04X dest = %06ho\n", unrad50(entry->name), entry->value, entry->value, *((WORD*)dest));
+                //TODO: *((WORD*)dest) = entry->value;
+            }
             data += 4;  offset += 4;
             break;
         case 3:
@@ -1447,9 +1600,9 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const BYTE* data)
         case 4:  // See LINK7\RLDGDR
             printf(" GLOBAL DISPLACED  %03o '%s'\n", (int)disbyte, unrad50(*((DWORD*)data)));
             {
-                SymbolTableEntry* entry = process_pass2_rld_lookup(data, false);
+                SymbolTableEntry* entry = process_pass2_rld_lookup(data, true);
+                //printf("        Entry '%s' value = %06ho %04X dest = %06ho\n", unrad50(entry->name), entry->value, entry->value, *((WORD*)dest));
                 *((WORD*)dest) = entry->value; //TODO: wrong value
-                printf("        Entry '%s' value = %06ho %04X dest = %06ho\n", unrad50(entry->name), entry->value, entry->value, *((WORD*)dest));
             }
             data += 4;  offset += 4;
             break;
@@ -1512,10 +1665,9 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const BYTE* data)
             NOTIMPLEMENTED
             data += 6;  offset += 6;
             break;
-        case 017:
+        case 017:  // COMPLEX RELOCATION STRING PROCESSING (GLOBAL ARITHMETIC)
             printf(" COMPLEX\n");
-            NOTIMPLEMENTED
-            data += 4;  offset += 4;  //TODO: length is variable
+            *((WORD*)dest) = process_pass2_rld_complex(sscur, data, offset, blocksize);
             break;
         default:
             fatal_error("ERR36: Unknown RLD command: %d\n", (int)command);
