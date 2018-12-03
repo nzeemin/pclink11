@@ -11,6 +11,10 @@
 
 #include "main.h"
 
+#ifdef _DEBUG
+#include <crtdbg.h>
+#endif
+
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -588,12 +592,17 @@ void finalize()
     for (int i = 0; i < SaveStatusCount; i++)
     {
         SaveStatusEntry* sscur = SaveStatusArea + i;
-        if (sscur->fileobj == NULL)
-            continue;
-
-        fclose(sscur->fileobj);
-        sscur->fileobj = NULL;
-        //printf("  File closed: %s\n", sscur->filename);
+        if (sscur->fileobj != NULL)
+        {
+            fclose(sscur->fileobj);
+            sscur->fileobj = NULL;
+            //printf("  File closed: %s\n", sscur->filename);
+        }
+        if (sscur->data != NULL)
+        {
+            free(sscur->data);
+            sscur->data = NULL;
+        }
     }
 
     if (OutputBuffer != NULL)
@@ -2134,6 +2143,17 @@ void print_help()
 
 int main(int argc, char *argv[])
 {
+
+#ifdef _DEBUG
+    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF);
+    int n = 0;
+    _CrtSetBreakAlloc(n);
+    _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
+    _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDOUT);
+    _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
+    _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDOUT);
+#endif
+
     printf("PCLINK11  %s  %s\n", APP_VERSION_STRING, __DATE__);
 
     assert(sizeof(BYTE) == 1);
@@ -2181,6 +2201,11 @@ int main(int argc, char *argv[])
 
     printf("SUCCESS\n");
     finalize();
+
+#ifdef _DEBUG
+    _CrtDumpMemoryLeaks();
+#endif
+
     return EXIT_SUCCESS;
 }
 
