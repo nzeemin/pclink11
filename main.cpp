@@ -22,7 +22,7 @@ struct SaveStatusEntry
 {
     char	filename[64];
     FILE*	fileobj;
-    WORD	filesize;
+    uint16_t	filesize;
     bool	islibrary;
     void*	data;
 };
@@ -33,7 +33,7 @@ int SaveStatusCount = 0;
 struct LibraryModuleEntry
 {
     //TODO
-    WORD stub[3];
+    uint16_t stub[3];
 };
 const int LibraryModuleListSize = LMLSIZ;
 LibraryModuleEntry LibraryModuleList[LibraryModuleListSize];
@@ -41,53 +41,53 @@ LibraryModuleEntry LibraryModuleList[LibraryModuleListSize];
 // ****	GSD ENTRY STRUCTURE
 struct GSDentry
 {
-    DWORD	symbol;		// SYMBOL CHARS 1-6(RAD50)
-    BYTE	flags;		// FLAGS
-    BYTE	code;		// CODE BYTE
-    WORD	value;		// SIZE OR OFFSET
+    uint32_t	symbol;		// SYMBOL CHARS 1-6(RAD50)
+    uint8_t	flags;		// FLAGS
+    uint8_t	code;		// CODE BYTE
+    uint16_t	value;		// SIZE OR OFFSET
 };
 
 // ****	SYMBOL TABLE STRUCTURE
 struct SymbolTableEntry
 {
-    DWORD	name;		// 2 WD RAD50 NAME
-    WORD	flagseg;    // PSECT FLAGS !  SEG #
-    WORD	value;      // VALUE WORD
-    WORD	status;     // A!B!C!D!  ENTRY # PTR
+    uint32_t	name;		// 2 WD RAD50 NAME
+    uint16_t	flagseg;    // PSECT FLAGS !  SEG #
+    uint16_t	value;      // VALUE WORD
+    uint16_t	status;     // A!B!C!D!  ENTRY # PTR
 };
 
-SymbolTableEntry* SymbolTable = NULL;
-SymbolTableEntry* ASECTentry = NULL;
+SymbolTableEntry* SymbolTable = nullptr;
+SymbolTableEntry* ASECTentry = nullptr;
 const int SymbolTableSize = 4095;  // STSIZE
 const int SymbolTableLength = SymbolTableSize * sizeof(SymbolTableEntry);
 int SymbolTableCount = 0;  // STCNT -- SYMBOL TBL ENTRIES COUNTER
 
 // ****	INTERNAL SYMBOL TABLE FLAGS BIT ASSIGNMENT
-const WORD SY_UDF = 0100000;	// SET TO DECLARE SYMBOL IS UNDEFINED (PSECT NEVER UNDEFINED)
-const WORD SY_DUP =  040000;	// SET TO ALLOW DUPLICATE LIBRARY SYMBOLS
-const WORD SY_IND =  020000;	// SET TO PUT SYMBOL IN OVERLAY HANDLER TABLE
-const WORD SY_WK  =  010000;	// SET TO INDICATE SYMBOL IS WEAK
-const WORD SY_SAV = SY_WK;		// SET TO INDICATE PSECT HAS SAV ATTRIBUTE
-const WORD SY_ENB = 0170000;	// MASK TO ISOLATE SYMBOL ENTRY NUMBER PTR
-const WORD SY_SEC =   04000;	// CS$NU POSITION IN PSECT FLAGS INDICATING SYMBOL IS A SECTION
-const WORD SY_SPA = 0100000;	// CS$TYP POSITION IN PSECT FLAGS INDICATING SYMBOL IS I OR D
+const uint16_t SY_UDF = 0100000;	// SET TO DECLARE SYMBOL IS UNDEFINED (PSECT NEVER UNDEFINED)
+const uint16_t SY_DUP =  040000;	// SET TO ALLOW DUPLICATE LIBRARY SYMBOLS
+const uint16_t SY_IND =  020000;	// SET TO PUT SYMBOL IN OVERLAY HANDLER TABLE
+const uint16_t SY_WK  =  010000;	// SET TO INDICATE SYMBOL IS WEAK
+const uint16_t SY_SAV = SY_WK;		// SET TO INDICATE PSECT HAS SAV ATTRIBUTE
+const uint16_t SY_ENB = 0170000;	// MASK TO ISOLATE SYMBOL ENTRY NUMBER PTR
+const uint16_t SY_SEC =   04000;	// CS$NU POSITION IN PSECT FLAGS INDICATING SYMBOL IS A SECTION
+const uint16_t SY_SPA = 0100000;	// CS$TYP POSITION IN PSECT FLAGS INDICATING SYMBOL IS I OR D
 // SPACE - 1 IF D PSECT, 0 IF I PSECT.  SY.SEC MUST ALSO BE
 // SET IF THIS BIT IS USED.  NOTE SY.UDF IS NEVER USED FOR
 // A PSECT
-const WORD SY_SWI =  010000;	// (CS$ACC)SET IF THIS SYMBOL PUT IN SYMBOL TABLE BY /I UNDEF SYMBOL
-const WORD SY_SEG =   01777;	// SEGMENT NUMBER BITS IN FLAGS WORD
+const uint16_t SY_SWI =  010000;	// (CS$ACC)SET IF THIS SYMBOL PUT IN SYMBOL TABLE BY /I UNDEF SYMBOL
+const uint16_t SY_SEG =   01777;	// SEGMENT NUMBER BITS IN FLAGS WORD
 
 
-const DWORD RAD50_ABS    = rad50x2(". ABS.");  // ASECT
-const DWORD RAD50_VSEC   = rad50x2(". VIR.");  // VIRTUAL SECTION SYMBOL NAME
-const DWORD RAD50_VIRSZ  = rad50x2("$VIRSZ");  // GLOBAL SYMBOL NAME FOR SIZE OF VIRTUAL SECTION
-const DWORD RAD50_PHNDL  = rad50x2("$OHAND");  // OVERLAY HANDLER PSECT
-const DWORD RAD50_ODATA  = rad50x2("$ODATA");  // OVERLAY DATA TABLE PSECT
-const DWORD RAD50_PTBL   = rad50x2("$OTABL");  // OVERLAY TABLE PSECT
-const DWORD RAD50_GHNDL  = rad50x2("$OVRH");   // /O OVERLAY HANDLER GBL ENTRY
-const DWORD RAD50_GVHNDL = rad50x2("$OVRHV");  // /V OVERLAY HANDLER GBL ENTRY
-const DWORD RAD50_GZHNDL = rad50x2("$OVRHZ");  // I-D SPACE OVERLAY HANDLER GBL ENTRY
-const DWORD RAD50_ZTABL  = rad50x2("$ZTABL");  // I-D SPACE OVERLAY HANDLER PSECT
+const uint32_t RAD50_ABS    = rad50x2(". ABS.");  // ASECT
+const uint32_t RAD50_VSEC   = rad50x2(". VIR.");  // VIRTUAL SECTION SYMBOL NAME
+const uint32_t RAD50_VIRSZ  = rad50x2("$VIRSZ");  // GLOBAL SYMBOL NAME FOR SIZE OF VIRTUAL SECTION
+const uint32_t RAD50_PHNDL  = rad50x2("$OHAND");  // OVERLAY HANDLER PSECT
+const uint32_t RAD50_ODATA  = rad50x2("$ODATA");  // OVERLAY DATA TABLE PSECT
+const uint32_t RAD50_PTBL   = rad50x2("$OTABL");  // OVERLAY TABLE PSECT
+const uint32_t RAD50_GHNDL  = rad50x2("$OVRH");   // /O OVERLAY HANDLER GBL ENTRY
+const uint32_t RAD50_GVHNDL = rad50x2("$OVRHV");  // /V OVERLAY HANDLER GBL ENTRY
+const uint32_t RAD50_GZHNDL = rad50x2("$OVRHZ");  // I-D SPACE OVERLAY HANDLER GBL ENTRY
+const uint32_t RAD50_ZTABL  = rad50x2("$ZTABL");  // I-D SPACE OVERLAY HANDLER PSECT
 
 const char* FORLIB = "FORLIB.OBJ";  // FORTRAN LIBRARY FILENAME
 const char* SYSLIB = "SYSLIB.OBJ";  // DEFAULT SYSTEM LIBRARY FILENAME
@@ -151,13 +151,13 @@ static const char month_names[][4] =
 { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 
 
-BYTE* OutputBuffer = NULL;
+uint8_t* OutputBuffer = nullptr;
 size_t OutputBufferSize = 0;
 int OutputBlockCount = 0;
 
-FILE* outfileobj = NULL;
-FILE* mapfileobj = NULL;
-FILE* stbfileobj = NULL;
+FILE* outfileobj = nullptr;
+FILE* mapfileobj = nullptr;
+FILE* stbfileobj = nullptr;
 
 
 // Macros used to mark and detect unimplemented but needed
@@ -169,165 +169,165 @@ FILE* stbfileobj = NULL;
 
 struct tagGlobals
 {
-    WORD	ODBLK[15]; // BLOCK TO HOLD BINOUT SPEC
+    uint16_t	ODBLK[15]; // BLOCK TO HOLD BINOUT SPEC
     // LNKOV1->STORE TIME TO ROLL OVER DATE
-    WORD	TEMP;	// TEMPORARY STORAGE
-    BYTE	TXTBLK[RECSIZ];  // SPACE FOR A FORMATTED BINARY RECORD
+    uint16_t	TEMP;	// TEMPORARY STORAGE
+    uint8_t	TXTBLK[RECSIZ];  // SPACE FOR A FORMATTED BINARY RECORD
 
     int 	UNDLST; // START OF UNDEFINED SYMBOL LIST
-    WORD	SYEN0;	// ADR OF SYMBOL TABLE ENTRY NUMBER 0
+    uint16_t	SYEN0;	// ADR OF SYMBOL TABLE ENTRY NUMBER 0
     // REL PTR + THIS = ABS ADDR OF SYMBOL NODE
     int     CSECT;	// PTR TO LATEST SECTION (PASS1)
 
-    WORD	PA2LML;	// START OF LML BUFR
+    uint16_t	PA2LML;	// START OF LML BUFR
     // LNKOV1->TEMP. SEGMENT POINTER
-    WORD	LMLPTR;	// CURRENT PTR TO LIBRARY MOD LIST
-    WORD	STLML;	// CURRENT START OF LMLPTR IF MULTI-LIBR FILES
-    WORD	ENDLML;	// END OF LIB MOD LIST
-    WORD	ESZRBA;	// SIZE OF CURRENT LIBRARY EPT
+    uint16_t	LMLPTR;	// CURRENT PTR TO LIBRARY MOD LIST
+    uint16_t	STLML;	// CURRENT START OF LMLPTR IF MULTI-LIBR FILES
+    uint16_t	ENDLML;	// END OF LIB MOD LIST
+    uint16_t	ESZRBA;	// SIZE OF CURRENT LIBRARY EPT
     // RELOCATION INFO OUTPUT BUFR ADR
-    WORD	OVCOUN;	// NO. OF OVERLAY ENTRY PTS.
-    WORD	OVSPTR;	// PTR TO OVERLAY SEGMENT BLK
-    BYTE	PAS1_5; // PASS 1.5 SWITCH(0 ON PASS1, 1 IF TO DO LIBRARY,
+    uint16_t	OVCOUN;	// NO. OF OVERLAY ENTRY PTS.
+    uint16_t	OVSPTR;	// PTR TO OVERLAY SEGMENT BLK
+    uint8_t	PAS1_5; // PASS 1.5 SWITCH(0 ON PASS1, 1 IF TO DO LIBRARY,
     // BIT 7 SET IF DOING LIBRARIES
-    BYTE	DUPMOD;	// 1 IF LIB MOD IS DUP
+    uint8_t	DUPMOD;	// 1 IF LIB MOD IS DUP
     // 0 IF LIB MOD IS NOT DUP
-    BYTE	NUMCOL;	// NUMBER OF COLUMNS WIDE FOR MAP
+    uint8_t	NUMCOL;	// NUMBER OF COLUMNS WIDE FOR MAP
     // IND + OR - RELOCATION DURING PASS 2
-    BYTE	LIBNB;  // LIBRARY FILE NUMBER FOR LML
+    uint8_t	LIBNB;  // LIBRARY FILE NUMBER FOR LML
 
-    WORD	SWITCH;	// SWITCHES FROM CSI (SEE "LINK1" FOR DETAILS)
-    WORD	SWIT1;	// Switches
-    WORD	FILPT1; // START OF SAVESTATUS AREA -4
+    uint16_t	SWITCH;	// SWITCHES FROM CSI (SEE "LINK1" FOR DETAILS)
+    uint16_t	SWIT1;	// Switches
+    uint16_t	FILPT1; // START OF SAVESTATUS AREA -4
 
     // VARIABLES FOR PROGRAM BEING LINKED
-    WORD	HGHLIM;	// MAX # OF SECTIONS IN ANY MODULE PROCESSED
+    uint16_t	HGHLIM;	// MAX # OF SECTIONS IN ANY MODULE PROCESSED
     // HIGHEST LOCATION USED BY PROGRAM (I-SPACE)
-    WORD	DHGHLM;	// MAX # OF SECTIONS IN ANY MODULE PROCESSED
+    uint16_t	DHGHLM;	// MAX # OF SECTIONS IN ANY MODULE PROCESSED
     // HIGHEST LOCATION USED BY PROGRAM (D-SPACE)
 
     GSDentry BEGBLK; // TRANSFER ADDRESS BLOCK (4 WD GSD ENTRY)
     //   TRANS ADDR OR REL OFFSET FROM PSECT
 
-    WORD	STKBLK[3]; // USER STACK ADDRESS BLOCK(SYMBOL & VALUE)
+    uint16_t	STKBLK[3]; // USER STACK ADDRESS BLOCK(SYMBOL & VALUE)
     // LNKSAV->TEMP 4 WORD STORAGE FOR GSD RECORD
 
-    WORD	HSWVAL;	// /H SWITCH VALUE - I-SPACE
-    WORD	DHSWVL;	// /H SWITCH VALUE - D-SPACE
+    uint16_t	HSWVAL;	// /H SWITCH VALUE - I-SPACE
+    uint16_t	DHSWVL;	// /H SWITCH VALUE - D-SPACE
 
-    WORD	ESWVAL;	// /E SWITCH VALUE - I-SPACE
-    DWORD	ESWNAM; // /E SWITCH NAME - I-SPACE
-    WORD	DESWVL; // /E SWITCH VALUE - D-SPACE
-    DWORD	DESWNM;	// /E SWITCH NAME - D-SPACE
-    WORD	KSWVAL;	// /K SWITCH VALUE OR STACK SIZE FOR REL FILE
-    WORD	YSWNAM[25]; // /Y SECTION NAME ARRAY(TEMP OVERLAY # IN OV1 & SAV)
+    uint16_t	ESWVAL;	// /E SWITCH VALUE - I-SPACE
+    uint32_t	ESWNAM; // /E SWITCH NAME - I-SPACE
+    uint16_t	DESWVL; // /E SWITCH VALUE - D-SPACE
+    uint32_t	DESWNM;	// /E SWITCH NAME - D-SPACE
+    uint16_t	KSWVAL;	// /K SWITCH VALUE OR STACK SIZE FOR REL FILE
+    uint16_t	YSWNAM[25]; // /Y SECTION NAME ARRAY(TEMP OVERLAY # IN OV1 & SAV)
     // +2 NEXT ASSIGNABLE OUTPUT BLK(LNKMAP)
     //    RELOCATION INFO BLOCK #(LNKSAV) - I-SPACE
     // YSWVAL==YSWNAM+4
-    WORD	DYSWNM[25];
+    uint16_t	DYSWNM[25];
     // DYSWVL==DYSWNM+4
-    BYTE	YSWT;	// SAY WE ARE USING /Y
-    BYTE	YCNT;	// NUMBER OF TIMES TO PROMPT FOR /Y (SET IN LINK2)
-    WORD	DEFALT;	// DEFAULT BOUNDARY VALUE FOR /Y (SET IN LINK2)
-    WORD	USWVAL;	// /U SWITCH VALUE - I-SPACE
-    DWORD	USWNAM;	// /U SWITCH NAME - I-SPACE
-    WORD	DUSWVL;	// /U SWITCH VALUE - D-SPACE
-    DWORD	DUSWNM;	// /U SWITCH NAME - D-SPACE
-    WORD	QSWVAL;	// /Q BUFFER POINTER
-    WORD	ZSWVAL;	// /Z SWITCH VALUE - I-SPACE
-    WORD	DZSWVL;	// /Z SWITCH VALUE - D-SPACE
-    WORD	LRUNUM;	// USED TO COUNT MAX # OF SECTIONS AND AS
+    uint8_t	YSWT;	// SAY WE ARE USING /Y
+    uint8_t	YCNT;	// NUMBER OF TIMES TO PROMPT FOR /Y (SET IN LINK2)
+    uint16_t	DEFALT;	// DEFAULT BOUNDARY VALUE FOR /Y (SET IN LINK2)
+    uint16_t	USWVAL;	// /U SWITCH VALUE - I-SPACE
+    uint32_t	USWNAM;	// /U SWITCH NAME - I-SPACE
+    uint16_t	DUSWVL;	// /U SWITCH VALUE - D-SPACE
+    uint32_t	DUSWNM;	// /U SWITCH NAME - D-SPACE
+    uint16_t	QSWVAL;	// /Q BUFFER POINTER
+    uint16_t	ZSWVAL;	// /Z SWITCH VALUE - I-SPACE
+    uint16_t	DZSWVL;	// /Z SWITCH VALUE - D-SPACE
+    uint16_t	LRUNUM;	// USED TO COUNT MAX # OF SECTIONS AND AS
     //  TIME STAMP FOR SAV FILE CACHING
-    WORD	BITBAD;	// -> START OF BITMAP TABLE (D-SPACE IF /J USED)
-    WORD	IBITBD;	// -> START OF I-SPACE BITMAP TABLE
-    WORD	BITMAP;	// CONTAINS BITMAP OR IBITBD (IF /J USED)
-    WORD	CACHER;	// -> CACHE CONTROL BLOCKS
-    WORD	NUMBUF;	// NUMBER OF AVAILABLE CACHING BLOCKS (DEF=3)
-    WORD	BASE;	// BASE OF CURRENT SECTION
-    WORD	CKSUM;	// CHECKSUM FOR STB & LDA OUTPUT
+    uint16_t	BITBAD;	// -> START OF BITMAP TABLE (D-SPACE IF /J USED)
+    uint16_t	IBITBD;	// -> START OF I-SPACE BITMAP TABLE
+    uint16_t	BITMAP;	// CONTAINS BITMAP OR IBITBD (IF /J USED)
+    uint16_t	CACHER;	// -> CACHE CONTROL BLOCKS
+    uint16_t	NUMBUF;	// NUMBER OF AVAILABLE CACHING BLOCKS (DEF=3)
+    uint16_t	BASE;	// BASE OF CURRENT SECTION
+    uint16_t	CKSUM;	// CHECKSUM FOR STB & LDA OUTPUT
     // LNKOV1->TEMP LINK POINTER TO NEW REGION BLK
     // CURRENT REL BLK OVERLAY NUM
-    WORD	ENDRT;	// END OF ROOT SYMBOL TBL LIST
-    WORD	VIRSIZ;	// LARGEST REGION IN A PARTITION
-    WORD	REGION;	// XM REGION NUMBER
-    WORD	WDBCNT;	// WDB TABLE SIZE ( 14. * NUMBER OF PARTITIONS)
-    WORD	HIPHYS;	// HIGH LIMIT FOR EXTENDED MEMORY (96K MAX)
-    WORD	SVLML;	// START OF LML LIST FOR WHOLE LIBRARY
-    WORD	SW_LML;	// LML INTO OVERLAY SWITCH, AND PASS INDICATOR
-    WORD	LOC0;	// USED FOR CONTENTS OF LOC 0 IN SAV HEADER
-    WORD	LOC66;	// # /O SEGMENTS SAVED FOR CONVERSION TO ADDR OF
+    uint16_t	ENDRT;	// END OF ROOT SYMBOL TBL LIST
+    uint16_t	VIRSIZ;	// LARGEST REGION IN A PARTITION
+    uint16_t	REGION;	// XM REGION NUMBER
+    uint16_t	WDBCNT;	// WDB TABLE SIZE ( 14. * NUMBER OF PARTITIONS)
+    uint16_t	HIPHYS;	// HIGH LIMIT FOR EXTENDED MEMORY (96K MAX)
+    uint16_t	SVLML;	// START OF LML LIST FOR WHOLE LIBRARY
+    uint16_t	SW_LML;	// LML INTO OVERLAY SWITCH, AND PASS INDICATOR
+    uint16_t	LOC0;	// USED FOR CONTENTS OF LOC 0 IN SAV HEADER
+    uint16_t	LOC66;	// # /O SEGMENTS SAVED FOR CONVERSION TO ADDR OF
     //  /V SEGS IN OVERLAY HANLDER TABLE
-    WORD	LSTFMT;	// CREF LISTING FORMAT (0=80COL, -1=132COL)
+    uint16_t	LSTFMT;	// CREF LISTING FORMAT (0=80COL, -1=132COL)
 
     // I-D SPACE VARIABLES
 
-    WORD	IDSWIT;	// BITMASK WORD FOR WHICH SWITCHES USE SEPARATED
+    uint16_t	IDSWIT;	// BITMASK WORD FOR WHICH SWITCHES USE SEPARATED
     // I-D SPACE
     // D-SPACE, LOW BYTE, I-SPACE, HI BYTE
-    WORD	ILEN;	// TOTAL LENGTH OF I-SPACE PSECTS IN WORDS
-    WORD	DLEN;	// TOTAL LENGTH OF D-SPACE PSECTS IN WORDS
-    WORD	IBLK;	// TOTAL LENGTH OF I-SPACE PSECTS IN BLOCKS
-    WORD	DBLK;	// TOTAL LENGTH OF D-SPACE PSECTS IN BLOCKS
-    WORD	IROOT;	// SIZE OF THE I-SPACE ROOT IN WORDS
-    WORD	DROOT;	// SIZE OF THE D-SPACE ROOT IN WORDS
-    WORD	IBASE;	// START OF THE I BASE (BLOCKS)
-    WORD	DBASE;	// START OF THE D BASE (BLOCKS)
-    WORD	ILOC40;	// CONTENTS OF LOC 40 FOR I-SPACE CCB
-    WORD	IFLG;	// NON-ZERO MEANS WRITING I-SPACE BITMAP
-    WORD	IDSTRT;	// I-D SPACE ENTRY POINT ($OVRHZ)
-    WORD	ZTAB;	// I-D SPACE START ADDRESS OF PSECT $ZTABL
-    WORD	OVRCNT;	// # OF OVERLAY SEGMENTS, USED FOR COMPUTING $OVDF6
-    WORD	DSGBAS;	// PASS 2 BASE ADR OF D-SPACE OVERLAY SEGMENT
-    WORD	DSGBLK;	// PASS 2 BASE BLK OF D-SPACE OVERLAY SEGMENT
+    uint16_t	ILEN;	// TOTAL LENGTH OF I-SPACE PSECTS IN WORDS
+    uint16_t	DLEN;	// TOTAL LENGTH OF D-SPACE PSECTS IN WORDS
+    uint16_t	IBLK;	// TOTAL LENGTH OF I-SPACE PSECTS IN BLOCKS
+    uint16_t	DBLK;	// TOTAL LENGTH OF D-SPACE PSECTS IN BLOCKS
+    uint16_t	IROOT;	// SIZE OF THE I-SPACE ROOT IN WORDS
+    uint16_t	DROOT;	// SIZE OF THE D-SPACE ROOT IN WORDS
+    uint16_t	IBASE;	// START OF THE I BASE (BLOCKS)
+    uint16_t	DBASE;	// START OF THE D BASE (BLOCKS)
+    uint16_t	ILOC40;	// CONTENTS OF LOC 40 FOR I-SPACE CCB
+    uint16_t	IFLG;	// NON-ZERO MEANS WRITING I-SPACE BITMAP
+    uint16_t	IDSTRT;	// I-D SPACE ENTRY POINT ($OVRHZ)
+    uint16_t	ZTAB;	// I-D SPACE START ADDRESS OF PSECT $ZTABL
+    uint16_t	OVRCNT;	// # OF OVERLAY SEGMENTS, USED FOR COMPUTING $OVDF6
+    uint16_t	DSGBAS;	// PASS 2 BASE ADR OF D-SPACE OVERLAY SEGMENT
+    uint16_t	DSGBLK;	// PASS 2 BASE BLK OF D-SPACE OVERLAY SEGMENT
 
-    DWORD	MODNAM;	// MODULE NAME, RAD50
+    uint32_t	MODNAM;	// MODULE NAME, RAD50
     // LDA OUTPUT BUFR PTR OR REL INFO BUFR PTR
-    DWORD	IDENT;	// PROGRAM IDENTIFICATION
+    uint32_t	IDENT;	// PROGRAM IDENTIFICATION
     // "RELADR" ADR OF RELOCATION CODE IN TEXT OF REL FILE
     // +2 "RELOVL" NEXT REL BLK OVERLAY #
 
-    WORD	ASECT[8];
+    uint16_t	ASECT[8];
 
-    WORD	DHLRT;	// D-SPACE HIGH ADDR LIMIT OF REGION (R.GHLD)
-    WORD	DBOTTM;	// ST ADDR OF REGION AREA - D-SPACE (R.GSAD)
-    WORD	DBOTTM_2; // REGION NUMBER (R.GNB)
-    WORD	OVRG1;	// -> NEXT ORDB (R.GNXP)
-    WORD	OVRG1_2; // -> OSDB THIS REGION (R.GSGP)
-    WORD	HLRT;	// HIGH LIMIT OF AREA (R.GHL)
-    WORD	BOTTOM;	// ST ADDR OF REGION AREA - (I-SPACE IF /J USED)
+    uint16_t	DHLRT;	// D-SPACE HIGH ADDR LIMIT OF REGION (R.GHLD)
+    uint16_t	DBOTTM;	// ST ADDR OF REGION AREA - D-SPACE (R.GSAD)
+    uint16_t	DBOTTM_2; // REGION NUMBER (R.GNB)
+    uint16_t	OVRG1;	// -> NEXT ORDB (R.GNXP)
+    uint16_t	OVRG1_2; // -> OSDB THIS REGION (R.GSGP)
+    uint16_t	HLRT;	// HIGH LIMIT OF AREA (R.GHL)
+    uint16_t	BOTTOM;	// ST ADDR OF REGION AREA - (I-SPACE IF /J USED)
 
-    WORD	CBUF;	// START OF CREF BUFFER
-    WORD	CBEND;	// CBUF + 512. BYTES FOR A 1 BLOCK CREF BUFFER
-    WORD	QAREA[10]; // EXTRA QUEUE ELEMENT
-    WORD	PRAREA[5]; // AREA FOR PROGRAMMED REQUESTS
+    uint16_t	CBUF;	// START OF CREF BUFFER
+    uint16_t	CBEND;	// CBUF + 512. BYTES FOR A 1 BLOCK CREF BUFFER
+    uint16_t	QAREA[10]; // EXTRA QUEUE ELEMENT
+    uint16_t	PRAREA[5]; // AREA FOR PROGRAMMED REQUESTS
 
-    WORD	EIB512;	// IBUF + 512. BYTES FOR A 1 BLOCK MAP BUFR
-    WORD	SEGBAS;	// BASE OF OVERLAY SEGMENT
-    WORD	SEGBLK;	// BASE BLK OF OVERLAY SEGMENT
-    WORD	TXTLEN;	// TEMP FOR /V SWITCH
-    WORD	LINLFT; // NUMBER OF LINES LEFT ON CURRENT MAP PAGE
+    uint16_t	EIB512;	// IBUF + 512. BYTES FOR A 1 BLOCK MAP BUFR
+    uint16_t	SEGBAS;	// BASE OF OVERLAY SEGMENT
+    uint16_t	SEGBLK;	// BASE BLK OF OVERLAY SEGMENT
+    uint16_t	TXTLEN;	// TEMP FOR /V SWITCH
+    uint16_t	LINLFT; // NUMBER OF LINES LEFT ON CURRENT MAP PAGE
 
     // The following globals are defined inside the code
 
-    WORD	FLGWD;	// INTERNAL FLAG WORD
-    WORD	ENDOL;	// USE FOR CONTINUE SWITCHES /C OR //
-    WORD	SEGNUM;	// KEEP TRACK OF INPUT SEGMENT #'S
+    uint16_t	FLGWD;	// INTERNAL FLAG WORD
+    uint16_t	ENDOL;	// USE FOR CONTINUE SWITCHES /C OR //
+    uint16_t	SEGNUM;	// KEEP TRACK OF INPUT SEGMENT #'S
 
     // INPUT BUFFER INFORMATION
 
-    WORD	IRAREA;	// CHANNEL NUMBER AND .READ EMT CODE
-    WORD	CURBLK;	// RELATIVE INPUT BLOCK NUMBER
-    WORD	IBUF;	// INPUT BUFR ADR(ALSO END OF OUTPUT BUFR (OBUF+512))
-    WORD	IBFSIZ;	// INPUT BUFR SIZE (MULTIPLE OF 256) WORD COUNT
+    uint16_t	IRAREA;	// CHANNEL NUMBER AND .READ EMT CODE
+    uint16_t	CURBLK;	// RELATIVE INPUT BLOCK NUMBER
+    uint16_t	IBUF;	// INPUT BUFR ADR(ALSO END OF OUTPUT BUFR (OBUF+512))
+    uint16_t	IBFSIZ;	// INPUT BUFR SIZE (MULTIPLE OF 256) WORD COUNT
 
-    WORD	OBLK;	// RELATIVE OUTPUT BLOCK #
-    WORD	OBUF;	// OUTPUT BUFR ADR
+    uint16_t	OBLK;	// RELATIVE OUTPUT BLOCK #
+    uint16_t	OBUF;	// OUTPUT BUFR ADR
 
-    WORD	MBLK;	// OUTPUT BLK # (INIT TO -1 FOR BUMP BEFORE WRITE)
-    WORD	MBPTR;	// OUTPUT BUFR POINTER (0 MEANS NO MAP OUTPUT)
+    uint16_t	MBLK;	// OUTPUT BLK # (INIT TO -1 FOR BUMP BEFORE WRITE)
+    uint16_t	MBPTR;	// OUTPUT BUFR POINTER (0 MEANS NO MAP OUTPUT)
 
-    WORD	CBLK;	// OUTPUT BLK # (INIT TO -1 FOR BUMP BEFORE WRITE)
-    WORD	CBPTR;	// DEFAULT IS NO CREF
+    uint16_t	CBLK;	// OUTPUT BLK # (INIT TO -1 FOR BUMP BEFORE WRITE)
+    uint16_t	CBPTR;	// DEFAULT IS NO CREF
 }
 Globals;
 
@@ -352,7 +352,7 @@ void fatal_error(const char* message, ...)
 /////////////////////////////////////////////////////////////////////////////
 // Symbol table functions
 
-void symbol_table_enter(int* pindex, DWORD lkname, WORD lkwd)
+void symbol_table_enter(int* pindex, uint32_t lkname, uint16_t lkwd)
 {
     // Find empty entry
     if (SymbolTableCount >= SymbolTableSize)
@@ -398,13 +398,13 @@ void symbol_table_add_undefined(int index)
     if (Globals.UNDLST != 0)
     {
         SymbolTableEntry* oldentry = SymbolTable + Globals.UNDLST;
-        oldentry->status = (WORD)((oldentry->status & 0170000) | index);  // set back reference
+        oldentry->status = (uint16_t)((oldentry->status & 0170000) | index);  // set back reference
     }
 
     SymbolTableEntry* entry = SymbolTable + index;
     entry->status |= SY_UDF;  // MAKE CUR SYM UNDEFINED
     entry->flagseg = (entry->flagseg & ~SY_SEG) | Globals.SEGNUM;  // SET SEGMENT # WHERE INITIAL REF
-    entry->value = (WORD)Globals.UNDLST;
+    entry->value = (uint16_t)Globals.UNDLST;
 
     Globals.UNDLST = index;
 }
@@ -441,12 +441,12 @@ bool is_any_undefined()
 // In:  dupmsk
 // Out: return = true if found
 // Out: result = index of the found entity, or index of entity to work with
-bool symbol_table_search_routine(DWORD lkname, WORD lkwd, WORD lkmsk, WORD dupmsk, int* result)
+bool symbol_table_search_routine(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk, uint16_t dupmsk, int* result)
 {
-    assert(SymbolTable != NULL);
+    assert(SymbolTable != nullptr);
 
     // Calculate hash
-    WORD hash = 0;
+    uint16_t hash = 0;
     if (lkname != 0)
         hash = LOWORD(lkname) + HIWORD(lkname);
     else
@@ -457,7 +457,7 @@ bool symbol_table_search_routine(DWORD lkname, WORD lkwd, WORD lkmsk, WORD dupms
     }
 
     // Normalize hash to table size
-    WORD stdiv = 0120000;  // NORMALIZED STSIZE USED FOR DIVISION
+    uint16_t stdiv = 0120000;  // NORMALIZED STSIZE USED FOR DIVISION
     while (hash >= SymbolTableSize)
     {
         if (hash > stdiv)
@@ -480,7 +480,7 @@ bool symbol_table_search_routine(DWORD lkname, WORD lkwd, WORD lkmsk, WORD dupms
         if (entry->name == lkname)
         {
             // AT THIS POINT HAVE FOUND A MATCHING SYMBOL NAME, NOW MUST CHECK FOR MATCHING ATTRIBUTES.
-            WORD flagsmasked = (entry->flagseg & ~lkmsk);
+            uint16_t flagsmasked = (entry->flagseg & ~lkmsk);
             if (flagsmasked == lkwd)
             {
                 if (dupmsk == 0 || (entry->status & SY_DUP) == 0)
@@ -514,7 +514,7 @@ bool symbol_table_search_routine(DWORD lkname, WORD lkwd, WORD lkmsk, WORD dupms
 //	   THE SYMBOL TABLE.  DOES NOT REQUIRE A SEGMENT NUMBER MATCH
 //	   WHETHER THE SYMBOL IS A DUPLICATE OR NOT.
 // Out: return = true if found, false if new entry
-bool symbol_table_dlooke(DWORD lkname, WORD lkwd, WORD lkmsk, int* pindex)
+bool symbol_table_dlooke(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk, int* pindex)
 {
     bool found = symbol_table_search_routine(lkname, lkwd, lkmsk, 0, pindex);
     if (found)
@@ -525,7 +525,7 @@ bool symbol_table_dlooke(DWORD lkname, WORD lkwd, WORD lkmsk, int* pindex)
 }
 // 'LOOKUP' ONLY SEARCHES THE SYMBOL TABLE FOR A SYMBOL MATCH.  IF SYMBOL
 //	   IS A DUPLICATE, THIS ROUTINE REQUIRES A SEGMENT NUMBER MATCH.
-bool symbol_table_lookup(DWORD lkname, WORD lkwd, WORD lkmsk, int* pindex)
+bool symbol_table_lookup(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk, int* pindex)
 {
     return symbol_table_search_routine(lkname, lkwd, lkmsk, SY_DUP, pindex);
 }
@@ -533,7 +533,7 @@ bool symbol_table_lookup(DWORD lkname, WORD lkwd, WORD lkmsk, int* pindex)
 //	   THE SYMBOL TABLE.  IF SYMBOL IS A DUPLICATE, THIS ROUTINE
 //	   REQUIRES A SEGMENT NUMBER MATCH.
 // Out: return = true if found, false if new entry
-bool symbol_table_looke(DWORD lkname, WORD lkwd, WORD lkmsk, int* pindex)
+bool symbol_table_looke(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk, int* pindex)
 {
     bool found = symbol_table_search_routine(lkname, lkwd, lkmsk, SY_DUP, pindex);
     if (found)
@@ -545,7 +545,7 @@ bool symbol_table_looke(DWORD lkname, WORD lkwd, WORD lkmsk, int* pindex)
 // 'SEARCH' THIS ROUTINE DOES A LOOKUP ONLY AND DOES NOT CARE WHETHER THE
 //	   SYMBOL IS A DUPLICATE OR NOT.  THIS ROUTINE IS USED REPEATEDLY
 //	   AFTER A SINGLE CALL TO 'DLOOKE'.
-bool symbol_table_search(DWORD lkname, WORD lkwd, WORD lkmsk, int* pindex)
+bool symbol_table_search(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk, int* pindex)
 {
     return symbol_table_search_routine(lkname, lkwd, lkmsk, 0, pindex);
 }
@@ -584,43 +584,43 @@ void finalize()
 {
     //printf("Finalization\n");
 
-    if (SymbolTable != NULL)
+    if (SymbolTable != nullptr)
     {
-        free(SymbolTable);  SymbolTable = NULL;
+        free(SymbolTable);  SymbolTable = nullptr;
     }
 
     for (int i = 0; i < SaveStatusCount; i++)
     {
         SaveStatusEntry* sscur = SaveStatusArea + i;
-        if (sscur->fileobj != NULL)
+        if (sscur->fileobj != nullptr)
         {
             fclose(sscur->fileobj);
-            sscur->fileobj = NULL;
+            sscur->fileobj = nullptr;
             //printf("  File closed: %s\n", sscur->filename);
         }
-        if (sscur->data != NULL)
+        if (sscur->data != nullptr)
         {
             free(sscur->data);
-            sscur->data = NULL;
+            sscur->data = nullptr;
         }
     }
 
-    if (OutputBuffer != NULL)
+    if (OutputBuffer != nullptr)
     {
-        free(OutputBuffer);  OutputBuffer = NULL;  OutputBufferSize = 0;
+        free(OutputBuffer);  OutputBuffer = nullptr;  OutputBufferSize = 0;
     }
 
-    if (outfileobj != NULL)
+    if (outfileobj != nullptr)
     {
-        fclose(outfileobj);  outfileobj = NULL;
+        fclose(outfileobj);  outfileobj = nullptr;
     }
-    if (mapfileobj != NULL)
+    if (mapfileobj != nullptr)
     {
-        fclose(mapfileobj);  mapfileobj = NULL;
+        fclose(mapfileobj);  mapfileobj = nullptr;
     }
-    if (stbfileobj != NULL)
+    if (stbfileobj != nullptr)
     {
-        fclose(stbfileobj);  stbfileobj = NULL;
+        fclose(stbfileobj);  stbfileobj = nullptr;
     }
 }
 
@@ -629,11 +629,11 @@ void read_files()
     for (int i = 0; i < SaveStatusCount; i++)
     {
         SaveStatusEntry* sscur = SaveStatusArea + i;
-        assert(sscur->fileobj == NULL);
+        assert(sscur->fileobj == nullptr);
         assert(sscur->filename[0] != 0);
 
         FILE* file = fopen(sscur->filename, "rb");
-        if (file == NULL)
+        if (file == nullptr)
             fatal_error("ERR2: Failed to open input file: %s, errno %d.\n", sscur->filename, errno);
         sscur->fileobj = file;
 
@@ -641,10 +641,10 @@ void read_files()
         size_t filesize = ftell(file);
         if (filesize > 65535)
             fatal_error("Input file %s too long.\n", sscur->filename);
-        sscur->filesize = (WORD)filesize;
+        sscur->filesize = (uint16_t)filesize;
 
         sscur->data = malloc(filesize);
-        if (sscur->data == NULL)
+        if (sscur->data == nullptr)
             fatal_error("Failed to allocate memory for input file %s.\n", sscur->filename);
 
         fseek(file, 0L, SEEK_SET);
@@ -654,7 +654,7 @@ void read_files()
         //printf("  File read %s, %d bytes.\n", sscur->filename, bytesread);
 
         fclose(file);
-        sscur->fileobj = NULL;
+        sscur->fileobj = nullptr;
     }
 }
 
@@ -662,7 +662,7 @@ void read_files()
 // ?LINK-W-DUPLICATE SYMBOL "SYMBOL" IS FORCED TO THE ROOT
 void pass1_force0(const SymbolTableEntry* entry)
 {
-    assert(entry != NULL);
+    assert(entry != nullptr);
 
     printf("DUPLICATE SYMBOL \"%s\" IS FORCED TO THE ROOT\n", unrad50(entry->name));
 }
@@ -671,7 +671,7 @@ void pass1_force0(const SymbolTableEntry* entry)
 void pass1_insert_entry_into_ordered_list(int index, SymbolTableEntry* entry, bool absrel)
 {
     assert(index > 0 && index < SymbolTableSize);
-    assert(entry != NULL);
+    assert(entry != nullptr);
 
     SymbolTableEntry* sectentry = ASECTentry;
     if (Globals.CSECT > 0)
@@ -680,7 +680,7 @@ void pass1_insert_entry_into_ordered_list(int index, SymbolTableEntry* entry, bo
         if (absrel && (sectentry->flagseg & (040 << 8)) != 0)
             sectentry = ASECTentry;
     }
-    assert(sectentry != NULL);
+    assert(sectentry != nullptr);
 
     SymbolTableEntry* preventry = sectentry;
     for (;;)
@@ -700,19 +700,19 @@ void pass1_insert_entry_into_ordered_list(int index, SymbolTableEntry* entry, bo
     }
     // insert the new entry here
     int fwdindex = preventry->status & 07777;
-    preventry->status = (WORD) ((preventry->status & 0170000) | index);
-    entry->status = (WORD) ((entry->status & 0170000) | fwdindex);
+    preventry->status = (uint16_t) ((preventry->status & 0170000) | index);
+    entry->status = (uint16_t) ((entry->status & 0170000) | fwdindex);
 }
 
 // LINK3\TADDR
-void process_pass1_gsd_item_taddr(const WORD* itemw, const SaveStatusEntry* sscur)
+void process_pass1_gsd_item_taddr(const uint16_t* itemw, const SaveStatusEntry* sscur)
 {
     if ((Globals.BEGBLK.value & 1) == 0)  // USE ONLY 1ST EVEN ONE ENCOUNTERED
         return; // WE ALREADY HAVE AN EVEN ONE.  RETURN
 
-    DWORD lkname = MAKEDWORD(itemw[0], itemw[1]);
-    WORD lkmsk = (WORD)~SY_SEC; // CARE ABOUT SECTION FLG
-    WORD lkwd = (WORD)SY_SEC; // SECTION NAME LOOKUP IN THE ROOT
+    uint32_t lkname = MAKEDWORD(itemw[0], itemw[1]);
+    uint16_t lkmsk = (uint16_t)~SY_SEC; // CARE ABOUT SECTION FLG
+    uint16_t lkwd = (uint16_t)SY_SEC; // SECTION NAME LOOKUP IN THE ROOT
     int index;
     if (!symbol_table_lookup(lkname, lkwd, lkmsk, &index))
         fatal_error("ERR31: Transfer address for '%s' undefined or in overlay.\n", unrad50(lkname));
@@ -728,21 +728,21 @@ void process_pass1_gsd_item_taddr(const WORD* itemw, const SaveStatusEntry* sscu
         int offset = 0;
         while (offset < sscur->filesize)
         {
-            const BYTE* data = (BYTE*)(sscur->data) + offset;
-            WORD blocksize = ((WORD*)data)[1];
-            WORD blocktype = ((WORD*)data)[2];
+            const uint8_t* data = (uint8_t*)(sscur->data) + offset;
+            uint16_t blocksize = ((uint16_t*)data)[1];
+            uint16_t blocktype = ((uint16_t*)data)[2];
             if (blocktype == 1)
             {
                 int itemcounttmp = (blocksize - 6) / 8;
                 for (int itmp = 0; itmp < itemcounttmp; itmp++)
                 {
-                    const WORD* itemwtmp = (const WORD*)(data + 6 + 8 * itmp);
+                    const uint16_t* itemwtmp = (const uint16_t*)(data + 6 + 8 * itmp);
                     int itemtypetmp = (itemwtmp[2] >> 8) & 0xff;
                     if ((itemtypetmp == 1/*CSECT*/ || itemtypetmp == 5/*PSECT*/) &&
                         itemw[0] == itemwtmp[0] && itemw[1] == itemwtmp[1])  // FOUND THE PROPER SECTION
                     {
-                        WORD itemvaltmp = itemwtmp[3];
-                        WORD sectsize = (itemvaltmp + 1) & ~1;  // ROUND SECTION SIZE TO WORD BOUNDARY
+                        uint16_t itemvaltmp = itemwtmp[3];
+                        uint16_t sectsize = (itemvaltmp + 1) & ~1;  // ROUND SECTION SIZE TO WORD BOUNDARY
                         printf("        Item '%s' type %d - CSECT or PSECT size %06ho\n", unrad50(itemwtmp[0], itemwtmp[1]), itemtypetmp, sectsize);
                         int newvalue = /*entry->value - sectsize +*/ itemw[3];
                         //TODO: UPDATE OFFSET VALUE
@@ -751,7 +751,7 @@ void process_pass1_gsd_item_taddr(const WORD* itemw, const SaveStatusEntry* sscu
                         Globals.BEGBLK.symbol = entry->name;  // NAME OF THE SECTION
                         Globals.BEGBLK.flags = entry->flagseg & 0xff;
                         Globals.BEGBLK.code = (entry->flagseg << 8) & 0xff;
-                        Globals.BEGBLK.value = (WORD)newvalue /*entry->value*/;  // RELATIVE OFFSET FROM THE SECTION
+                        Globals.BEGBLK.value = (uint16_t)newvalue /*entry->value*/;  // RELATIVE OFFSET FROM THE SECTION
                         break;
                     }
                 }
@@ -763,11 +763,11 @@ void process_pass1_gsd_item_taddr(const WORD* itemw, const SaveStatusEntry* sscu
 }
 
 // LINK3\SYMNAM
-void process_pass1_gsd_item_symnam(const WORD* itemw)
+void process_pass1_gsd_item_symnam(const uint16_t* itemw)
 {
-    DWORD lkname = MAKEDWORD(itemw[0], itemw[1]);
-    WORD lkwd = 0;
-    WORD lkmsk = (WORD)~SY_SEC;
+    uint32_t lkname = MAKEDWORD(itemw[0], itemw[1]);
+    uint16_t lkwd = 0;
+    uint16_t lkmsk = (uint16_t)~SY_SEC;
     int index;
     bool found;
     if (itemw[2] & 010/*SY$DEF*/)  // IS SYMBOL DEFINED HERE?
@@ -840,11 +840,11 @@ void process_pass1_gsd_item_symnam(const WORD* itemw)
 }
 
 // LINK3\CSECNM
-void process_pass1_gsd_item_csecnm(const WORD* itemw, int& itemtype, int& itemflags)
+void process_pass1_gsd_item_csecnm(const uint16_t* itemw, int& itemtype, int& itemflags)
 {
-    DWORD lkname = MAKEDWORD(itemw[0], itemw[1]);
-    WORD lkwd = (WORD)SY_SEC;
-    WORD lkmsk = (WORD)~SY_SEC;
+    uint32_t lkname = MAKEDWORD(itemw[0], itemw[1]);
+    uint16_t lkwd = (uint16_t)SY_SEC;
+    uint16_t lkmsk = (uint16_t)~SY_SEC;
     if (lkname == 0)  // BLANK .CSECT = .PSECT ,LCL,REL,I,CON,RW
     {
     }
@@ -865,18 +865,18 @@ void process_pass1_gsd_item_csecnm(const WORD* itemw, int& itemtype, int& itemfl
 }
 
 // LINK3\PSECNM
-void process_pass1_gsd_item_psecnm(const WORD* itemw, int& itemflags)
+void process_pass1_gsd_item_psecnm(const uint16_t* itemw, int& itemflags)
 {
     Globals.LRUNUM++; // COUNT SECTIONS IN A MODULE
 
-    DWORD lkname = MAKEDWORD(itemw[0], itemw[1]);
-    WORD lkmsk = (WORD)~SY_SEC;
-    WORD lkwd = (WORD)SY_SEC;
+    uint32_t lkname = MAKEDWORD(itemw[0], itemw[1]);
+    uint16_t lkmsk = (uint16_t)~SY_SEC;
+    uint16_t lkwd = (uint16_t)SY_SEC;
     if (itemflags & 1/*CS$SAV*/) // DOES PSECT HAVE SAVE ATTRIBUTE?
         itemflags |= 0100/*CS$GBL*/; // FORCE PSECT TO ROOT VIA GBL ATTRIBUTE
     if (itemflags & 0100/*CS$GBL*/) // LOCAL OR GLOBAL SECTION ?
     {
-        lkmsk = (WORD)~(SY_SEC + SY_SEG); // CARE ABOUT SECTION FLG & SEGMENT #
+        lkmsk = (uint16_t)~(SY_SEC + SY_SEG); // CARE ABOUT SECTION FLG & SEGMENT #
         lkwd |= Globals.SEGNUM; // LOCAL SECTION QUALIFIED BY SEGMENT #
     }
 
@@ -897,7 +897,7 @@ void process_pass1_gsd_item_psecnm(const WORD* itemw, int& itemflags)
     }
     else // AT THIS POINT SYMBOL WAS ALREADY ENTERED INTO SYMBOL TBL; see LINK3\OLDPCT
     {
-        WORD R2 = (entry->flagseg & 0377) // GET PSECT FLAG BITS IN R2
+        uint16_t R2 = (entry->flagseg & 0377) // GET PSECT FLAG BITS IN R2
                 & ~(010/*CS$NU*/ | 2/*CS$LIB*/ | 1/*CS$SAV*/); // GET RID OF UNUSED FLAG BITS
         if (Globals.SWIT1 & SW_J) // ARE WE PROCESSING I-D SPACE?
         {
@@ -917,12 +917,12 @@ void process_pass1_gsd_item_psecnm(const WORD* itemw, int& itemflags)
         SymbolTableEntry* pSect = ASECTentry;
         for (;;)  // find section chain end
         {
-            if (pSect == NULL) break;
+            if (pSect == nullptr) break;
             if ((pSect->status & 07777) == 0)
                 break;
             pSect = SymbolTable + (pSect->status & ~0170000);
         }
-        if (pSect != NULL)
+        if (pSect != nullptr)
             pSect->status |= index;  // set link to the new segment
     }
 
@@ -935,15 +935,15 @@ void process_pass1_gsd_item_psecnm(const WORD* itemw, int& itemflags)
         Globals.BASE = 0;  // OVR PSECT, GBL SYM OFFSET IS FROM START OF SECTION
         //if (itemw[3] > entry->value)
     }
-    entry->value = (WORD)sectsize;
+    entry->value = (uint16_t)sectsize;
 
     Globals.BASE = 0; //TODO
 }
 
 // PROCESS GSD TYPES, see LINK3\GSD
-void process_pass1_gsd_item(const WORD* itemw, const SaveStatusEntry* sscur)
+void process_pass1_gsd_item(const uint16_t* itemw, const SaveStatusEntry* sscur)
 {
-    DWORD itemnamerad50 = MAKEDWORD(itemw[0], itemw[1]);
+    uint32_t itemnamerad50 = MAKEDWORD(itemw[0], itemw[1]);
     int itemtype = (itemw[2] >> 8) & 0xff;
     int itemflags = (itemw[2] & 0377);
 
@@ -990,18 +990,18 @@ void process_pass1_gsd_item(const WORD* itemw, const SaveStatusEntry* sscur)
     }
 }
 
-void process_pass1_gsd_block(const SaveStatusEntry* sscur, const BYTE* data)
+void process_pass1_gsd_block(const SaveStatusEntry* sscur, const uint8_t* data)
 {
-    assert(sscur != NULL);
-    assert(data != NULL);
+    assert(sscur != nullptr);
+    assert(data != nullptr);
 
-    WORD blocksize = ((WORD*)data)[1];
+    uint16_t blocksize = ((uint16_t*)data)[1];
     int itemcount = (blocksize - 6) / 8;
     //printf("    Processing GSD block, %d items\n", itemcount);
 
     for (int i = 0; i < itemcount; i++)
     {
-        const WORD* itemw = (const WORD*)(data + 6 + 8 * i);
+        const uint16_t* itemw = (const uint16_t*)(data + 6 + 8 * i);
         memcpy(Globals.TXTBLK, itemw, 8);
 
         process_pass1_gsd_item(itemw, sscur);
@@ -1017,15 +1017,15 @@ void process_pass1()
     for (int i = 0; i < SaveStatusCount; i++)
     {
         SaveStatusEntry* sscur = SaveStatusArea + i;
-        assert(sscur->fileobj == NULL);
-        assert(sscur->data != NULL);
+        assert(sscur->fileobj == nullptr);
+        assert(sscur->data != nullptr);
 
         printf("  Processing %s\n", sscur->filename);
         int offset = 0;
         while (offset < sscur->filesize)
         {
-            BYTE* data = (BYTE*)(sscur->data) + offset;
-            WORD* dataw = (WORD*)(data);
+            uint8_t* data = (uint8_t*)(sscur->data) + offset;
+            uint16_t* dataw = (uint16_t*)(data);
             if (*dataw != 1)
             {
                 if (*dataw == 0)  // Possibly that is filler at the end of the file
@@ -1040,19 +1040,19 @@ void process_pass1()
                 fatal_error("Unexpected word %06ho at %06ho in %s\n", *dataw, offset, sscur->filename);
             }
 
-            WORD blocksize = ((WORD*)data)[1];
-            WORD blocktype = ((WORD*)data)[2];
+            uint16_t blocksize = ((uint16_t*)data)[1];
+            uint16_t blocktype = ((uint16_t*)data)[2];
 
             if (blocktype == 0 || blocktype > 8)
                 fatal_error("Illegal record type at %06ho in %s\n", offset, sscur->filename);
             else if (blocktype == 1)  // 1 - START GSD RECORD, see LINK3\GSD
             {
-                printf("    Block type 1 - GSD at %06ho size %06ho\n", (WORD)offset, blocksize);
+                printf("    Block type 1 - GSD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
                 process_pass1_gsd_block(sscur, data);
             }
             else if (blocktype == 6)  // 6 - MODULE END, see LINK3\MODND
             {
-                printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (WORD)offset, blocksize);
+                printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
                 if (Globals.HGHLIM < Globals.LRUNUM)
                     Globals.HGHLIM = Globals.LRUNUM;
                 Globals.LRUNUM = 0;
@@ -1060,7 +1060,7 @@ void process_pass1()
             }
             else if (blocktype == 7)  // See LINK3\LIBRA
             {
-                WORD libver = ((WORD*)data)[3];
+                uint16_t libver = ((uint16_t*)data)[3];
                 if (libver < L_HVER)
                     fatal_error("ERR23: Old library format (%03ho) in %s.\n", libver, sscur->filename);
                 sscur->islibrary = true;
@@ -1082,8 +1082,8 @@ void process_pass15()
     for (int i = 0; i < SaveStatusCount; i++)
     {
         SaveStatusEntry* sscur = SaveStatusArea + i;
-        assert(sscur->fileobj == NULL);
-        assert(sscur->data != NULL);
+        assert(sscur->fileobj == nullptr);
+        assert(sscur->data != nullptr);
 
         // Skipping non-library files on Pass 1.5
         if (!sscur->islibrary)  // SKIP ALL NON-LIBRARY FILES ON LIBRARY PASS
@@ -1094,8 +1094,8 @@ void process_pass15()
         int offset = 0;
         while (offset < sscur->filesize)
         {
-            BYTE* data = (BYTE*)(sscur->data) + offset;
-            WORD* dataw = (WORD*)(data);
+            uint8_t* data = (uint8_t*)(sscur->data) + offset;
+            uint16_t* dataw = (uint16_t*)(data);
             if (*dataw != 1)
             {
                 if (*dataw == 0)  // Possibly that is filler at the end of the file
@@ -1110,15 +1110,15 @@ void process_pass15()
                 fatal_error("Unexpected word %06ho at %06ho in %s\n", *dataw, offset, sscur->filename);
             }
 
-            WORD blocksize = ((WORD*)data)[1];
-            WORD blocktype = ((WORD*)data)[2];
+            uint16_t blocksize = ((uint16_t*)data)[1];
+            uint16_t blocktype = ((uint16_t*)data)[2];
 
             if (blocktype != 7 && blocktype != 8)
                 fatal_error("Illegal record type at %06ho in %s\n", offset, sscur->filename);
             if (blocktype == 7)  // See LINK3\LIBRA, WE ARE ON PASS 1.5 , SO PROCESS LIBRARIES
             {
-                printf("    Block type 7 - TITLIB at %06ho size %06ho\n", (WORD)offset, blocksize);
-                WORD eptsize = *(WORD*)(data + L_HEAB);
+                printf("    Block type 7 - TITLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+                uint16_t eptsize = *(uint16_t*)(data + L_HEAB);
                 printf("      EPT size %06ho bytes, %d. records\n", eptsize, (int)(eptsize / 8));
 
                 Globals.SVLML = Globals.STLML; // SAVE START OF ALL LML'S FOR THIS LIB
@@ -1128,10 +1128,10 @@ void process_pass15()
                     Globals.FLGWD |= FG_IP; // SET FLAG INDICATING /I PASS FIRST
                 if (Globals.SW_LML) // IS SW.LML SET?
                     Globals.SW_LML |= 0100000; // MAKE SURE BIT IS SET, /I TURNS IT OFF
-                Globals.ESZRBA = *(WORD*)(data + L_HEAB); // SIZE OF EPT IN BYTES
+                Globals.ESZRBA = *(uint16_t*)(data + L_HEAB); // SIZE OF EPT IN BYTES
                 Globals.SEGBAS = 0; // SEGBAS->TEMP FOR /X LIB FLAG
                 Globals.ESZRBA = Globals.ESZRBA >> 1; // NOW WORDS
-                if (*(WORD*)(data + L_HX)) // IS /X SWITCH SET IN LIB. HEADER?
+                if (*(uint16_t*)(data + L_HX)) // IS /X SWITCH SET IN LIB. HEADER?
                 {
                     Globals.SW_LML &= ~0100000; // NO PREPROCESSING ON /X LIBRARIES
                     Globals.SEGBAS++; // /X LIBRARY ->SEGBAS=1
@@ -1162,7 +1162,7 @@ void process_pass15()
             }
             else if (blocktype == 8)
             {
-                printf("    Block type 10 - ENDLIB at %06ho size %06ho\n", (WORD)offset, blocksize);
+                printf("    Block type 10 - ENDLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
             }
 
             data += blocksize; offset += blocksize;
@@ -1178,11 +1178,11 @@ void process_pass1_endp1()
 {
     //TODO
 
-    if (ASECTentry == NULL)  //HACK: add default ABS section if we still don't have one
+    if (ASECTentry == nullptr)  //HACK: add default ABS section if we still don't have one
     {
         // Enter ABS section into the symbol table
-        WORD lkwd = (WORD)SY_SEC;
-        WORD lkmsk = (WORD)~SY_SEC;
+        uint16_t lkwd = (uint16_t)SY_SEC;
+        uint16_t lkmsk = (uint16_t)~SY_SEC;
         int index;
         symbol_table_dlooke(RAD50_ABS, lkwd, lkmsk, &index);
         ASECTentry = SymbolTable + index;
@@ -1205,7 +1205,7 @@ void process_pass_map_init()
         //TODO: Start .STB file preparation
     }
 
-    WORD& bottom = (Globals.SWIT1 & SW_J) ? Globals.DBOTTM : Globals.BOTTOM;
+    uint16_t& bottom = (Globals.SWIT1 & SW_J) ? Globals.DBOTTM : Globals.BOTTOM;
     if (ASECTentry->value > bottom)  // IS "BOTTOM" .GE. SIZE OF ASECT ?
     {
         //TODO: IF /R  GIVE ERROR
@@ -1226,13 +1226,13 @@ void process_pass_map_init()
 
 void process_pass_map_done()
 {
-    if (mapfileobj != NULL)
+    if (mapfileobj != nullptr)
     {
-        fclose(mapfileobj);  mapfileobj = NULL;
+        fclose(mapfileobj);  mapfileobj = nullptr;
     }
-    if (stbfileobj != NULL)
+    if (stbfileobj != nullptr)
     {
-        fclose(stbfileobj);  stbfileobj = NULL;
+        fclose(stbfileobj);  stbfileobj = nullptr;
     }
 }
 
@@ -1269,9 +1269,9 @@ void process_pass_map_output()
     pext++; *pext++ = 'M'; *pext++ = 'A'; *pext++ = 'P';
 
     // Open MAP file
-    assert(mapfileobj == NULL);
+    assert(mapfileobj == nullptr);
     mapfileobj = fopen(mapfilename, "wt");
-    if (mapfileobj == NULL)
+    if (mapfileobj == nullptr)
         fatal_error("ERR5: Failed to open %s file, errno %d.\n", mapfilename, errno);
 
     // Prepare STB file name
@@ -1281,9 +1281,9 @@ void process_pass_map_output()
     pext++; *pext++ = 'S'; *pext++ = 'T'; *pext++ = 'B';
 
     // Open STB file
-    assert(stbfileobj == NULL);
+    assert(stbfileobj == nullptr);
     stbfileobj = fopen(stbfilename, "wb");
-    if (stbfileobj == NULL)
+    if (stbfileobj == nullptr)
         fatal_error("ERR5: Failed to open %s file, errno %d.\n", stbfilename, errno);
 
     Globals.LINLFT = LINPPG;
@@ -1303,7 +1303,7 @@ void process_pass_map_output()
     char savname[64];
     strcpy_s(savname, SaveStatusArea[0].filename);
     char* pdot = strrchr(savname, '.');
-    if (pdot != NULL) *pdot = 0;
+    if (pdot != nullptr) *pdot = 0;
     fprintf(mapfileobj, "%-8s .SAV", savname);
 
     fprintf(mapfileobj, "\tTitle:\t");
@@ -1316,7 +1316,7 @@ void process_pass_map_output()
     fprintf(mapfileobj, "\t\n\n");
     fprintf(mapfileobj, "Section  Addr\tSize");
     printf("  Section  Addr   Size ");
-    for (BYTE i = 0; i < Globals.NUMCOL; i++)
+    for (uint8_t i = 0; i < Globals.NUMCOL; i++)
     {
         fprintf(mapfileobj, "\tGlobal\tValue");
         printf("   Global  Value");
@@ -1325,11 +1325,11 @@ void process_pass_map_output()
     printf("\n");
 
     // RESOLV	SECTION STARTS & GLOBAL SYMBOL VALUES; see LINK5\RESOLV
-    WORD baseaddr = 0; // ASECT BASE ADDRESS IS 0
+    uint16_t baseaddr = 0; // ASECT BASE ADDRESS IS 0
     SymbolTableEntry* entry = ASECTentry;
-    WORD sectsize = (entry != NULL && entry->value > 0) ? entry->value : Globals.DBOTTM;
+    uint16_t sectsize = (entry != nullptr && entry->value > 0) ? entry->value : Globals.DBOTTM;
     int tabcount = 0;
-    while (entry != NULL)
+    while (entry != nullptr)
     {
         if (entry->flagseg & SY_SEC)
         {
@@ -1347,7 +1347,7 @@ void process_pass_map_output()
             if (!skipsect)
             {
                 // OUTPUT SECTION NAME, BASE ADR, SIZE & ATTRIBUTES
-                BYTE entryflags = (entry->flagseg) >> 8;
+                uint8_t entryflags = (entry->flagseg) >> 8;
                 char bufsize[20];
                 sprintf_s(bufsize, "%06ho = %d.", sectsize, sectsize / 2);
                 const char* sectaccess = (entryflags & 0020) ? "RO" : "RW";
@@ -1387,7 +1387,7 @@ void process_pass_map_output()
         // Next entry index should be in status field
         if ((entry->status & 07777) == 0)
         {
-            entry = NULL;
+            entry = nullptr;
             if (tabcount > 0)
             {
                 fprintf(mapfileobj, "\n");
@@ -1406,17 +1406,17 @@ void process_pass_map_output()
         }
     }
     //TODO: see LINK5\POSTN\10$ in source
-    WORD totalsize = baseaddr + sectsize;
-    WORD blockcount = (totalsize + 511) / 512;
+    uint16_t totalsize = baseaddr + sectsize;
+    uint16_t blockcount = (totalsize + 511) / 512;
     printf("  Total size %06ho = %u. bytes, %u. blocks\n", totalsize, totalsize, blockcount);
     OutputBlockCount = blockcount;  //HACK for now
 
     print_undefined_globals();
 
     // OUTPUT TRANSFER ADR & CHECK ITS VALIDITY, see LINK5\DOTADR
-    WORD lkmsk = (WORD) ~(SY_SEC + SY_SEG);  // LOOK AT SECTION & SEGMENT # BITS
-    WORD segnum = 0;  // MUST BE IN ROOT SEGMENT
-    WORD lkwd = SY_SEC;  // ASSUME SECTION NAME LOOKUP
+    uint16_t lkmsk = (uint16_t) ~(SY_SEC + SY_SEG);  // LOOK AT SECTION & SEGMENT # BITS
+    uint16_t segnum = 0;  // MUST BE IN ROOT SEGMENT
+    uint16_t lkwd = SY_SEC;  // ASSUME SECTION NAME LOOKUP
     if (Globals.BEGBLK.code == 4)  // IS SYMBOL A GLOBAL?
         lkwd = 0;  // GLOBAL SYM IN SEGMENT 0
     int index;
@@ -1426,9 +1426,9 @@ void process_pass_map_output()
     SymbolTableEntry* entrybeg = SymbolTable + index;
     //TODO: Calculate transfer address
     Globals.BEGBLK.value += entrybeg->value;
-    WORD taddr = Globals.BEGBLK.value;
+    uint16_t taddr = Globals.BEGBLK.value;
     //TODO: Calculate high limit
-    WORD highlim = totalsize - 2;
+    uint16_t highlim = totalsize - 2;
     Globals.HGHLIM = totalsize;
 
     char bufhlim[20];
@@ -1437,13 +1437,13 @@ void process_pass_map_output()
     printf("  Transfer address = %06ho, High limit = %-16s words\n", taddr, bufhlim);
 }
 
-SymbolTableEntry* process_pass2_rld_lookup(const BYTE* data, bool global)
+SymbolTableEntry* process_pass2_rld_lookup(const uint8_t* data, bool global)
 {
-    assert(data != NULL);
+    assert(data != nullptr);
 
-    DWORD lkname = *((DWORD*)data);
-    WORD lkwd = global ? 0 : (SY_SEC | Globals.SEGNUM);
-    WORD lkmsk = global ? ~SY_SEC : ~(SY_SEC | SY_SEG);
+    uint32_t lkname = *((uint32_t*)data);
+    uint16_t lkwd = global ? 0 : (SY_SEC | Globals.SEGNUM);
+    uint16_t lkmsk = global ? ~SY_SEC : ~(SY_SEC | SY_SEG);
 
     int index;
     bool found = symbol_table_lookup(lkname, lkwd, lkmsk, &index);
@@ -1456,27 +1456,27 @@ SymbolTableEntry* process_pass2_rld_lookup(const BYTE* data, bool global)
         fatal_error("ERR46: Invalid RLD symbol '%s'\n", unrad50(lkname));
 
     SymbolTableEntry* entry = SymbolTable + index;
-    //WORD R3 = entry->value; // GET SYMBOL'S VALUE
+    //uint16_t R3 = entry->value; // GET SYMBOL'S VALUE
     //TODO
     return entry;
 }
 
 // COMPLEX RELOCATION STRING PROCESSING (GLOBAL ARITHMETIC), see LINK7\RLDCPX
-WORD process_pass2_rld_complex(const SaveStatusEntry* sscur, const BYTE* &data, WORD &offset, WORD blocksize)
+uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* &data, uint16_t &offset, uint16_t blocksize)
 {
     bool cpxbreak = false;
-    WORD cpxresult = 0;
+    uint16_t cpxresult = 0;
     const int cpxstacksize = 16;
-    WORD cpxstack[cpxstacksize];  memset(cpxstack, 0, sizeof(cpxstack));
-    WORD cpxstacktop = 0;
+    uint16_t cpxstack[cpxstacksize];  memset(cpxstack, 0, sizeof(cpxstack));
+    uint16_t cpxstacktop = 0;
     while (!cpxbreak && offset < blocksize)
     {
-        BYTE cpxcmd = *data;  data += 1;  offset += 1;
-        SymbolTableEntry* cpxentry = NULL;
-        BYTE cpxsect;
-        WORD cpxval;
-        DWORD cpxname;
-        printf("        Complex cmd %03ho %s", (WORD)cpxcmd, (cpxcmd > 020) ? "UNKNOWN" : CPXCommandNames[cpxcmd]);
+        uint8_t cpxcmd = *data;  data += 1;  offset += 1;
+        SymbolTableEntry* cpxentry = nullptr;
+        uint8_t cpxsect;
+        uint16_t cpxval;
+        uint32_t cpxname;
+        printf("        Complex cmd %03ho %s", (uint16_t)cpxcmd, (cpxcmd > 020) ? "UNKNOWN" : CPXCommandNames[cpxcmd]);
         switch (cpxcmd)
         {
         case 000:  // NOP
@@ -1558,7 +1558,7 @@ WORD process_pass2_rld_complex(const SaveStatusEntry* sscur, const BYTE* &data, 
             fatal_error("ERR35: Invalid complex relocation in %s", sscur->filename);
             break;
         case 016:  // PUSH GLOBAL SYMBOL VALUE
-            cpxname = MAKEDWORD(((WORD*)data)[0], ((WORD*)data)[1]);
+            cpxname = MAKEDWORD(((uint16_t*)data)[0], ((uint16_t*)data)[1]);
             printf(" '%s'\n", unrad50(cpxname));
             cpxentry = process_pass2_rld_lookup(data, true);
             data += 4;  offset += 4;
@@ -1570,8 +1570,8 @@ WORD process_pass2_rld_complex(const SaveStatusEntry* sscur, const BYTE* &data, 
         case 017:  // PUSH RELOCATABLE VALUE
             // GET SECTION NUMBER
             cpxsect = *data;  data += 1;  offset += 1;
-            cpxval = *((WORD*)data);  data += 2;  offset += 2;  // GET OFFSET WITHIN SECTION
-            printf(" %03ho %06ho\n", (WORD)cpxsect, cpxval);
+            cpxval = *((uint16_t*)data);  data += 2;  offset += 2;  // GET OFFSET WITHIN SECTION
+            printf(" %03ho %06ho\n", (uint16_t)cpxsect, cpxval);
             //TODO: SEE IF SECTION NO. OK
             NOTIMPLEMENTED;
             cpxstacktop++;
@@ -1580,7 +1580,7 @@ WORD process_pass2_rld_complex(const SaveStatusEntry* sscur, const BYTE* &data, 
             cpxstack[cpxstacktop] = 0;  //TODO
             break;
         case 020:  // PUSH CONSTANT
-            cpxval = *((WORD*)data);  data += 2;  offset += 2;
+            cpxval = *((uint16_t*)data);  data += 2;  offset += 2;
             printf(" %06ho\n", cpxval);
             cpxstacktop++;
             if (cpxstacktop >= cpxstacksize)
@@ -1589,65 +1589,65 @@ WORD process_pass2_rld_complex(const SaveStatusEntry* sscur, const BYTE* &data, 
             break;
         default:
             printf("\n");
-            fatal_error("ERR36: Unknown complex relocation command %03ho in %s\n", (WORD)cpxcmd, sscur->filename);
+            fatal_error("ERR36: Unknown complex relocation command %03ho in %s\n", (uint16_t)cpxcmd, sscur->filename);
         }
     }
     return cpxresult;
 }
 
-void process_pass2_rld(const SaveStatusEntry* sscur, const BYTE* data)
+void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
 {
-    assert(data != NULL);
+    assert(data != nullptr);
 
-    WORD blocksize = ((WORD*)data)[1];
-    WORD offset = 6;  data += 6;
+    uint16_t blocksize = ((uint16_t*)data)[1];
+    uint16_t offset = 6;  data += 6;
     while (offset < blocksize)
     {
-        BYTE command = *data;  data++;  offset++;  // CMD BYTE OF RLD
-        BYTE disbyte = *data;  data++;  offset++;  // DISPLACEMENT BYTE
-        BYTE* dest = Globals.TXTBLK + (disbyte - 2);
-        WORD baseaddr = *((WORD*)Globals.TXTBLK) + Globals.BASE;
-        WORD addr = baseaddr + (disbyte - 2) - 2;
+        uint8_t command = *data;  data++;  offset++;  // CMD BYTE OF RLD
+        uint8_t disbyte = *data;  data++;  offset++;  // DISPLACEMENT BYTE
+        uint8_t* dest = Globals.TXTBLK + (disbyte - 2);
+        uint16_t baseaddr = *((uint16_t*)Globals.TXTBLK) + Globals.BASE;
+        uint16_t addr = baseaddr + (disbyte - 2) - 2;
 
         printf("      %06ho Item type %03ho %s",
-               addr, (WORD)(command & 0177), ((command & 0177) > 017) ? "UNKNOWN" : RLDCommandNames[command & 0177]);
-        WORD constdata;
+               addr, (uint16_t)(command & 0177), ((command & 0177) > 017) ? "UNKNOWN" : RLDCommandNames[command & 0177]);
+        uint16_t constdata;
         switch (command & 0177)
         {
         case 001:  // INTERNAL REL, see LINK7\RLDIR
             // DIRECT POINTER TO AN ADDRESS WITHIN A MODULE. THE CURRENT SECTION BASE ADDRESS IS ADDED
             // TO A SPECIFIED CONSTANT ANT THE RESULT STORED IN THE IMAGE FILE AT THE CALCULATED ADDRESS
             // (I.E., DISPLACEMENT BYTE ADDED TO VALUE CALCULATED FROM THE LOAD ADDRESS OF THE PREVIOUS TEXT BLOCK).
-            printf(" %06ho\n", *((WORD*)data));
-            *((WORD*)dest) = *((WORD*)data) + Globals.BASE;
+            printf(" %06ho\n", *((uint16_t*)data));
+            *((uint16_t*)dest) = *((uint16_t*)data) + Globals.BASE;
             data += 2;  offset += 2;
             break;
         case 002:  // GLOBAL
         case 012:  // PSECT
             // RELOCATES A DIRECT POINTER TO A GLOBAL SYMBOL. THE VALUE OF THE GLOBAL SYMBOL IS OBTAINED & STORED.
-            printf(" '%s'\n", unrad50(*((DWORD*)data)));
+            printf(" '%s'\n", unrad50(*((uint32_t*)data)));
             {
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, (command & 010) == 0);
-                //printf("        Entry '%s' value = %06ho %04X dest = %06ho\n", unrad50(entry->name), entry->value, entry->value, *((WORD*)dest));
-                //TODO: *((WORD*)dest) = entry->value;
+                //printf("        Entry '%s' value = %06ho %04X dest = %06ho\n", unrad50(entry->name), entry->value, entry->value, *((uint16_t*)dest));
+                //TODO: *((uint16_t*)dest) = entry->value;
             }
             data += 4;  offset += 4;
             break;
         case 003:  // INTERNAL DISPLACED
             // RELATIVE REFERENCE TO AN ABSOLUTE ADDRESS FROM WITHIN A RELOCATABLE SECTION.
             // THE ADDRESS + 2 THAT THE RELOCATED VALUE IS TO BE WRITTEN INTO IS SUBTRACTED FROM THE SPECIFIED CONSTANT & RESULTS STORED.
-            constdata = ((WORD*)data)[0];
+            constdata = ((uint16_t*)data)[0];
             printf(" %06ho\n", constdata);
             NOTIMPLEMENTED
             data += 2;  offset += 2;
             break;
         case 004:  // GLOBAL DISPLACED, see LINK7\RLDGDR
         case 014:  // PSECT DISPLACED
-            printf(" '%s'\n", unrad50(*((DWORD*)data)));
+            printf(" '%s'\n", unrad50(*((uint32_t*)data)));
             {
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, (command & 010) == 0);
-                //printf("        Entry '%s' value = %06ho %04X dest = %06ho\n", unrad50(entry->name), entry->value, entry->value, *((WORD*)dest));
-                *((WORD*)dest) = entry->value; //TODO: fix wrong value
+                //printf("        Entry '%s' value = %06ho %04X dest = %06ho\n", unrad50(entry->name), entry->value, entry->value, *((uint16_t*)dest));
+                *((uint16_t*)dest) = entry->value; //TODO: fix wrong value
             }
             data += 4;  offset += 4;
             break;
@@ -1655,11 +1655,11 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const BYTE* data)
         case 015:  // PSECT ADDITIVE
             // RELOCATED A DIRECT POINTER TO A GLOBAL SYMBOL WITH AN ADDITIVE CONSTANT
             // THE SYMBOL VALUE IS ADDED TO THE SPECIFIED CONSTANT & STORED.
-            constdata = ((WORD*)data)[2];
-            printf(" '%s' %06ho\n", unrad50(*((DWORD*)data)), constdata);
+            constdata = ((uint16_t*)data)[2];
+            printf(" '%s' %06ho\n", unrad50(*((uint32_t*)data)), constdata);
             {
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, (command & 010) == 0);
-                *((WORD*)dest) = entry->value + constdata; //TODO: fix wrong value
+                *((uint16_t*)dest) = entry->value + constdata; //TODO: fix wrong value
             }
             data += 6;  offset += 6;
             break;
@@ -1668,19 +1668,19 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const BYTE* data)
             // RELATIVE REFERENCE TO A GLOBAL SYMBOL WITH AN ADDITIVE CONSTANT.
             // THE GLOBAL VALUE AND THE CONSTANT ARE ADDED. THE ADDRESS + 2 THAT THE RELOCATED VALUE IS
             // TO BE WRITTEN INTO IS SUBTRACTED FROM THE RESULTANT ADDITIVE VALUE & STORED.
-            constdata = ((WORD*)data)[2];
-            printf(" '%s' %06ho\n", unrad50(*((DWORD*)data)), constdata);
+            constdata = ((uint16_t*)data)[2];
+            printf(" '%s' %06ho\n", unrad50(*((uint32_t*)data)), constdata);
             {
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, false);
-                *((WORD*)dest) = entry->value + constdata - addr - 2;
+                *((uint16_t*)dest) = entry->value + constdata - addr - 2;
                 //TODO: IS SYMBOL IN OVERLAY BY ISOLATING THE SEGMENT #
             }
             data += 6;  offset += 6;
             break;
         case 007:  // LOCATION COUNTER DEFINITION, see LINK7\RLDLCD
             // DECLARES A CURRENT SECTION & LOCATION COUNTER VALUE
-            constdata = ((WORD*)data)[2];
-            printf(" '%s' %06ho\n", unrad50(*((DWORD*)data)), constdata);
+            constdata = ((uint16_t*)data)[2];
+            printf(" '%s' %06ho\n", unrad50(*((uint32_t*)data)), constdata);
             {
                 Globals.MBPTR = 0;  // 0 SAYS TO STORE TXT INFO
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, false);
@@ -1697,9 +1697,9 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const BYTE* data)
             break;
         case 010:  // LOCATION COUNTER MODIFICATION, see LINK7\RLDLCM
             // THE CURRENT SECTION BASE IS ADDED TO THE SPECIFIED CONSTANT & RESULT IS STORED AS THE CURRENT LOCATION CTR.
-            constdata = ((WORD*)data)[0];
+            constdata = ((uint16_t*)data)[0];
             printf(" %06ho\n", constdata);
-            *((WORD*)dest) = constdata + Globals.BASE;
+            *((uint16_t*)dest) = constdata + Globals.BASE;
             data += 2;  offset += 2;
             break;
         case 011:  // SET PROGRAM LIMITS
@@ -1708,7 +1708,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const BYTE* data)
             break;
         case 017:  // COMPLEX RELOCATION STRING PROCESSING (GLOBAL ARITHMETIC)
             printf("\n");
-            *((WORD*)dest) = process_pass2_rld_complex(sscur, data, offset, blocksize);
+            *((uint16_t*)dest) = process_pass2_rld_complex(sscur, data, offset, blocksize);
             break;
         default:
             fatal_error("ERR36: Unknown RLD command: %d\n", (int)command);
@@ -1724,7 +1724,7 @@ void print_symbol_table()
         const SymbolTableEntry* entry = SymbolTable + i;
         if (entry->name == 0)
             continue;
-        printf("    %06ho '%s' %06ho %06ho %06ho  ", (WORD)i, unrad50(entry->name), entry->flagseg, entry->value, entry->status);
+        printf("    %06ho '%s' %06ho %06ho %06ho  ", (uint16_t)i, unrad50(entry->name), entry->flagseg, entry->value, entry->status);
         if (entry->flagseg & SY_SEC) printf("SECT ");
         if (entry->status & SY_UDF) printf("UNDEF ");
         if (entry->status & SY_IND) printf("IND ");
@@ -1733,7 +1733,7 @@ void print_symbol_table()
         printf("\n");
     }
     printf("  BEGBLK '%s' %06ho\n", unrad50(Globals.BEGBLK.symbol), Globals.BEGBLK.value);
-    printf("  UNDLST = %06ho\n", (WORD)Globals.UNDLST);
+    printf("  UNDLST = %06ho\n", (uint16_t)Globals.UNDLST);
 }
 
 // Prapare SYSCOM area, pass 2 initialization; see LINK6
@@ -1745,8 +1745,8 @@ void process_pass2_init()
 
     // Allocate space for .SAV file image
     OutputBufferSize = 65536;
-    OutputBuffer = (BYTE*) malloc(OutputBufferSize);
-    if (OutputBuffer == NULL)
+    OutputBuffer = (uint8_t*) malloc(OutputBufferSize);
+    if (OutputBuffer == nullptr)
         fatal_error("ERR11: Failed to allocate memory for output buffer.\n");
     memset(OutputBuffer, 0, OutputBufferSize);
 
@@ -1759,14 +1759,14 @@ void process_pass2_init()
 
     Globals.BITMAP = Globals.BITBAD;
 
-    *((WORD*)(OutputBuffer + SysCom_BEGIN)) = Globals.BEGBLK.value; // PROG START ADDR
+    *((uint16_t*)(OutputBuffer + SysCom_BEGIN)) = Globals.BEGBLK.value; // PROG START ADDR
     //TODO: ARE WE DOING I-D SPACE?
 
     if (Globals.STKBLK[0] != 0)  // GET USER SUPLIED STK SYM ADR, SYMBOL SUPPLIED ?
     {
-        DWORD lkname = MAKEDWORD(Globals.STKBLK[0], Globals.STKBLK[1]);
-        WORD lkwd = 0; // MUST BE A GLOBAL SYMBOL
-        WORD lkmsk = 0; //TODO
+        uint32_t lkname = MAKEDWORD(Globals.STKBLK[0], Globals.STKBLK[1]);
+        uint16_t lkwd = 0; // MUST BE A GLOBAL SYMBOL
+        uint16_t lkmsk = 0; //TODO
         int index;
         if (!symbol_table_lookup(lkname, lkwd, lkmsk, &index))
         {
@@ -1775,20 +1775,20 @@ void process_pass2_init()
         }
         NOTIMPLEMENTED
     }
-    else if (Globals.STKBLK[2] != NULL)  // GET USER'S SUPPLIED STK ADR
+    else if (Globals.STKBLK[2] != 0)  // GET USER'S SUPPLIED STK ADR
     {
-        *((WORD*)(OutputBuffer + SysCom_STACK)) = Globals.STKBLK[2];
+        *((uint16_t*)(OutputBuffer + SysCom_STACK)) = Globals.STKBLK[2];
     }
     else
     {
-        WORD stack = (Globals.SWIT1 & SW_J) ? Globals.DBOTTM : Globals.BOTTOM;
-        *((WORD*)(OutputBuffer + SysCom_STACK)) = stack;
+        uint16_t stack = (Globals.SWIT1 & SW_J) ? Globals.DBOTTM : Globals.BOTTOM;
+        *((uint16_t*)(OutputBuffer + SysCom_STACK)) = stack;
     }
 
-    WORD highlim = (Globals.SWIT1 & SW_J) ? Globals.DHGHLM : Globals.HGHLIM;
-    *((WORD*)(OutputBuffer + SysCom_HIGH)) = highlim - 2;  // HIGH LIMIT
+    uint16_t highlim = (Globals.SWIT1 & SW_J) ? Globals.DHGHLM : Globals.HGHLIM;
+    *((uint16_t*)(OutputBuffer + SysCom_HIGH)) = highlim - 2;  // HIGH LIMIT
     if (Globals.SWITCH & SW_K)  // For /K switch STORE IT AT LOC. 56 IN SYSCOM AREA
-        *((WORD*)(OutputBuffer + SysCom_HIGH + 6)) = Globals.KSWVAL;
+        *((uint16_t*)(OutputBuffer + SysCom_HIGH + 6)) = Globals.KSWVAL;
 
     //TODO: SYSCOM AREA FOR REL FILE
 
@@ -1800,9 +1800,9 @@ void process_pass2_init()
     pext++; *pext++ = 'S'; *pext++ = 'A'; *pext++ = 'V';
 
     // Open SAV file for writing
-    assert(outfileobj == NULL);
+    assert(outfileobj == nullptr);
     outfileobj = fopen(savfilename, "wb");
-    if (outfileobj == NULL)
+    if (outfileobj == nullptr)
         fatal_error("ERR6: Failed to open %s file, errno %d.\n", savfilename, errno);
 
     // See LINK6\INITP2
@@ -1823,9 +1823,9 @@ void process_pass2_dump_txtblk()  // DUMP TEXT SUBROUTINE, see LINK7\TDMP0, LINK
     if (Globals.TXTLEN == 0)
         return;
 
-    WORD addr = *((WORD*)Globals.TXTBLK);  //NOTE: Should be absoulte address
-    BYTE* dest = OutputBuffer + addr;
-    BYTE* src = Globals.TXTBLK + 2;
+    uint16_t addr = *((uint16_t*)Globals.TXTBLK);  //NOTE: Should be absoulte address
+    uint8_t* dest = OutputBuffer + addr;
+    uint8_t* src = Globals.TXTBLK + 2;
     memcpy(dest, src, Globals.TXTLEN);
 
     Globals.TXTLEN = 0;
@@ -1838,15 +1838,15 @@ void process_pass2()
     for (int i = 0; i < SaveStatusCount; i++)
     {
         SaveStatusEntry* sscur = SaveStatusArea + i;
-        assert(sscur->fileobj == NULL);
-        assert(sscur->data != NULL);
+        assert(sscur->fileobj == nullptr);
+        assert(sscur->data != nullptr);
 
         printf("  Processing %s\n", sscur->filename);
         int offset = 0;
         while (offset < sscur->filesize)
         {
-            BYTE* data = (BYTE*)(sscur->data) + offset;
-            WORD* dataw = (WORD*)(data);
+            uint8_t* data = (uint8_t*)(sscur->data) + offset;
+            uint16_t* dataw = (uint16_t*)(data);
             if (*dataw != 1)
             {
                 if (*dataw == 0)  // Possibly that is filler at the end of the file
@@ -1861,43 +1861,43 @@ void process_pass2()
                 fatal_error("Unexpected word %06ho at %06ho in %s\n", *dataw, offset, sscur->filename);
             }
 
-            WORD blocksize = ((WORD*)data)[1];
-            WORD blocktype = ((WORD*)data)[2];
+            uint16_t blocksize = ((uint16_t*)data)[1];
+            uint16_t blocktype = ((uint16_t*)data)[2];
 
             if (blocktype == 0 || blocktype > 8)
                 fatal_error("ERR4: Illegal record type at %06ho in %s\n", offset, sscur->filename);
             else if (blocktype == 1)  // START GSD RECORD, see LINK7\GSD
             {
-                printf("    Block type 1 - GSD at %06ho size %06ho\n", (WORD)offset, blocksize);
+                printf("    Block type 1 - GSD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
             }
             else if (blocktype == 3)  // See LINK7\DMPTXT
             {
                 process_pass2_dump_txtblk();
 
-                WORD addr = ((WORD*)data)[3];
-                WORD datasize = blocksize - 8;
-                printf("    Block type 3 - TXT at %06ho size %06ho addr %06ho len %06ho\n", (WORD)offset, blocksize, addr, datasize);
+                uint16_t addr = ((uint16_t*)data)[3];
+                uint16_t datasize = blocksize - 8;
+                printf("    Block type 3 - TXT at %06ho size %06ho addr %06ho len %06ho\n", (uint16_t)offset, blocksize, addr, datasize);
                 Globals.TXTLEN = datasize;
                 assert(datasize <= sizeof(Globals.TXTBLK));
                 memcpy(Globals.TXTBLK, data + 6, blocksize - 6);
 
-                *((WORD*)Globals.TXTBLK) = addr + Globals.BASE;  // ADD BASE TO GIVE ABS LOAD ADDR
+                *((uint16_t*)Globals.TXTBLK) = addr + Globals.BASE;  // ADD BASE TO GIVE ABS LOAD ADDR
             }
             else if (blocktype == 4)  // See LINK7\RLD
             {
-                printf("    Block type 4 - RLD at %06ho size %06ho\n", (WORD)offset, blocksize);
+                printf("    Block type 4 - RLD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
                 process_pass2_rld(sscur, data);
             }
             else if (blocktype == 6)  // MODULE END RECORD, See LINK7\MODND
             {
-                printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (WORD)offset, blocksize);
+                printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
 
                 process_pass2_dump_txtblk();
                 //TODO
             }
             else if (blocktype == 7)  // See LINK7\LIBPA2
             {
-                printf("    Block type 7 - TITLIB at %06ho size %06ho\n", (WORD)offset, blocksize);
+                printf("    Block type 7 - TITLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
                 //TODO
                 NOTIMPLEMENTED
                 break;  // Skip for now
@@ -1912,8 +1912,8 @@ void process_pass2()
 // PROCESS COMMAND STRING SWITCHES, see LINK1\SWLOOP in source
 void parse_commandline(int argc, char **argv)
 {
-    WORD TMPIDD = 0;  // D BIT TO TEST FOR /J PROCESSING
-    WORD TMPIDI = 0;  // I BIT TO TEST FOR /J PROCESSING
+    uint16_t TMPIDD = 0;  // D BIT TO TEST FOR /J PROCESSING
+    uint16_t TMPIDI = 0;  // I BIT TO TEST FOR /J PROCESSING
 
     for (int arg = 1; arg < argc; arg++)
     {
@@ -1923,7 +1923,7 @@ void parse_commandline(int argc, char **argv)
         {
             //TODO: Parse arguments like Command String Interpreter
             const char* cur = argvcur + 1;
-            WORD param1, param2;
+            uint16_t param1, param2;
             if (*cur != 0)
             {
                 int result;
@@ -2156,9 +2156,9 @@ int main(int argc, char *argv[])
 
     printf("PCLINK11  %s  %s\n", APP_VERSION_STRING, __DATE__);
 
-    assert(sizeof(BYTE) == 1);
-    assert(sizeof(WORD) == 2);
-    assert(sizeof(DWORD) == 4);
+    assert(sizeof(uint8_t) == 1);
+    assert(sizeof(uint16_t) == 2);
+    assert(sizeof(uint32_t) == 4);
 
     if (argc <= 1)
     {

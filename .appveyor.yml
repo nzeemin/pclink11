@@ -22,7 +22,3 @@ environment:
 
 build:
   project: pclink11.sln
-
-after_build:
-  - Debug\pclink11.exe
-  - Release\pclink11.exe

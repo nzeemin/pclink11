@@ -1,20 +1,16 @@
 
+#include <stdint.h>
+
 
 /////////////////////////////////////////////////////////////////////////////
 // Type definitions
 
-typedef unsigned char BYTE;
-typedef unsigned short WORD;
-typedef unsigned long DWORD;
+#define MAKEDWORD(lo, hi)  ((uint32_t)(((uint16_t)((uint32_t)(lo) & 0xffff)) | ((uint32_t)((uint16_t)((uint32_t)(hi) & 0xffff))) << 16))
 
-#define MAKEDWORD(lo, hi)  ((DWORD)(((WORD)((DWORD)(lo) & 0xffff)) | ((DWORD)((WORD)((DWORD)(hi) & 0xffff))) << 16))
-
-#define LOWORD(l)          ((WORD)(((DWORD)(l)) & 0xffff))
-#define HIWORD(l)          ((WORD)((((DWORD)(l)) >> 16) & 0xffff))
-#define LOBYTE(w)          ((BYTE)(((DWORD)(w)) & 0xff))
-#define HIBYTE(w)          ((BYTE)((((DWORD)(w)) >> 8) & 0xff))
-
-#define NULL 0
+#define LOWORD(l)          ((uint16_t)(((uint32_t)(l)) & 0xffff))
+#define HIWORD(l)          ((uint16_t)((((uint32_t)(l)) >> 16) & 0xffff))
+#define LOBYTE(w)          ((uint8_t)(((uint32_t)(w)) & 0xff))
+#define HIBYTE(w)          ((uint8_t)((((uint32_t)(w)) >> 8) & 0xff))
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -31,7 +27,7 @@ typedef unsigned long DWORD;
 const int LMLSIZ = 0525; // DEFAULT NUMBER OF LIBRARY MOD LIST ENTRIES
 // EACH ENTRY IS 6 BYTES LONG
 
-const WORD LINPPG = 60;	// NUMBER OF LINES PER PAGE FOR MAP
+const uint16_t LINPPG = 60;	// NUMBER OF LINES PER PAGE FOR MAP
 
 const int RECSIZ = 128;	// MAXIMUM SIZE OF A FORMATTED BINARY RECORD IN BYTES
 // DOES NOT COUNT LEADING 1ST WORD OF 1 OR THE CHECKSUM BYTE
@@ -73,8 +69,8 @@ enum
 
 // THE FOLLOWING ARE GLOBAL MASKS FOR THE "SWIT1" WORD IN THE ROOT SEGMENT,
 // INDICATING VARIOUS SWITCHES WHICH WERE SPECIFIED IN THE COMMAND STRING.
-const WORD SW_D = 1; // DUPLICATE SYMBOL
-const WORD SW_J = 2; // GENERATE SEPARATED I-D SPACE .SAV IMAGE
+const uint16_t SW_D = 1; // DUPLICATE SYMBOL
+const uint16_t SW_J = 2; // GENERATE SEPARATED I-D SPACE .SAV IMAGE
 
 // ****	IDSWIT BIT MASKS
 // THE FOLLOWING ARE BIT ASSIGNMENTS FOR VARIOUS FLAGS IN IDSWIT.
@@ -140,12 +136,12 @@ enum
 /////////////////////////////////////////////////////////////////////////////
 
 
-const char* unrad50(DWORD data);
-const char* unrad50(WORD loword, WORD hiword);
-void unrad50(WORD word, char *cp);
+const char* unrad50(uint32_t data);
+const char* unrad50(uint16_t loword, uint16_t hiword);
+void unrad50(uint16_t word, char *cp);
 
-WORD rad50(const char *cp, const char **endp);
-DWORD rad50x2(const char *cp);
+uint16_t rad50(const char *cp, const char **endp);
+uint32_t rad50x2(const char *cp);
 
 
 /////////////////////////////////////////////////////////////////////////////
