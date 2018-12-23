@@ -9,3 +9,6 @@
 /*.OBJ
 /test
 /test11
+/*.o
+/pclink11
+/version.h

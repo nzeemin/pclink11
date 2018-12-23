@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <stdarg.h>
 #include <time.h>
+#include <errno.h>
 
 #include "main.h"
 
@@ -692,8 +693,8 @@ void pass1_insert_entry_into_ordered_list(int index, SymbolTableEntry* entry, bo
         if (nextentry->flagseg & SY_SEC)  // next entry is a section
             break;
 
-        if ((Globals.SWITCH & SW_A) == 0 && (nextentry->value > entry->value) ||
-            (Globals.SWITCH & SW_A) != 0 && (nextentry->name > entry->name))
+        if (((Globals.SWITCH & SW_A) == 0 && (nextentry->value > entry->value)) ||
+            ((Globals.SWITCH & SW_A) != 0 && (nextentry->name > entry->name)))
             break;
 
         preventry = nextentry;
@@ -1272,7 +1273,7 @@ void process_pass_map_output()
     assert(mapfileobj == nullptr);
     mapfileobj = fopen(mapfilename, "wt");
     if (mapfileobj == nullptr)
-        fatal_error("ERR5: Failed to open %s file, errno %d.\n", mapfilename, errno);
+        fatal_error("ERR5: Failed to open file %s, errno %d.\n", mapfilename, errno);
 
     // Prepare STB file name
     char stbfilename[64];
@@ -1301,7 +1302,7 @@ void process_pass_map_output()
             timeptr->tm_hour, timeptr->tm_min);
 
     char savname[64];
-    strcpy_s(savname, SaveStatusArea[0].filename);
+    strcpy(savname, SaveStatusArea[0].filename);
     char* pdot = strrchr(savname, '.');
     if (pdot != nullptr) *pdot = 0;
     fprintf(mapfileobj, "%-8s .SAV", savname);
@@ -1309,10 +1310,10 @@ void process_pass_map_output()
     fprintf(mapfileobj, "\tTitle:\t");
     if (Globals.MODNAM != 0)
     {
-        fprintf(mapfileobj, unrad50(Globals.MODNAM));
+        fprintf(mapfileobj, "%s", unrad50(Globals.MODNAM));
     }
     fprintf(mapfileobj, "\tIdent:\t");
-    fprintf(mapfileobj, unrad50(Globals.IDENT));
+    fprintf(mapfileobj, "%s", unrad50(Globals.IDENT));
     fprintf(mapfileobj, "\t\n\n");
     fprintf(mapfileobj, "Section  Addr\tSize");
     printf("  Section  Addr   Size ");
@@ -1349,7 +1350,7 @@ void process_pass_map_output()
                 // OUTPUT SECTION NAME, BASE ADR, SIZE & ATTRIBUTES
                 uint8_t entryflags = (entry->flagseg) >> 8;
                 char bufsize[20];
-                sprintf_s(bufsize, "%06ho = %d.", sectsize, sectsize / 2);
+                sprintf(bufsize, "%06ho = %d.", sectsize, sectsize / 2);
                 const char* sectaccess = (entryflags & 0020) ? "RO" : "RW";
                 const char* secttypedi = (entryflags & 0200) ? "D" : "I";
                 const char* sectscope = (entryflags & 0100) ? "GBL" : "LCL";
@@ -1432,7 +1433,7 @@ void process_pass_map_output()
     Globals.HGHLIM = totalsize;
 
     char bufhlim[20];
-    sprintf_s(bufhlim, "%06ho = %d.", highlim, highlim / 2);
+    sprintf(bufhlim, "%06ho = %d.", highlim, highlim / 2);
     fprintf(mapfileobj, "\nTransfer address = %06ho, High limit = %-16s words\n", taddr, bufhlim);
     printf("  Transfer address = %06ho, High limit = %-16s words\n", taddr, bufhlim);
 }
