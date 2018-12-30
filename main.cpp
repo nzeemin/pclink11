@@ -12,7 +12,7 @@
 
 #include "main.h"
 
-#ifdef _DEBUG
+#if defined(_DEBUG) && defined(_MSC_VER)
 #include <crtdbg.h>
 #endif
 
@@ -60,7 +60,6 @@ struct SymbolTableEntry
 SymbolTableEntry* SymbolTable = nullptr;
 SymbolTableEntry* ASECTentry = nullptr;
 const int SymbolTableSize = 4095;  // STSIZE
-const int SymbolTableLength = SymbolTableSize * sizeof(SymbolTableEntry);
 int SymbolTableCount = 0;  // STCNT -- SYMBOL TBL ENTRIES COUNTER
 
 // ****	INTERNAL SYMBOL TABLE FLAGS BIT ASSIGNMENT
@@ -564,8 +563,7 @@ void initialize()
     memset(SaveStatusArea, 0, sizeof(SaveStatusArea));
     SaveStatusCount = 0;
 
-    SymbolTable = (SymbolTableEntry*) ::malloc(SymbolTableLength);
-    memset(SymbolTable, 0, SymbolTableLength);
+    SymbolTable = (SymbolTableEntry*) ::calloc(SymbolTableSize, sizeof(SymbolTableEntry));
     SymbolTableCount = 0;
 
     // Set globals defaults, see LINK1\START1
@@ -1053,7 +1051,7 @@ void process_pass1()
             }
             else if (blocktype == 6)  // 6 - MODULE END, see LINK3\MODND
             {
-                printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+                //printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
                 if (Globals.HGHLIM < Globals.LRUNUM)
                     Globals.HGHLIM = Globals.LRUNUM;
                 Globals.LRUNUM = 0;
@@ -1237,9 +1235,100 @@ void process_pass_map_done()
     }
 }
 
+// STB subroutine, see LINK5\FBNEW
+void process_pass_map_fbnew(uint16_t blocktype)
+{
+    if (stbfileobj == nullptr)  // IS THERE AN STB FILE?
+        return;
+
+    uint16_t* txtblkwp = (uint16_t*)(Globals.TXTBLK);
+
+    if (Globals.TXTLEN > 0)  // Save the previous block
+    {
+        txtblkwp[1] = Globals.TXTLEN;
+
+        uint8_t chksum = 0;
+        for (int i = 0; i < Globals.TXTLEN; i++)  // Calculate checksum
+            chksum += Globals.TXTBLK[i];
+        Globals.TXTBLK[Globals.TXTLEN] = (256 - chksum) & 0xff;
+
+        fwrite(Globals.TXTBLK, Globals.TXTLEN + 1, 1, stbfileobj);
+    }
+
+    memset(Globals.TXTBLK, 0, sizeof(Globals.TXTBLK));
+    txtblkwp[0] = 1;
+    txtblkwp[1] = 0;
+    txtblkwp[2] = blocktype;
+    Globals.TXTLEN = 6;
+}
+
+// STB subroutine, see LINK5\FBGEG
+void process_pass_map_fbseg(const SymbolTableEntry * entry)
+{
+    if (stbfileobj == nullptr)  // IS THERE AN STB FILE?
+        return;
+
+    if (Globals.TXTLEN > 40)
+        process_pass_map_fbnew(1/*GSD*/);
+
+    uint16_t* txtblkwp = (uint16_t*)(Globals.TXTBLK + Globals.TXTLEN);
+    txtblkwp[0] = LOWORD(entry->name);  // PUT NAME INTO GSD BLOCK
+    txtblkwp[1] = HIWORD(entry->name);
+    txtblkwp[2] = 0400; // .ASECT (CONTROL SECTION NAME)
+    txtblkwp[3] = entry->value;
+    Globals.TXTLEN += 8;
+}
+
+// STB subroutine, see LINK5\FBGSD
+void process_pass_map_fbgsd(const SymbolTableEntry * entry)
+{
+    if (stbfileobj == nullptr)  // IS THERE AN STB FILE?
+        return;
+
+    if (Globals.TXTLEN > 40)
+        process_pass_map_fbnew(1/*GSD*/);
+
+    uint16_t* txtblkwp = (uint16_t*)(Globals.TXTBLK + Globals.TXTLEN);
+    txtblkwp[0] = LOWORD(entry->name);  // PUT NAME INTO GSD BLOCK
+    txtblkwp[1] = HIWORD(entry->name);
+    txtblkwp[2] = 4 * 0400 + 0110; // GSD DEFINITION OF ABSOLUTE SYMBOL
+    txtblkwp[3] = entry->value;
+    Globals.TXTLEN += 8;
+}
+
+// STB subroutine, see LINK5\ENDSTB
+void process_pass_map_endstb()
+{
+    process_pass_map_fbnew(2/*ENDGSD*/);  // CLOSE FB BLOCK AND START A NEW ONE WHICH IS AN ENDGSD BLOCK
+
+    process_pass_map_fbnew(6/*ENDMOD*/);  // CLOSE THAT, START ANOTHER WHICH IS AN END MODULE BLOCK
+
+    process_pass_map_fbnew(0);  // CLOSE THAT
+
+    // Write zeroes till the end of 512-byte file block
+    long stblen = ftell(stbfileobj);
+    long stbalign = 512 - (stblen & 0x1ff);
+    if (stbalign > 0 && stbalign != 512)
+    {
+        memset(Globals.TXTBLK, 0, sizeof(Globals.TXTBLK));
+        while (stbalign >= sizeof(Globals.TXTBLK))
+        {
+            fwrite(Globals.TXTBLK, sizeof(Globals.TXTBLK), 1, stbfileobj);
+            stbalign -= sizeof(Globals.TXTBLK);
+        }
+        if (stbalign > 0)
+            fwrite(Globals.TXTBLK, stbalign, 1, stbfileobj);
+    }
+
+    // Close STB file
+    fclose(stbfileobj);  stbfileobj = nullptr;
+}
+
 // PRINT UNDEFINED GLOBALS IF ANY, see LINK5\DOUDFS
 void print_undefined_globals()
 {
+    process_pass_map_endstb();  // CLOSE OUT THE STB FILE
+
     int index = Globals.UNDLST;
     if (index == 0)
         return;
@@ -1286,6 +1375,26 @@ void process_pass_map_output()
     stbfileobj = fopen(stbfilename, "wb");
     if (stbfileobj == nullptr)
         fatal_error("ERR5: Failed to open %s file, errno %d.\n", stbfilename, errno);
+    // Prepare STB buffer
+    memset(Globals.TXTBLK, 0, sizeof(Globals.TXTBLK));
+    Globals.TXTLEN = 0;
+    process_pass_map_fbnew(1/*GSD*/);
+    // First GSD entry is the module name
+    uint16_t* txtblkwp = (uint16_t*)(Globals.TXTBLK + Globals.TXTLEN);
+    txtblkwp[0] = LOWORD(Globals.MODNAM);
+    txtblkwp[1] = HIWORD(Globals.MODNAM);
+    txtblkwp[2] = 0; // MODULE NAME
+    txtblkwp[3] = 0;
+    Globals.TXTLEN += 8;
+    if (Globals.IDENT != 0)
+    {
+        txtblkwp = (uint16_t*)(Globals.TXTBLK + Globals.TXTLEN);
+        txtblkwp[0] = LOWORD(Globals.IDENT);
+        txtblkwp[1] = HIWORD(Globals.IDENT);
+        txtblkwp[2] = 6 << 8; // IDENT
+        txtblkwp[3] = 0;
+        Globals.TXTLEN += 8;
+    }
 
     Globals.LINLFT = LINPPG;
 
@@ -1364,6 +1473,8 @@ void process_pass_map_output()
                 printf("  '%s' %06ho %-16s words  (%s,%s,%s%s,%s,%s)\n",
                        sectname, baseaddr, bufsize,
                        sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
+
+                process_pass_map_fbseg(entry);  // PUT NEW SEGMENT INTO STB FILE
             }
         }
         else  // OUTPUT SYMBOL NAME & VALUE, see LINK5\OUTSYM
@@ -1384,6 +1495,8 @@ void process_pass_map_output()
                 printf("\n");
                 tabcount = 0;
             }
+
+            process_pass_map_fbgsd(entry);  // GENERATE AN STB ENTRY
         }
         // Next entry index should be in status field
         if ((entry->status & 07777) == 0)
@@ -1746,10 +1859,9 @@ void process_pass2_init()
 
     // Allocate space for .SAV file image
     OutputBufferSize = 65536;
-    OutputBuffer = (uint8_t*) malloc(OutputBufferSize);
+    OutputBuffer = (uint8_t*) calloc(OutputBufferSize, 1);
     if (OutputBuffer == nullptr)
         fatal_error("ERR11: Failed to allocate memory for output buffer.\n");
-    memset(OutputBuffer, 0, OutputBufferSize);
 
     // See LINK6\DOCASH
     Globals.LRUNUM = 0; // INIT LEAST RECENTLY USED TIME STAMP
@@ -1869,7 +1981,7 @@ void process_pass2()
                 fatal_error("ERR4: Illegal record type at %06ho in %s\n", offset, sscur->filename);
             else if (blocktype == 1)  // START GSD RECORD, see LINK7\GSD
             {
-                printf("    Block type 1 - GSD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+                //printf("    Block type 1 - GSD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
             }
             else if (blocktype == 3)  // See LINK7\DMPTXT
             {
@@ -1891,7 +2003,7 @@ void process_pass2()
             }
             else if (blocktype == 6)  // MODULE END RECORD, See LINK7\MODND
             {
-                printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+                //printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
 
                 process_pass2_dump_txtblk();
                 //TODO
@@ -2145,7 +2257,7 @@ void print_help()
 int main(int argc, char *argv[])
 {
 
-#ifdef _DEBUG
+#if defined(_DEBUG) && defined(_MSC_VER)
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF);
     int n = 0;
     _CrtSetBreakAlloc(n);
@@ -2203,7 +2315,7 @@ int main(int argc, char *argv[])
     printf("SUCCESS\n");
     finalize();
 
-#ifdef _DEBUG
+#if defined(_DEBUG) && defined(_MSC_VER)
     _CrtDumpMemoryLeaks();
 #endif
 
