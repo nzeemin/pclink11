@@ -12,3 +12,5 @@
 /*.o
 /pclink11
 /version.h
+/dumpobj/Debug
+/dumpobj/Release

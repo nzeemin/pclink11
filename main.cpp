@@ -1414,7 +1414,7 @@ void process_pass_map_output()
     strcpy(savname, SaveStatusArea[0].filename);
     char* pdot = strrchr(savname, '.');
     if (pdot != nullptr) *pdot = 0;
-    fprintf(mapfileobj, "%-8s .SAV", savname);
+    fprintf(mapfileobj, "%-6s.SAV   ", savname);
 
     fprintf(mapfileobj, "\tTitle:\t");
     if (Globals.MODNAM != 0)
@@ -1468,13 +1468,14 @@ void process_pass_map_output()
                 const char* sectalloc = (entryflags & 0004) ? "OVR" : "CON";
                 const char* sectname = (entry->name & 03100) ? unrad50(entry->name) : "      ";
                 fprintf(mapfileobj, " %s\t %06ho\t%-16s words  (%s,%s,%s%s,%s,%s)\n",
-                        sectname, baseaddr, bufsize,
-                        sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
+                        (entry->name & 03100) ? unrad50(entry->name) : "",
+                        baseaddr, bufsize, sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
                 printf("  '%s' %06ho %-16s words  (%s,%s,%s%s,%s,%s)\n",
-                       sectname, baseaddr, bufsize,
-                       sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
+                       (entry->name & 03100) ? unrad50(entry->name) : "      ",
+                       baseaddr, bufsize, sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
 
-                process_pass_map_fbseg(entry);  // PUT NEW SEGMENT INTO STB FILE
+                if ((entryflags & 0040) == 0)  // For ABS section only
+                    process_pass_map_fbseg(entry);  // PUT NEW SEGMENT INTO STB FILE
             }
         }
         else  // OUTPUT SYMBOL NAME & VALUE, see LINK5\OUTSYM
@@ -2044,7 +2045,7 @@ void parse_commandline(int argc, char **argv)
                 int option = toupper(*cur++);
                 switch (option)
                 {
-                case 'T': // /T:address -- SPECIFY TRANSFER ADR
+                case 'T': // /T:addr - SPECIFY TRANSFER ADR
                     result = sscanf(cur, ":%ho", &param1);
                     if (result < 1)
                         fatal_error("Invalid /T option, use /T:addr\n");
@@ -2062,7 +2063,7 @@ void parse_commandline(int argc, char **argv)
                     Globals.STKBLK[2] = param1;
                     break;
 
-                case 'B':  // /B - SPECIFY BOTTOM ADR FOR LINK
+                case 'B':  // /B:addr - SPECIFY BOTTOM ADR FOR LINK
                     result = sscanf(cur, ":%ho", &param1);
                     if (result < 1)
                         fatal_error("Invalid /B option, use /B:addr\n");
@@ -2127,7 +2128,7 @@ void parse_commandline(int argc, char **argv)
                     //TODO
                     break;
 
-                case 'R':  // /R - INDICATE FOREGROUND LINK
+                case 'R':  // /R[:stacksize] - INDICATE FOREGROUND LINK
                     result = sscanf(cur, ":%ho", &param1);
                     Globals.SWITCH |= SW_R;
                     //TODO
@@ -2146,8 +2147,6 @@ void parse_commandline(int argc, char **argv)
                     Globals.NUMCOL = 6; // 6 COLUMNS
                     Globals.LSTFMT--; // WIDE CREF
                     break;
-                    // /C - CONTINUE ON ANOTHER LINE
-                    // /
 
                 case 'X':  // /X - DO NOT EMIT BIT MAP
                     Globals.SWITCH |= SW_X;
@@ -2183,7 +2182,7 @@ void parse_commandline(int argc, char **argv)
                     //TODO
                     break;
 
-                case 'Q':  // /Q - SET PSECTS TO ABSOLUTE ADDRESSES
+                case 'Q':  // /Q:addr - SET PSECTS TO ABSOLUTE ADDRESSES
                     result = sscanf(cur, ":%ho", &param1);
                     //TODO
                     break;
