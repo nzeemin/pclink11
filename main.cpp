@@ -21,11 +21,10 @@
 
 struct SaveStatusEntry
 {
-    char	filename[64];
-    FILE*	fileobj;
-    uint16_t	filesize;
-    bool	islibrary;
-    void*	data;
+    char     filename[64];
+    uint16_t filesize;
+    bool     islibrary;
+    void*    data;
 };
 const int SaveStatusAreaSize = 8;
 SaveStatusEntry SaveStatusArea[SaveStatusAreaSize];
@@ -356,7 +355,7 @@ void symbol_table_enter(int* pindex, uint32_t lkname, uint16_t lkwd)
 {
     // Find empty entry
     if (SymbolTableCount >= SymbolTableSize)
-        fatal_error("ERR1: Symbol table overflow\n");
+        fatal_error("ERR1: Symbol table overflow.\n");
 
     int index = *pindex;
     SymbolTableEntry* entry;
@@ -591,12 +590,6 @@ void finalize()
     for (int i = 0; i < SaveStatusCount; i++)
     {
         SaveStatusEntry* sscur = SaveStatusArea + i;
-        if (sscur->fileobj != nullptr)
-        {
-            fclose(sscur->fileobj);
-            sscur->fileobj = nullptr;
-            //printf("  File closed: %s\n", sscur->filename);
-        }
         if (sscur->data != nullptr)
         {
             free(sscur->data);
@@ -628,13 +621,11 @@ void read_files()
     for (int i = 0; i < SaveStatusCount; i++)
     {
         SaveStatusEntry* sscur = SaveStatusArea + i;
-        assert(sscur->fileobj == nullptr);
         assert(sscur->filename[0] != 0);
 
         FILE* file = fopen(sscur->filename, "rb");
         if (file == nullptr)
             fatal_error("ERR2: Failed to open input file: %s, errno %d.\n", sscur->filename, errno);
-        sscur->fileobj = file;
 
         fseek(file, 0L, SEEK_END);
         size_t filesize = ftell(file);
@@ -644,16 +635,15 @@ void read_files()
 
         sscur->data = malloc(filesize);
         if (sscur->data == nullptr)
-            fatal_error("Failed to allocate memory for input file %s.\n", sscur->filename);
+            fatal_error("Failed to allocate memory for input file %s\n", sscur->filename);
 
         fseek(file, 0L, SEEK_SET);
         size_t bytesread = fread(sscur->data, 1, filesize, file);
         if (bytesread != filesize)
-            fatal_error("ERR2: Failed to read input file %s.\n", sscur->filename);
+            fatal_error("ERR2: Failed to read input file %s\n", sscur->filename);
         //printf("  File read %s, %d bytes.\n", sscur->filename, bytesread);
 
         fclose(file);
-        sscur->fileobj = nullptr;
     }
 }
 
@@ -778,7 +768,7 @@ void process_pass1_gsd_item_symnam(const uint16_t* itemw)
             if (entry->status & SY_DUP)  // IS IT A DUP SYMBOL?
             {
                 symbol_table_delete(index);  // DELETE ALL OTHER COPIES OF SYMBOL
-                fatal_error("ERR70: Duplicate symbol '%s' is defined in non-library", unrad50(lkname));
+                fatal_error("ERR70: Duplicate symbol '%s' is defined in non-library.\n", unrad50(lkname));
             }
         }
         else  // NOT ROOT, NORMAL LOOKUP
@@ -795,10 +785,24 @@ void process_pass1_gsd_item_symnam(const uint16_t* itemw)
 
             pass1_insert_entry_into_ordered_list(index, entry, (itemw[2] & 040) == 0);
         }
-        else  // LINK3\DEFREF
+        else  // OLD SYMBOL, see LINK3\DEFREF
         {
-            //TODO
-            NOTIMPLEMENTED
+            SymbolTableEntry* entry = SymbolTable + index;
+            if ((entry->status & 0100000) == 0)  // DEFINED BEFORE?
+            {
+                // SYMBOL WAS DEFINED BEFORE, ABSOLUTE SYMBOLS WITH SAME VALUE NOT MULTIPLY DEFINED
+                if ((itemw[2] & 040/*SY$REL*/) != 0 || entry->value != itemw[3])
+                    fatal_error("ERR24: Multiple definition of symbol '%s'.\n", unrad50(lkname));
+            }
+            else  // DEFINES A REFERENCED SYMBOL, see LINK3\DEFREF\130$
+            {
+                symbol_table_remove_undefined(index);  // REMOVE ENTRY FROM UNDEFINED LIST
+                entry->status &= ~(0110000/*SY.UDF+SY.WK*/);
+                //TODO: IF INPUT SEG # .NE. SYM SEG # THEN SET EXTERNAL REFERENCE BIT
+                //TODO: CLEAR SEGMENT # BITS & SET SEGMENT # WHERE DEFINED
+                entry->value = itemw[3] + Globals.BASE;
+                //TODO: ORDER
+            }
         }
     }
     else  // Symbol referenced here, not defined here
@@ -896,7 +900,7 @@ void process_pass1_gsd_item_psecnm(const uint16_t* itemw, int& itemflags)
     }
     else // AT THIS POINT SYMBOL WAS ALREADY ENTERED INTO SYMBOL TBL; see LINK3\OLDPCT
     {
-        uint16_t R2 = (entry->flagseg & 0377) // GET PSECT FLAG BITS IN R2
+        uint16_t R2 = ((entry->flagseg >> 8) & 0377) // GET PSECT FLAG BITS IN R2
                 & ~(010/*CS$NU*/ | 2/*CS$LIB*/ | 1/*CS$SAV*/); // GET RID OF UNUSED FLAG BITS
         if (Globals.SWIT1 & SW_J) // ARE WE PROCESSING I-D SPACE?
         {
@@ -904,7 +908,7 @@ void process_pass1_gsd_item_psecnm(const uint16_t* itemw, int& itemflags)
             NOTIMPLEMENTED
         }
         if (R2 != itemflags) // ARE SECTION ATTRIBUTES THE SAME?
-            fatal_error("ERR10: Conflicting section attributes");
+            fatal_error("ERR10: Conflicting section attributes.\n");
     }
 
     // PLOOP
@@ -1016,7 +1020,6 @@ void process_pass1()
     for (int i = 0; i < SaveStatusCount; i++)
     {
         SaveStatusEntry* sscur = SaveStatusArea + i;
-        assert(sscur->fileobj == nullptr);
         assert(sscur->data != nullptr);
 
         printf("  Processing %s\n", sscur->filename);
@@ -1061,7 +1064,7 @@ void process_pass1()
             {
                 uint16_t libver = ((uint16_t*)data)[3];
                 if (libver < L_HVER)
-                    fatal_error("ERR23: Old library format (%03ho) in %s.\n", libver, sscur->filename);
+                    fatal_error("ERR23: Old library format (%03ho) in %s\n", libver, sscur->filename);
                 sscur->islibrary = true;
                 break;  // Skipping library files on Pass 1
             }
@@ -1081,7 +1084,6 @@ void process_pass15()
     for (int i = 0; i < SaveStatusCount; i++)
     {
         SaveStatusEntry* sscur = SaveStatusArea + i;
-        assert(sscur->fileobj == nullptr);
         assert(sscur->data != nullptr);
 
         // Skipping non-library files on Pass 1.5
@@ -1537,7 +1539,7 @@ void process_pass_map_output()
     int index;
     bool found = symbol_table_lookup(Globals.BEGBLK.symbol, lkwd, lkmsk, &index);
     if (!found)
-        fatal_error("ERR31: Transfer address undefined or in overlay\n");
+        fatal_error("ERR31: Transfer address undefined or in overlay.\n");
     SymbolTableEntry* entrybeg = SymbolTable + index;
     //TODO: Calculate transfer address
     Globals.BEGBLK.value += entrybeg->value;
@@ -1568,7 +1570,7 @@ SymbolTableEntry* process_pass2_rld_lookup(const uint8_t* data, bool global)
         found = symbol_table_lookup(lkname, lkwd, lkmsk, &index);
     }
     if (!found) // MUST FIND IT THIS TIME
-        fatal_error("ERR46: Invalid RLD symbol '%s'\n", unrad50(lkname));
+        fatal_error("ERR46: Invalid RLD symbol '%s'.\n", unrad50(lkname));
 
     SymbolTableEntry* entry = SymbolTable + index;
     //uint16_t R3 = entry->value; // GET SYMBOL'S VALUE
@@ -1670,7 +1672,7 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
         case 014:  // ILLEGAL FORMAT
         case 015:  // ILLEGAL FORMAT
             printf("\n");
-            fatal_error("ERR35: Invalid complex relocation in %s", sscur->filename);
+            fatal_error("ERR35: Invalid complex relocation in %s\n", sscur->filename);
             break;
         case 016:  // PUSH GLOBAL SYMBOL VALUE
             cpxname = MAKEDWORD(((uint16_t*)data)[0], ((uint16_t*)data)[1]);
@@ -1679,7 +1681,7 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
             data += 4;  offset += 4;
             cpxstacktop++;
             if (cpxstacktop >= cpxstacksize)
-                fatal_error("ERR35: Complex relocation stack overflow in %s", sscur->filename);
+                fatal_error("ERR35: Complex relocation stack overflow in %s\n", sscur->filename);
             cpxstack[cpxstacktop] = cpxentry->value;  //TODO
             break;
         case 017:  // PUSH RELOCATABLE VALUE
@@ -1691,7 +1693,7 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
             NOTIMPLEMENTED;
             cpxstacktop++;
             if (cpxstacktop >= cpxstacksize)
-                fatal_error("ERR35: Complex relocation stack overflow in %s", sscur->filename);
+                fatal_error("ERR35: Complex relocation stack overflow in %s\n", sscur->filename);
             cpxstack[cpxstacktop] = 0;  //TODO
             break;
         case 020:  // PUSH CONSTANT
@@ -1699,7 +1701,7 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
             printf(" %06ho\n", cpxval);
             cpxstacktop++;
             if (cpxstacktop >= cpxstacksize)
-                fatal_error("ERR35: Complex relocation stack overflow in %s", sscur->filename);
+                fatal_error("ERR35: Complex relocation stack overflow in %s\n", sscur->filename);
             cpxstack[cpxstacktop] = cpxval;
             break;
         default:
@@ -1724,7 +1726,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
         uint16_t baseaddr = *((uint16_t*)Globals.TXTBLK) + Globals.BASE;
         uint16_t addr = baseaddr + (disbyte - 2) - 2;
 
-        printf("      %06ho Item type %03ho %s",
+        printf("      %06ho RLD type %03ho %s",
                addr, (uint16_t)(command & 0177), ((command & 0177) > 017) ? "UNKNOWN" : RLDCommandNames[command & 0177]);
         uint16_t constdata;
         switch (command & 0177)
@@ -1826,7 +1828,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             *((uint16_t*)dest) = process_pass2_rld_complex(sscur, data, offset, blocksize);
             break;
         default:
-            fatal_error("ERR36: Unknown RLD command: %d\n", (int)command);
+            fatal_error("ERR36: Unknown RLD command: %d.\n", (int)command);
         }
     }
 }
@@ -1884,7 +1886,7 @@ void process_pass2_init()
         int index;
         if (!symbol_table_lookup(lkname, lkwd, lkmsk, &index))
         {
-            fatal_error("ERR32: Stack address undefined or in overlay");  // ERROR IF UNDEF STACK ADR
+            fatal_error("ERR32: Stack address undefined or in overlay.\n");  // ERROR IF UNDEF STACK ADR
             //TODO: USE DEFALULT ADR
         }
         NOTIMPLEMENTED
@@ -1952,7 +1954,6 @@ void process_pass2()
     for (int i = 0; i < SaveStatusCount; i++)
     {
         SaveStatusEntry* sscur = SaveStatusArea + i;
-        assert(sscur->fileobj == nullptr);
         assert(sscur->data != nullptr);
 
         printf("  Processing %s\n", sscur->filename);
@@ -2110,7 +2111,7 @@ void parse_commandline(int argc, char **argv)
                     if (result < 1)
                         fatal_error("Invalid /K option, use /K:value\n");
                     if (param1 < 2 || param1 > 28)
-                        fatal_error("Invalid /K option value, should be: 2 < value < 28. \n");
+                        fatal_error("Invalid /K option value, should be: 2 < value < 28.\n");
                     Globals.SWITCH |= SW_K;
                     //TODO: if (Globals.SWITCH & SW_R)
                     Globals.KSWVAL = param1;
@@ -2234,7 +2235,7 @@ void parse_commandline(int argc, char **argv)
     }
 
     if (SaveStatusCount == 0)
-        fatal_error("Input file not specified\n");
+        fatal_error("Input file not specified.\n");
 }
 
 void print_help()

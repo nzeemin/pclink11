@@ -412,7 +412,10 @@ void dumpobj()
         else if (blocktype == 7)  // 7 - TITLIB
         {
             printf("  Block type 7 - TITLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
-            NOTIMPLEMENTED; //TODO
+            uint16_t eptsize = *(uint16_t*)(data + 24/*L_HEAB*/);
+            printf("      EPT size %06ho bytes, %d. records\n", eptsize, (int)(eptsize / 8));
+            //data += 32/*L_HEPT*/; offset += 32/*L_HEPT*/;  // Move to 1ST EPT ENTRY
+            //TODO
         }
         else if (blocktype == 8)
         {
