@@ -42,8 +42,8 @@ LibraryModuleEntry LibraryModuleList[LibraryModuleListSize];
 struct GSDentry
 {
     uint32_t	symbol;		// SYMBOL CHARS 1-6(RAD50)
-    uint8_t	flags;		// FLAGS
-    uint8_t	code;		// CODE BYTE
+    uint8_t	    flags;		// FLAGS
+    uint8_t	    code;		// CODE BYTE
     uint16_t	value;		// SIZE OR OFFSET
 };
 
@@ -549,6 +549,26 @@ bool symbol_table_search(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk, int* pi
     return symbol_table_search_routine(lkname, lkwd, lkmsk, 0, pindex);
 }
 
+void print_symbol_table()
+{
+    printf("  SymbolTable count = %d.\n", SymbolTableCount);
+    for (int i = 0; i < SymbolTableSize; i++)
+    {
+        const SymbolTableEntry* entry = SymbolTable + i;
+        if (entry->name == 0)
+            continue;
+        printf("    %06ho '%s' %06ho %06ho %06ho  ", (uint16_t)i, unrad50(entry->name), entry->flagseg, entry->value, entry->status);
+        if (entry->flagseg & SY_SEC) printf("SECT ");
+        if (entry->status & SY_UDF) printf("UNDEF ");
+        if (entry->status & SY_IND) printf("IND ");
+        if ((entry->flagseg & SY_SEC) == 0 && (entry->status & SY_WK)) printf("WEAK ");
+        if ((entry->flagseg & SY_SEC) && (entry->status & SY_SAV)) printf("SAV ");
+        printf("\n");
+    }
+    printf("  BEGBLK '%s' %06ho\n", unrad50(Globals.BEGBLK.symbol), Globals.BEGBLK.value);
+    printf("  UNDLST = %06ho\n", (uint16_t)Globals.UNDLST);
+}
+
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -656,7 +676,7 @@ void pass1_force0(const SymbolTableEntry* entry)
     printf("DUPLICATE SYMBOL \"%s\" IS FORCED TO THE ROOT\n", unrad50(entry->name));
 }
 
-// LINK5\ORDER, LINK5\ALPHA
+// LINK3\ORDER, LINK5\ALPHA
 void pass1_insert_entry_into_ordered_list(int index, SymbolTableEntry* entry, bool absrel)
 {
     assert(index > 0 && index < SymbolTableSize);
@@ -828,12 +848,12 @@ void process_pass1_gsd_item_symnam(const uint16_t* itemw)
         {
             found = symbol_table_looke(lkname, lkwd, lkmsk, &index);
         }
-        // LINK3\DOREF
+        // LINK3\DOREF - PROCESS SYMBOL REFERENCE
         if (!found)
         {
             symbol_table_add_undefined(index);
         }
-        else
+        else // Symbol is found
         {
             //TODO
             NOTIMPLEMENTED
@@ -867,7 +887,7 @@ void process_pass1_gsd_item_csecnm(const uint16_t* itemw, int& itemtype, int& it
     //TODO: Set flags according to case and process as PSECT
 }
 
-// LINK3\PSECNM
+// LINK3\PSECNM - process GSD item PROGRAM SECTION NAME
 void process_pass1_gsd_item_psecnm(const uint16_t* itemw, int& itemflags)
 {
     Globals.LRUNUM++; // COUNT SECTIONS IN A MODULE
@@ -911,22 +931,26 @@ void process_pass1_gsd_item_psecnm(const uint16_t* itemw, int& itemflags)
             fatal_error("ERR10: Conflicting section attributes.\n");
     }
 
-    // PLOOP
-    //TODO: CALL CHKRT
+    // PLOOP and CHKRT
     if (lkname == RAD50_ABS)
         ASECTentry = entry;
-    else
+    else if (isnewentry)
     {
         SymbolTableEntry* pSect = ASECTentry;
-        for (;;)  // find section chain end
+        while (pSect != nullptr)  // find section chain end
         {
-            if (pSect == nullptr) break;
-            if ((pSect->status & 07777) == 0)
+            int nextindex = (pSect->status & 07777);
+            if (nextindex == 0)  // end of chain
                 break;
-            pSect = SymbolTable + (pSect->status & ~0170000);
+            pSect = SymbolTable + nextindex;
         }
         if (pSect != nullptr)
+        {
+            //int sectindex = pSect - SymbolTable;
             pSect->status |= index;  // set link to the new segment
+        }
+        //print_symbol_table();//DEBUG
+        index = index;
     }
 
     //TODO: primitive version, depends on section flags
@@ -1623,9 +1647,15 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
                 cpxstack[cpxstacktop] = cpxstack[cpxstacktop] * cpxstack[cpxstacktop + 1];
             }
             break;
-        case 004:  // DIVIDE
+        case 004:  // DIVIDE, see LINK7\CPXDIV
             printf("\n");
-            NOTIMPLEMENTED;
+            if (cpxstacktop > 0)
+            {
+                if (cpxstack[cpxstacktop] == 0)
+                    fatal_error("ERR33: Complex relocation divide by zero in %s\n", sscur->filename);
+                cpxstacktop--;
+                cpxstack[cpxstacktop] = cpxstack[cpxstacktop] / cpxstack[cpxstacktop + 1];
+            }
             break;
         case 005:  // AND
             printf("\n");
@@ -1684,17 +1714,17 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
                 fatal_error("ERR35: Complex relocation stack overflow in %s\n", sscur->filename);
             cpxstack[cpxstacktop] = cpxentry->value;  //TODO
             break;
-        case 017:  // PUSH RELOCATABLE VALUE
+        case 017:  // PUSH RELOCATABLE VALUE, see LINK7\CPXPRL
             // GET SECTION NUMBER
             cpxsect = *data;  data += 1;  offset += 1;
             cpxval = *((uint16_t*)data);  data += 2;  offset += 2;  // GET OFFSET WITHIN SECTION
             printf(" %03ho %06ho\n", (uint16_t)cpxsect, cpxval);
             //TODO: SEE IF SECTION NO. OK
-            NOTIMPLEMENTED;
+            cpxentry = SymbolTable + cpxsect * 4;  //TODO
             cpxstacktop++;
             if (cpxstacktop >= cpxstacksize)
                 fatal_error("ERR35: Complex relocation stack overflow in %s\n", sscur->filename);
-            cpxstack[cpxstacktop] = 0;  //TODO
+            cpxstack[cpxstacktop] = cpxentry->value + cpxval;  //TODO
             break;
         case 020:  // PUSH CONSTANT
             cpxval = *((uint16_t*)data);  data += 2;  offset += 2;
@@ -1735,8 +1765,9 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             // DIRECT POINTER TO AN ADDRESS WITHIN A MODULE. THE CURRENT SECTION BASE ADDRESS IS ADDED
             // TO A SPECIFIED CONSTANT ANT THE RESULT STORED IN THE IMAGE FILE AT THE CALCULATED ADDRESS
             // (I.E., DISPLACEMENT BYTE ADDED TO VALUE CALCULATED FROM THE LOAD ADDRESS OF THE PREVIOUS TEXT BLOCK).
-            printf(" %06ho\n", *((uint16_t*)data));
-            *((uint16_t*)dest) = *((uint16_t*)data) + Globals.BASE;
+            constdata = *((uint16_t*)data);
+            printf(" %06ho\n", constdata);
+            *((uint16_t*)dest) = constdata + Globals.BASE;
             data += 2;  offset += 2;
             break;
         case 002:  // GLOBAL
@@ -1750,12 +1781,12 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             }
             data += 4;  offset += 4;
             break;
-        case 003:  // INTERNAL DISPLACED
+        case 003:  // INTERNAL DISPLACED REL, see LINK7\RLDIDR
             // RELATIVE REFERENCE TO AN ABSOLUTE ADDRESS FROM WITHIN A RELOCATABLE SECTION.
             // THE ADDRESS + 2 THAT THE RELOCATED VALUE IS TO BE WRITTEN INTO IS SUBTRACTED FROM THE SPECIFIED CONSTANT & RESULTS STORED.
-            constdata = ((uint16_t*)data)[0];
+            constdata = *((uint16_t*)data);
             printf(" %06ho\n", constdata);
-            NOTIMPLEMENTED
+            *((uint16_t*)dest) = constdata + Globals.BASE - (addr + 2);
             data += 2;  offset += 2;
             break;
         case 004:  // GLOBAL DISPLACED, see LINK7\RLDGDR
@@ -1831,26 +1862,6 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             fatal_error("ERR36: Unknown RLD command: %d.\n", (int)command);
         }
     }
-}
-
-void print_symbol_table()
-{
-    printf("  SymbolTable count = %d.\n", SymbolTableCount);
-    for (int i = 0; i < SymbolTableSize; i++)
-    {
-        const SymbolTableEntry* entry = SymbolTable + i;
-        if (entry->name == 0)
-            continue;
-        printf("    %06ho '%s' %06ho %06ho %06ho  ", (uint16_t)i, unrad50(entry->name), entry->flagseg, entry->value, entry->status);
-        if (entry->flagseg & SY_SEC) printf("SECT ");
-        if (entry->status & SY_UDF) printf("UNDEF ");
-        if (entry->status & SY_IND) printf("IND ");
-        if ((entry->flagseg & SY_SEC) == 0 && (entry->status & SY_WK)) printf("WEAK ");
-        if ((entry->flagseg & SY_SEC) && (entry->status & SY_SAV)) printf("SAV ");
-        printf("\n");
-    }
-    printf("  BEGBLK '%s' %06ho\n", unrad50(Globals.BEGBLK.symbol), Globals.BEGBLK.value);
-    printf("  UNDLST = %06ho\n", (uint16_t)Globals.UNDLST);
 }
 
 // Prapare SYSCOM area, pass 2 initialization; see LINK6
@@ -2290,7 +2301,7 @@ int main(int argc, char *argv[])
     process_pass1();
     //TODO: Check if we need Pass 1.5
     process_pass15();
-    print_symbol_table();//DEBUG
+    //print_symbol_table();//DEBUG
     process_pass1_endp1();
 
     process_pass_map_init();
