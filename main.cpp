@@ -239,7 +239,7 @@ struct tagGlobals
     //  TIME STAMP FOR SAV FILE CACHING
     uint16_t	BITBAD;	// -> START OF BITMAP TABLE (D-SPACE IF /J USED)
     uint16_t	IBITBD;	// -> START OF I-SPACE BITMAP TABLE
-    uint16_t	BITMAP;	// CONTAINS BITMAP OR IBITBD (IF /J USED)
+    uint8_t     BITMAP[16];	// CONTAINS BITMAP OR IBITBD (IF /J USED)
     uint16_t	CACHER;	// -> CACHE CONTROL BLOCKS
     uint16_t	NUMBUF;	// NUMBER OF AVAILABLE CACHING BLOCKS (DEF=3)
     uint16_t	BASE;	// BASE OF CURRENT SECTION
@@ -1884,7 +1884,8 @@ void process_pass2_init()
 
     // CLEAR & SETUP SYSCOM AREA OF IMAGE FILE
 
-    Globals.BITMAP = Globals.BITBAD;
+    memset(Globals.BITMAP, 0, sizeof(Globals.BITMAP));
+    //Globals.BITMAP = Globals.BITBAD;
 
     *((uint16_t*)(OutputBuffer + SysCom_BEGIN)) = Globals.BEGBLK.value; // PROG START ADDR
     //TODO: ARE WE DOING I-D SPACE?
@@ -1945,6 +1946,17 @@ void process_pass2_init()
     //TODO: FORCE BASE OF ZERO FOR VSECT IF ANY
 }
 
+void mark_bitmap_bits(uint16_t addr, uint16_t length)
+{
+    int block = addr / 512;
+    int endblock = (addr + length) / 512;
+    //printf("mark_bitmap_bits for blocks %d..%d\n", block, endblock);
+    for (; block <= endblock; block++)
+    {
+        Globals.BITMAP[block / 8] |= (uint8_t)(1 << (7 - block % 8));
+    }
+}
+
 void process_pass2_dump_txtblk()  // DUMP TEXT SUBROUTINE, see LINK7\TDMP0, LINK7\DMP0
 {
     if (Globals.TXTLEN == 0)
@@ -1955,7 +1967,9 @@ void process_pass2_dump_txtblk()  // DUMP TEXT SUBROUTINE, see LINK7\TDMP0, LINK
     uint8_t* src = Globals.TXTBLK + 2;
     memcpy(dest, src, Globals.TXTLEN);
 
-    Globals.TXTLEN = 0;
+    mark_bitmap_bits(addr, Globals.TXTLEN);
+
+    Globals.TXTLEN = 0;  // MARK TXT BLOCK EMPTY, see LINK7\CLRTXL
 }
 
 // PRODUCE SAVE IMAGE FILE, see LINK7\PASS2
@@ -2312,11 +2326,8 @@ int main(int argc, char *argv[])
     process_pass2();
     //TODO: Pass 2.5
 
-    //STUB: Prepare the simplest bitmap
-    for (int i = 0; i < OutputBlockCount; i++)
-    {
-        *(OutputBuffer + SysCom_BITMAP + (i / 8)) |= (1 << (7 - i % 8));
-    }
+    // Copy the bitmap to block 0
+    memcpy(OutputBuffer + SysCom_BITMAP, Globals.BITMAP, 16);
 
     size_t bytestowrite = OutputBlockCount == 0 ? 65536 : OutputBlockCount * 512;
     size_t byteswrit = fwrite(OutputBuffer, 1, bytestowrite, outfileobj);
