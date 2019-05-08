@@ -1,8 +1,11 @@
 // testanalyzer.cpp : Defines the entry point for the console application.
 //
 
-#include "stdafx.h"
+#define _CRT_SECURE_NO_WARNINGS
 
+#include <windows.h>
+
+#include <stdio.h>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -13,6 +16,11 @@
 typedef std::string string;
 typedef std::vector<string> stringvec;
 
+bool g_verbose = false;  // Verbose mode
+bool g_all = false;  // Show all mode
+stringvec g_testnames;
+int g_maxchunkstoshow = 6;
+
 HANDLE g_hConsole;
 int g_testcount = 0;
 int g_testskipped = 0;
@@ -21,6 +29,7 @@ int g_testsfailed = 0;
 #define TEXTATTRIBUTES_TITLE (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY)
 #define TEXTATTRIBUTES_NORMAL (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE)
 #define TEXTATTRIBUTES_WARNING (FOREGROUND_RED | FOREGROUND_GREEN)
+#define TEXTATTRIBUTES_DIFF (FOREGROUND_RED | FOREGROUND_GREEN)
 
 
 // Get list of sub-directories for a directory. Win32 specific method
@@ -150,7 +159,7 @@ bool process_map_files(string& filepathmap11, string& filepathmapmy)
     return (diffcount == 0);
 }
 
-bool compare_binary_files(string& filepath11, string& filepathmy, string filekind)
+bool countdiff_binary_files(string& filepath11, string& filepathmy, string filekind)
 {
     bool hasdiffs = false;
 
@@ -202,16 +211,98 @@ bool compare_binary_files(string& filepath11, string& filepathmy, string filekin
     return !hasdiffs;
 }
 
+void showdiff_binary_files(string& filepath11, string& filepathmy, string filekind, int maxchunkstoshow)
+{
+    std::ifstream f1(filepath11, std::ifstream::binary | std::ifstream::ate);
+    if (f1.fail())
+        return;
+    std::ifstream f2(filepathmy, std::ifstream::binary | std::ifstream::ate);
+    if (f2.fail())
+        return;
+    std::streamoff size1 = f1.tellg();
+    std::streamoff size2 = f2.tellg();
+    f1.seekg(0, std::ifstream::beg);
+    f2.seekg(0, std::ifstream::beg);
+
+    // Size to compare
+    std::streamoff size = (size1 < size2) ? size1 : size2;
+    const std::streamoff blocksize = 512;
+    // Compare file contents
+    int chunkshown = 0;
+    std::streamoff remaining = size;
+    char buffer1[blocksize], buffer2[blocksize];
+    unsigned int baseaddress = 0;
+    while (remaining > 0)
+    {
+        std::streamoff sizetoread = (remaining >= blocksize) ? blocksize : remaining;
+
+        f1.read(buffer1, sizetoread);
+        f2.read(buffer2, sizetoread);
+        //TODO: check for file read errors
+
+        size_t offset = 0;  // offset in buffer1 and buffer2
+        int reminblock = (int)sizetoread;
+        while (reminblock > 0)
+        {
+            int chunksize = (reminblock >= 16) ? 16 : reminblock;
+            bool chunkhasdiffs = memcmp(buffer1 + offset, buffer2 + offset, chunksize) != 0;
+            if (chunkhasdiffs)
+            {
+                char buf[16];
+                sprintf(buf, "%04x", baseaddress + offset);
+                SetConsoleTextAttribute(g_hConsole, TEXTATTRIBUTES_NORMAL);
+                std::cout << "  11." + filekind + "  " + buf + " ";
+                for (int i = 0; i < chunksize; i++)
+                {
+                    bool isdiff = (buffer1[offset + i] != buffer2[offset + i]);
+                    SetConsoleTextAttribute(g_hConsole, isdiff ? TEXTATTRIBUTES_DIFF : TEXTATTRIBUTES_NORMAL);
+                    sprintf(buf, " %02x", (unsigned char)buffer1[offset + i]);
+                    std::cout << buf;
+                }
+                SetConsoleTextAttribute(g_hConsole, TEXTATTRIBUTES_NORMAL);
+                std::cout << " ";
+                for (int i = 0; i < chunksize; i++)
+                {
+                    bool isdiff = (buffer1[offset + i] != buffer2[offset + i]);
+                    SetConsoleTextAttribute(g_hConsole, isdiff ? TEXTATTRIBUTES_DIFF : TEXTATTRIBUTES_NORMAL);
+                    sprintf(buf, " %02x", (unsigned char)buffer2[offset + i]);
+                    std::cout << buf;
+                }
+                SetConsoleTextAttribute(g_hConsole, TEXTATTRIBUTES_NORMAL);
+                std::cout << "  my." << filekind << std::endl;
+
+                chunkshown++;
+                if (chunkshown >= maxchunkstoshow)
+                    break;
+            }
+            reminblock -= chunksize;
+            offset += chunksize;
+        }
+
+        remaining -= sizetoread;
+        baseaddress += (unsigned int)sizetoread;
+        if (chunkshown >= maxchunkstoshow)
+            break;
+    }
+    SetConsoleTextAttribute(g_hConsole, TEXTATTRIBUTES_WARNING);
+}
+
 // Compare SAV files as binary
 bool process_sav_files(string& filepathsav11, string& filepathsavmy)
 {
-    return compare_binary_files(filepathsav11, filepathsavmy, "SAV");
+    bool res = countdiff_binary_files(filepathsav11, filepathsavmy, "SAV");
+    if (!res && g_verbose)
+        showdiff_binary_files(filepathsav11, filepathsavmy, "SAV", g_maxchunkstoshow);
+    return res;
 }
 
 // Compare STB files as binary
 bool process_stb_files(string& filepathstb11, string& filepathstbmy)
 {
-    return compare_binary_files(filepathstb11, filepathstbmy, "STB");
+    bool res = countdiff_binary_files(filepathstb11, filepathstbmy, "STB");
+    if (!res && g_verbose)
+        showdiff_binary_files(filepathstb11, filepathstbmy, "STB", g_maxchunkstoshow);
+    return res;
 }
 
 void process_test(string& stestdirname)
@@ -286,27 +377,65 @@ void process_test(string& stestdirname)
 
     if (!resmylog || !resmaps || !ressavs || !resstbs)
         g_testsfailed++;
-    //else
-    //{
-    //    SetConsoleTextAttribute(g_hConsole, TEXTATTRIBUTES_NORMAL);
-    //    std::cout << "  PASSED" << std::endl;
-    //}
+    else if (g_verbose)
+    {
+        SetConsoleTextAttribute(g_hConsole, TEXTATTRIBUTES_NORMAL);
+        std::cout << "  PASSED" << std::endl;
+    }
 }
 
-int main()
+void parse_commandline(int argc, char *argv[])
 {
+    for (int argi = 1; argi < argc; argi++)
+    {
+        const char* arg = argv[argi];
+        if (arg[0] == '\\' || arg[0] == '-')
+        {
+            string option = arg + 1;
+            if (option == "v" || option == "verbose")
+                g_verbose = true;
+            if (option == "a" || option == "all")
+                g_all = true;
+            else
+            {
+                std::cout << "Unknown option: " << option << std::endl;
+            }
+        }
+        else
+        {
+            // Assuming that any non-option argument is a test to select
+            g_testnames.push_back(arg);
+        }
+    }
+}
+
+int main(int argc, char *argv[])
+{
+    // Show title message
     g_hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     SetConsoleTextAttribute(g_hConsole, TEXTATTRIBUTES_TITLE);
     std::cout << "TestAnalyzer utility for PCLINK11 project" << std::endl;
     SetConsoleTextAttribute(g_hConsole, TEXTATTRIBUTES_NORMAL);
 
-    // Get list of sub-directories in tests directory
-    stringvec vsubdirs;
-    list_directory_subdirs("tests", vsubdirs);
+    // Parse command line
+    parse_commandline(argc, argv);
 
+    // Apply options
+    if (g_all)
+    {
+        g_maxchunkstoshow = INT_MAX;
+    }
+
+    if (g_testnames.empty())  // Tests not selected by command-line argument, let's collect all the tests names
+    {
+        // Get list of sub-directories in tests directory
+        list_directory_subdirs("tests", g_testnames);
+    }
+
+    // Analyze all the tests
     g_testcount = 0;
     g_testskipped = 0;
-    for (stringvec::iterator it = vsubdirs.begin(); it != vsubdirs.end(); ++it)
+    for (stringvec::iterator it = g_testnames.begin(); it != g_testnames.end(); ++it)
     {
         g_testcount++;
         string stestdirname = *it;
@@ -314,8 +443,14 @@ int main()
         process_test(stestdirname);
     }
 
+    // Show totals
     SetConsoleTextAttribute(g_hConsole, TEXTATTRIBUTES_TITLE);
     std::cout << "TOTAL tests: " << g_testcount;
+    if (g_verbose)
+    {
+        int testspassed = g_testcount - g_testsfailed;
+        std::cout << ", passed: " << testspassed << " (" << testspassed * 100.0 / g_testcount << "%)";
+    }
     if (g_testsfailed > 0)
     {
         SetConsoleTextAttribute(g_hConsole, TEXTATTRIBUTES_WARNING);
