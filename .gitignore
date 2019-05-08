@@ -14,3 +14,5 @@
 /version.h
 /dumpobj/Debug
 /dumpobj/Release
+/testanalyzer/Debug
+/testanalyzer/Release
