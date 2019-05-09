@@ -173,7 +173,6 @@ bool countdiff_binary_files(string& filepath11, string& filepathmy, string filek
     std::streamoff size2 = f2.tellg();
     if (size1 != size2)
     {
-        std::cout << "  " << filekind << " files diff in size: " << size1 << " / " << size2 << std::endl;
         hasdiffs = true;
     }
     f1.seekg(0, std::ifstream::beg);
@@ -202,9 +201,16 @@ bool countdiff_binary_files(string& filepath11, string& filepathmy, string filek
         remaining -= sizetoread;
     }
 
-    if (diffcount > 0)
+    if (size1 != size2 || diffcount > 0)
     {
-        std::cout << "  " << filekind << " files has diff in " << diffcount << " bytes" << std::endl;
+        std::cout << "  " << filekind << " files has ";
+        if (size1 != size2)
+            std::cout << "diff in size: " << size1 << " / " << size2;
+        if (size1 != size2 && diffcount > 0)
+            std::cout << ", and ";
+        if (diffcount > 0)
+            std::cout << "diffs in " << diffcount << " bytes";
+        std::cout << std::endl;
         hasdiffs = true;
     }
 
@@ -251,7 +257,7 @@ void showdiff_binary_files(string& filepath11, string& filepathmy, string fileki
                 char buf[16];
                 sprintf(buf, "%04x", baseaddress + offset);
                 SetConsoleTextAttribute(g_hConsole, TEXTATTRIBUTES_NORMAL);
-                std::cout << "  11." + filekind + "  " + buf + " ";
+                std::cout << "    11." + filekind + "  " + buf + " ";
                 for (int i = 0; i < chunksize; i++)
                 {
                     bool isdiff = (buffer1[offset + i] != buffer2[offset + i]);
@@ -394,7 +400,7 @@ void parse_commandline(int argc, char *argv[])
             string option = arg + 1;
             if (option == "v" || option == "verbose")
                 g_verbose = true;
-            if (option == "a" || option == "all")
+            else if (option == "a" || option == "all")
                 g_all = true;
             else
             {

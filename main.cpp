@@ -61,6 +61,8 @@ SymbolTableEntry* ASECTentry = nullptr;
 const int SymbolTableSize = 4095;  // STSIZE
 int SymbolTableCount = 0;  // STCNT -- SYMBOL TBL ENTRIES COUNTER
 
+void print_symbol_table();
+
 // ****	INTERNAL SYMBOL TABLE FLAGS BIT ASSIGNMENT
 const uint16_t SY_UDF = 0100000;	// SET TO DECLARE SYMBOL IS UNDEFINED (PSECT NEVER UNDEFINED)
 const uint16_t SY_DUP =  040000;	// SET TO ALLOW DUPLICATE LIBRARY SYMBOLS
@@ -415,13 +417,19 @@ void symbol_table_remove_undefined(int index)
     assert(index < SymbolTableSize);
 
     SymbolTableEntry* entry = SymbolTable + index;
-    int previndex = entry->status & 07777;
+    uint16_t previndex = entry->value;
+    uint16_t nextindex = entry->status & 07777;
     if (previndex == 0)
-        Globals.UNDLST = entry->value;  // exclude entry from the list
+        Globals.UNDLST = nextindex;  // exclude entry from the list
     else
     {
         SymbolTableEntry* preventry = SymbolTable + previndex;
-        preventry->value = entry->value;  // exclude entry from the list
+        preventry->status = entry->status;  // exclude entry from the list
+    }
+    if (nextindex != 0)
+    {
+        SymbolTableEntry* nextentry = SymbolTable + nextindex;
+        nextentry->value = previndex;
     }
     entry->value = 0;
     entry->status &= 0170000;
@@ -563,10 +571,13 @@ void print_symbol_table()
         if (entry->status & SY_IND) printf("IND ");
         if ((entry->flagseg & SY_SEC) == 0 && (entry->status & SY_WK)) printf("WEAK ");
         if ((entry->flagseg & SY_SEC) && (entry->status & SY_SAV)) printf("SAV ");
+        if ((entry->status & 07777) == 0) printf("(eol) ");  // show end-of-list node
         printf("\n");
     }
     printf("  BEGBLK '%s' %06ho\n", unrad50(Globals.BEGBLK.symbol), Globals.BEGBLK.value);
     printf("  UNDLST = %06ho\n", (uint16_t)Globals.UNDLST);
+    //TODO: Enumerate entries starting with ASECT, make sure there's no loops or UNDEF entries
+    //TODO: Enumerate entries starting with UNDLST, make sure there's no loops or non-UNDEF entries
 }
 
 
@@ -817,11 +828,12 @@ void process_pass1_gsd_item_symnam(const uint16_t* itemw)
             else  // DEFINES A REFERENCED SYMBOL, see LINK3\DEFREF\130$
             {
                 symbol_table_remove_undefined(index);  // REMOVE ENTRY FROM UNDEFINED LIST
-                entry->status &= ~(0110000/*SY.UDF+SY.WK*/);
+                entry->status &= ~(0117777/*SY.UDF+SY.WK+^CSY.ENB*/);
                 //TODO: IF INPUT SEG # .NE. SYM SEG # THEN SET EXTERNAL REFERENCE BIT
                 //TODO: CLEAR SEGMENT # BITS & SET SEGMENT # WHERE DEFINED
                 entry->value = itemw[3] + Globals.BASE;
-                //TODO: ORDER
+
+                pass1_insert_entry_into_ordered_list(index, entry, (itemw[2] & 040) == 0);
             }
         }
     }
@@ -949,7 +961,6 @@ void process_pass1_gsd_item_psecnm(const uint16_t* itemw, int& itemflags)
             //int sectindex = pSect - SymbolTable;
             pSect->status |= index;  // set link to the new segment
         }
-        //print_symbol_table();//DEBUG
         index = index;
     }
 
@@ -1479,7 +1490,7 @@ void process_pass_map_output()
             entry->value = baseaddr;
 
             // IS THIS BLANK SECTION 0-LENGTH?
-            bool skipsect = ((entry->name & 03100) == 0 && sectsize == 0);
+            bool skipsect = ((entry->name >= 03100) == 0 && sectsize == 0);
             if (!skipsect)
             {
                 // OUTPUT SECTION NAME, BASE ADR, SIZE & ATTRIBUTES
@@ -1492,12 +1503,12 @@ void process_pass_map_output()
                 const char* sectsav = ((entryflags & 0100) && (entryflags & 010000)) ? ",SAV" : "";
                 const char* sectreloc = (entryflags & 0040) ? "REL" : "ABS";
                 const char* sectalloc = (entryflags & 0004) ? "OVR" : "CON";
-                const char* sectname = (entry->name & 03100) ? unrad50(entry->name) : "      ";
+                //const char* sectname = (entry->name >= 03100) ? unrad50(entry->name) : "      ";
                 fprintf(mapfileobj, " %s\t %06ho\t%-16s words  (%s,%s,%s%s,%s,%s)\n",
-                        (entry->name & 03100) ? unrad50(entry->name) : "",
+                        (entry->name >= 03100) ? unrad50(entry->name) : "",
                         baseaddr, bufsize, sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
                 printf("  '%s' %06ho %-16s words  (%s,%s,%s%s,%s,%s)\n",
-                       (entry->name & 03100) ? unrad50(entry->name) : "      ",
+                       (entry->name >= 03100) ? unrad50(entry->name) : "      ",
                        baseaddr, bufsize, sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
 
                 if ((entryflags & 0040) == 0)  // For ABS section only
@@ -1869,7 +1880,7 @@ void process_pass2_init()
 {
     printf("PASS 2 init\n");
 
-    print_symbol_table();
+    print_symbol_table();//DEBUG
 
     // Allocate space for .SAV file image
     OutputBufferSize = 65536;
@@ -1949,7 +1960,7 @@ void process_pass2_init()
 void mark_bitmap_bits(uint16_t addr, uint16_t length)
 {
     int block = addr / 512;
-    int endblock = (addr + length) / 512;
+    int endblock = (addr + length - 1) / 512;
     //printf("mark_bitmap_bits for blocks %d..%d\n", block, endblock);
     for (; block <= endblock; block++)
     {
