@@ -24,7 +24,7 @@ struct SaveStatusEntry
     char     filename[64];
     uint16_t filesize;
     bool     islibrary;
-    void*    data;
+    uint8_t* data;
 };
 const int SaveStatusAreaSize = 8;
 SaveStatusEntry SaveStatusArea[SaveStatusAreaSize];
@@ -593,10 +593,49 @@ void print_symbol_table()
         if ((entry->status & 07777) == 0) printf("(eol) ");  // show end-of-list node
         printf("\n");
     }
+
     printf("  BEGBLK '%s' %06ho\n", unrad50(Globals.BEGBLK.symbol), Globals.BEGBLK.value);
-    printf("  UNDLST = %06ho\n", (uint16_t)Globals.UNDLST);
-    //TODO: Enumerate entries starting with ASECT, make sure there's no loops or UNDEF entries
-    //TODO: Enumerate entries starting with UNDLST, make sure there's no loops or non-UNDEF entries
+
+    printf("  ASECT-started list has ");
+    // Enumerate entries starting with ASECT, make sure there's no loops or UNDEF entries
+    SymbolTableEntry* preventry = ASECTentry;
+    int count = 1;
+    for (;;)
+    {
+        int nextindex = preventry->nextindex();
+        if (nextindex == 0)  // end of chain
+            break;
+        SymbolTableEntry* nextentry = SymbolTable + nextindex;
+        preventry = nextentry;
+        count++;
+        if (count > SymbolTableSize)
+            break;
+    }
+    if (count > SymbolTableSize)
+        printf("loops.\n");
+    else
+        printf("%d entries.\n", count);
+
+    printf("  UNDLST = %06ho", (uint16_t)Globals.UNDLST);
+    if (Globals.UNDLST == 0)
+        printf("\n");
+    else  // Enumerate entries starting with UNDLST, make sure there's no loops or non-UNDEF entries
+    {
+        uint16_t index = Globals.UNDLST;
+        count = 0;
+        while (index != 0)
+        {
+            SymbolTableEntry* entry = SymbolTable + index;
+            index = entry->nextindex();
+            count++;
+            if (count > SymbolTableSize)
+                break;
+        }
+        if (count > SymbolTableSize)
+            printf("; the list has loops.\n");
+        else
+            printf("; the list has %d entries.\n", count);
+    }
 }
 
 
@@ -683,7 +722,7 @@ void read_files()
             fatal_error("Input file %s too long.\n", sscur->filename);
         sscur->filesize = (uint16_t)filesize;
 
-        sscur->data = malloc(filesize);
+        sscur->data = (uint8_t*)malloc(filesize);
         if (sscur->data == nullptr)
             fatal_error("Failed to allocate memory for input file %s\n", sscur->filename);
 
@@ -770,7 +809,7 @@ void process_pass1_gsd_item_taddr(const uint16_t* itemw, const SaveStatusEntry* 
         int offset = 0;
         while (offset < sscur->filesize)
         {
-            const uint8_t* data = (uint8_t*)(sscur->data) + offset;
+            const uint8_t* data = sscur->data + offset;
             uint16_t blocksize = ((uint16_t*)data)[1];
             uint16_t blocktype = ((uint16_t*)data)[2];
             if (blocktype == 1)
@@ -891,6 +930,10 @@ void process_pass1_gsd_item_symnam(const uint16_t* itemw)
         }
         else // Symbol is found
         {
+            SymbolTableEntry* entry = SymbolTable + index;
+            if ((itemw[2] & 001/*SY$WK*/) != 0)  // IS THIS A STRONG REFERENCE?
+                entry->status &= ~SY_WK;  // YES, SO MAKE SURE WEAK BIT IS CLEARED
+
             //TODO
             NOTIMPLEMENTED
         }
@@ -993,15 +1036,17 @@ void process_pass1_gsd_item_psecnm(const uint16_t* itemw, int& itemflags)
     }
 
     //TODO: primitive version, depends on section flags
-    int sectsize = itemw[3];
-    if ((itemflags & 0200/*CS$TYP*/) != 0 || (itemflags & 4/*CS$ALO*/) != 0)
+    uint16_t sectsize = itemw[3];
+    //if ((itemflags & 0040/*CS$REL*/) == 0 || (Globals.SWITCH & SW_X) != 0)
+    //    sectsize = 0;
+    if ((itemflags & 0200/*CS$TYP*/) == 0 || (itemflags & 0004/*CS$ALO*/) != 0)  // INSTRUCTION SECTION? CON SECTION ?
         sectsize = (sectsize + 1) & ~1;  // ROUND SECTION SIZE TO WORD BOUNDARY
     if (itemflags & 4/*CS$ALO*/)  // OVERLAYED SECTION?
     {
         Globals.BASE = 0;  // OVR PSECT, GBL SYM OFFSET IS FROM START OF SECTION
         //if (itemw[3] > entry->value)
     }
-    entry->value = (uint16_t)sectsize;
+    entry->value += sectsize;
 
     Globals.BASE = 0; //TODO
 }
@@ -1092,7 +1137,7 @@ void process_pass1()
         int offset = 0;
         while (offset < sscur->filesize)
         {
-            uint8_t* data = (uint8_t*)(sscur->data) + offset;
+            uint8_t* data = sscur->data + offset;
             uint16_t* dataw = (uint16_t*)(data);
             if (*dataw != 1)
             {
@@ -1161,7 +1206,7 @@ void process_pass15()
         int offset = 0;
         while (offset < sscur->filesize)
         {
-            uint8_t* data = (uint8_t*)(sscur->data) + offset;
+            uint8_t* data = sscur->data + offset;
             uint16_t* dataw = (uint16_t*)(data);
             if (*dataw != 1)
             {
@@ -1509,7 +1554,8 @@ void process_pass_map_output()
     // RESOLV	SECTION STARTS & GLOBAL SYMBOL VALUES; see LINK5\RESOLV
     uint16_t baseaddr = 0; // ASECT BASE ADDRESS IS 0
     SymbolTableEntry* entry = ASECTentry;
-    uint16_t sectsize = (entry != nullptr && entry->value > 0) ? entry->value : Globals.DBOTTM;
+    uint16_t sectsize = (entry != nullptr && entry->value > 0) ?
+            ((entry->value > Globals.DBOTTM) ? entry->value : Globals.DBOTTM) : Globals.DBOTTM;
     int tabcount = 0;
     while (entry != nullptr)
     {
@@ -1531,7 +1577,7 @@ void process_pass_map_output()
                 // OUTPUT SECTION NAME, BASE ADR, SIZE & ATTRIBUTES
                 uint8_t entryflags = entry->flags();
                 char bufsize[20];
-                sprintf(bufsize, "%06ho = %d.", sectsize, sectsize / 2);
+                sprintf(bufsize, "%06ho = %d.", sectsize, (sectsize + 1) / 2);
                 const char* sectaccess = (entryflags & 0020) ? "RO" : "RW";
                 const char* secttypedi = (entryflags & 0200) ? "D" : "I";
                 const char* sectscope = (entryflags & 0100) ? "GBL" : "LCL";
@@ -1590,8 +1636,8 @@ void process_pass_map_output()
         {
             //TODO: Check NEW SECTION?
             //TODO: Calculate new baseaddr and sectsize, see LINK5\RES1
-            baseaddr += sectsize;
-            sectsize = (entry->value + 1) & ~1;
+            baseaddr += (sectsize + 1) & ~1;
+            sectsize = entry->value;
         }
     }
     //TODO: see LINK5\POSTN\10$ in source
@@ -2038,7 +2084,7 @@ void process_pass2()
         int offset = 0;
         while (offset < sscur->filesize)
         {
-            uint8_t* data = (uint8_t*)(sscur->data) + offset;
+            uint8_t* data = sscur->data + offset;
             uint16_t* dataw = (uint16_t*)(data);
             if (*dataw != 1)
             {
@@ -2370,7 +2416,7 @@ int main(int argc, char *argv[])
     process_pass1();
     //TODO: Check if we need Pass 1.5
     process_pass15();
-    //print_symbol_table();//DEBUG
+    print_symbol_table();//DEBUG
     process_pass1_endp1();
 
     process_pass_map_init();
