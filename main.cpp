@@ -54,14 +54,17 @@ struct SymbolTableEntry
     uint16_t	flagseg;    // PSECT FLAGS !  SEG #
     uint16_t	value;      // VALUE WORD
     uint16_t	status;     // A!B!C!D!  ENTRY # PTR
+
+    const char* unrad50name() const { return unrad50(name); }
+    uint8_t flags() const { return (flagseg >> 8); }
+    uint8_t seg() const { return flagseg && 0xff; }
+    uint16_t nextindex() const { return status & 07777; }
 };
 
 SymbolTableEntry* SymbolTable = nullptr;
 SymbolTableEntry* ASECTentry = nullptr;
 const int SymbolTableSize = 4095;  // STSIZE
 int SymbolTableCount = 0;  // STCNT -- SYMBOL TBL ENTRIES COUNTER
-
-void print_symbol_table();
 
 // ****	INTERNAL SYMBOL TABLE FLAGS BIT ASSIGNMENT
 const uint16_t SY_UDF = 0100000;	// SET TO DECLARE SYMBOL IS UNDEFINED (PSECT NEVER UNDEFINED)
@@ -338,6 +341,8 @@ Globals;
 
 void fatal_error(const char* message, ...)
 {
+    assert(message != nullptr);
+
     printf("ERROR: ");
     {
         va_list ptr;
@@ -355,6 +360,8 @@ void fatal_error(const char* message, ...)
 
 void symbol_table_enter(int* pindex, uint32_t lkname, uint16_t lkwd)
 {
+    assert(pindex != nullptr);
+
     // Find empty entry
     if (SymbolTableCount >= SymbolTableSize)
         fatal_error("ERR1: Symbol table overflow.\n");
@@ -386,6 +393,9 @@ void symbol_table_enter(int* pindex, uint32_t lkname, uint16_t lkwd)
 // MAKE A DUPLICATE SYMBOL NON-DUPLICATE, see LINK3\DELETE
 void symbol_table_delete(int index)
 {
+    assert(index > 0);
+    assert(index < SymbolTableSize);
+
     //TODO
     NOTIMPLEMENTED
 }
@@ -418,13 +428,13 @@ void symbol_table_remove_undefined(int index)
 
     SymbolTableEntry* entry = SymbolTable + index;
     uint16_t previndex = entry->value;
-    uint16_t nextindex = entry->status & 07777;
+    uint16_t nextindex = entry->nextindex();
     if (previndex == 0)
-        Globals.UNDLST = nextindex;  // exclude entry from the list
+        Globals.UNDLST = nextindex;
     else
     {
         SymbolTableEntry* preventry = SymbolTable + previndex;
-        preventry->status = entry->status;  // exclude entry from the list
+        preventry->status = entry->status;
     }
     if (nextindex != 0)
     {
@@ -450,6 +460,7 @@ bool is_any_undefined()
 // Out: result = index of the found entity, or index of entity to work with
 bool symbol_table_search_routine(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk, uint16_t dupmsk, int* result)
 {
+    assert(result != nullptr);
     assert(SymbolTable != nullptr);
 
     // Calculate hash
@@ -523,6 +534,8 @@ bool symbol_table_search_routine(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk,
 // Out: return = true if found, false if new entry
 bool symbol_table_dlooke(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk, int* pindex)
 {
+    assert(pindex != nullptr);
+
     bool found = symbol_table_search_routine(lkname, lkwd, lkmsk, 0, pindex);
     if (found)
         return true;
@@ -534,6 +547,8 @@ bool symbol_table_dlooke(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk, int* pi
 //	   IS A DUPLICATE, THIS ROUTINE REQUIRES A SEGMENT NUMBER MATCH.
 bool symbol_table_lookup(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk, int* pindex)
 {
+    assert(pindex != nullptr);
+
     return symbol_table_search_routine(lkname, lkwd, lkmsk, SY_DUP, pindex);
 }
 // 'LOOKE'  DOES A LOOKUP & IF NOT FOUND THEN ENTERS THE NEW SYMBOL INTO
@@ -542,6 +557,8 @@ bool symbol_table_lookup(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk, int* pi
 // Out: return = true if found, false if new entry
 bool symbol_table_looke(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk, int* pindex)
 {
+    assert(pindex != nullptr);
+
     bool found = symbol_table_search_routine(lkname, lkwd, lkmsk, SY_DUP, pindex);
     if (found)
         return true;
@@ -554,6 +571,8 @@ bool symbol_table_looke(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk, int* pin
 //	   AFTER A SINGLE CALL TO 'DLOOKE'.
 bool symbol_table_search(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk, int* pindex)
 {
+    assert(pindex != nullptr);
+
     return symbol_table_search_routine(lkname, lkwd, lkmsk, 0, pindex);
 }
 
@@ -565,7 +584,7 @@ void print_symbol_table()
         const SymbolTableEntry* entry = SymbolTable + i;
         if (entry->name == 0)
             continue;
-        printf("    %06ho '%s' %06ho %06ho %06ho  ", (uint16_t)i, unrad50(entry->name), entry->flagseg, entry->value, entry->status);
+        printf("    %06ho '%s' %06ho %06ho %06ho  ", (uint16_t)i, entry->unrad50name(), entry->flagseg, entry->value, entry->status);
         if (entry->flagseg & SY_SEC) printf("SECT ");
         if (entry->status & SY_UDF) printf("UNDEF ");
         if (entry->status & SY_IND) printf("IND ");
@@ -684,7 +703,7 @@ void pass1_force0(const SymbolTableEntry* entry)
 {
     assert(entry != nullptr);
 
-    printf("DUPLICATE SYMBOL \"%s\" IS FORCED TO THE ROOT\n", unrad50(entry->name));
+    printf("DUPLICATE SYMBOL \"%s\" IS FORCED TO THE ROOT\n", entry->unrad50name());
 }
 
 // LINK3\ORDER, LINK5\ALPHA
@@ -697,7 +716,7 @@ void pass1_insert_entry_into_ordered_list(int index, SymbolTableEntry* entry, bo
     if (Globals.CSECT > 0)
     {
         sectentry = SymbolTable + Globals.CSECT;
-        if (absrel && (sectentry->flagseg & (040 << 8)) != 0)
+        if (absrel && (sectentry->flags() & 0040) != 0)
             sectentry = ASECTentry;
     }
     assert(sectentry != nullptr);
@@ -705,7 +724,7 @@ void pass1_insert_entry_into_ordered_list(int index, SymbolTableEntry* entry, bo
     SymbolTableEntry* preventry = sectentry;
     for (;;)
     {
-        int nextindex = preventry->status & 07777;
+        int nextindex = preventry->nextindex();
         if (nextindex == 0)  // end of chain
             break;
         SymbolTableEntry* nextentry = SymbolTable + nextindex;
@@ -719,7 +738,7 @@ void pass1_insert_entry_into_ordered_list(int index, SymbolTableEntry* entry, bo
         preventry = nextentry;
     }
     // insert the new entry here
-    int fwdindex = preventry->status & 07777;
+    int fwdindex = preventry->nextindex();
     preventry->status = (uint16_t) ((preventry->status & 0170000) | index);
     entry->status = (uint16_t) ((entry->status & 0170000) | fwdindex);
 }
@@ -727,6 +746,9 @@ void pass1_insert_entry_into_ordered_list(int index, SymbolTableEntry* entry, bo
 // LINK3\TADDR
 void process_pass1_gsd_item_taddr(const uint16_t* itemw, const SaveStatusEntry* sscur)
 {
+    assert(itemw != nullptr);
+    assert(sscur != nullptr);
+
     if ((Globals.BEGBLK.value & 1) == 0)  // USE ONLY 1ST EVEN ONE ENCOUNTERED
         return; // WE ALREADY HAVE AN EVEN ONE.  RETURN
 
@@ -737,14 +759,14 @@ void process_pass1_gsd_item_taddr(const uint16_t* itemw, const SaveStatusEntry* 
     if (!symbol_table_lookup(lkname, lkwd, lkmsk, &index))
         fatal_error("ERR31: Transfer address for '%s' undefined or in overlay.\n", unrad50(lkname));
     SymbolTableEntry* entry = SymbolTable + index;
-    printf("        Entry '%s' %06ho %06ho %06ho\n", unrad50(entry->name), entry->flagseg, entry->value, entry->status);
+    printf("        Entry '%s' %06ho %06ho %06ho\n", entry->unrad50name(), entry->flagseg, entry->value, entry->status);
     //TODO
 
     if (entry->value > 0)  // IF CURRENT SIZE IS 0 THEN OK
     {
         // MUST SCAN CURRENT MODULE TO FIND SIZE CONTRIBUTION TO
         // TRANSFER ADDR SECTION TO CALCULATE PROPER OFFSET
-        const SaveStatusEntry* sscurtmp = sscur;
+        //const SaveStatusEntry* sscurtmp = sscur;
         int offset = 0;
         while (offset < sscur->filesize)
         {
@@ -769,8 +791,8 @@ void process_pass1_gsd_item_taddr(const uint16_t* itemw, const SaveStatusEntry* 
                         //TODO
                         // See LINK3\TADDR\100$ in source
                         Globals.BEGBLK.symbol = entry->name;  // NAME OF THE SECTION
-                        Globals.BEGBLK.flags = entry->flagseg & 0xff;
-                        Globals.BEGBLK.code = (entry->flagseg << 8) & 0xff;
+                        Globals.BEGBLK.flags = entry->flags();
+                        Globals.BEGBLK.code = entry->seg();
                         Globals.BEGBLK.value = (uint16_t)newvalue /*entry->value*/;  // RELATIVE OFFSET FROM THE SECTION
                         break;
                     }
@@ -785,6 +807,8 @@ void process_pass1_gsd_item_taddr(const uint16_t* itemw, const SaveStatusEntry* 
 // LINK3\SYMNAM
 void process_pass1_gsd_item_symnam(const uint16_t* itemw)
 {
+    assert(itemw != nullptr);
+
     uint32_t lkname = MAKEDWORD(itemw[0], itemw[1]);
     uint16_t lkwd = 0;
     uint16_t lkmsk = (uint16_t)~SY_SEC;
@@ -877,6 +901,8 @@ void process_pass1_gsd_item_symnam(const uint16_t* itemw)
 // LINK3\CSECNM
 void process_pass1_gsd_item_csecnm(const uint16_t* itemw, int& itemtype, int& itemflags)
 {
+    assert(itemw != nullptr);
+
     uint32_t lkname = MAKEDWORD(itemw[0], itemw[1]);
     uint16_t lkwd = (uint16_t)SY_SEC;
     uint16_t lkmsk = (uint16_t)~SY_SEC;
@@ -902,6 +928,8 @@ void process_pass1_gsd_item_csecnm(const uint16_t* itemw, int& itemtype, int& it
 // LINK3\PSECNM - process GSD item PROGRAM SECTION NAME
 void process_pass1_gsd_item_psecnm(const uint16_t* itemw, int& itemflags)
 {
+    assert(itemw != nullptr);
+
     Globals.LRUNUM++; // COUNT SECTIONS IN A MODULE
 
     uint32_t lkname = MAKEDWORD(itemw[0], itemw[1]);
@@ -981,6 +1009,9 @@ void process_pass1_gsd_item_psecnm(const uint16_t* itemw, int& itemflags)
 // PROCESS GSD TYPES, see LINK3\GSD
 void process_pass1_gsd_item(const uint16_t* itemw, const SaveStatusEntry* sscur)
 {
+    assert(itemw != nullptr);
+    assert(sscur != nullptr);
+
     uint32_t itemnamerad50 = MAKEDWORD(itemw[0], itemw[1]);
     int itemtype = (itemw[2] >> 8) & 0xff;
     int itemflags = (itemw[2] & 0377);
@@ -1302,6 +1333,8 @@ void process_pass_map_fbnew(uint16_t blocktype)
 // STB subroutine, see LINK5\FBGEG
 void process_pass_map_fbseg(const SymbolTableEntry * entry)
 {
+    assert(entry != nullptr);
+
     if (stbfileobj == nullptr)  // IS THERE AN STB FILE?
         return;
 
@@ -1319,6 +1352,8 @@ void process_pass_map_fbseg(const SymbolTableEntry * entry)
 // STB subroutine, see LINK5\FBGSD
 void process_pass_map_fbgsd(const SymbolTableEntry * entry)
 {
+    assert(entry != nullptr);
+
     if (stbfileobj == nullptr)  // IS THERE AN STB FILE?
         return;
 
@@ -1376,8 +1411,8 @@ void print_undefined_globals()
     {
         if (count > 0 && count % 8 == 0) printf("\n  ");
         SymbolTableEntry* entry = SymbolTable + index;
-        printf(" '%s'", unrad50(entry->name));
-        fprintf(mapfileobj, "%s\n", unrad50(entry->name));
+        printf(" '%s'", entry->unrad50name());
+        fprintf(mapfileobj, "%s\n", entry->unrad50name());
         index = entry->value;
         count++;
     }
@@ -1494,7 +1529,7 @@ void process_pass_map_output()
             if (!skipsect)
             {
                 // OUTPUT SECTION NAME, BASE ADR, SIZE & ATTRIBUTES
-                uint8_t entryflags = (entry->flagseg) >> 8;
+                uint8_t entryflags = entry->flags();
                 char bufsize[20];
                 sprintf(bufsize, "%06ho = %d.", sectsize, sectsize / 2);
                 const char* sectaccess = (entryflags & 0020) ? "RO" : "RW";
@@ -1503,12 +1538,12 @@ void process_pass_map_output()
                 const char* sectsav = ((entryflags & 0100) && (entryflags & 010000)) ? ",SAV" : "";
                 const char* sectreloc = (entryflags & 0040) ? "REL" : "ABS";
                 const char* sectalloc = (entryflags & 0004) ? "OVR" : "CON";
-                //const char* sectname = (entry->name >= 03100) ? unrad50(entry->name) : "      ";
+                //const char* sectname = (entry->name >= 03100) ? entry->unrad50name() : "      ";
                 fprintf(mapfileobj, " %s\t %06ho\t%-16s words  (%s,%s,%s%s,%s,%s)\n",
-                        (entry->name >= 03100) ? unrad50(entry->name) : "",
+                        (entry->name >= 03100) ? entry->unrad50name() : "",
                         baseaddr, bufsize, sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
                 printf("  '%s' %06ho %-16s words  (%s,%s,%s%s,%s,%s)\n",
-                       (entry->name >= 03100) ? unrad50(entry->name) : "      ",
+                       (entry->name >= 03100) ? entry->unrad50name() : "      ",
                        baseaddr, bufsize, sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
 
                 if ((entryflags & 0040) == 0)  // For ABS section only
@@ -1517,15 +1552,17 @@ void process_pass_map_output()
         }
         else  // OUTPUT SYMBOL NAME & VALUE, see LINK5\OUTSYM
         {
-            entry->value += baseaddr; //TODO
+            //if ((entry->flags() & 0040/*CS$REL*/) != 0)  // IF ABS SYMBOL THEN DON'T ADD BASE
+            //TODO
+            entry->value += baseaddr;
 
             if (tabcount == 0)
             {
                 fprintf(mapfileobj, "\t\t\t");
                 printf("                        ");
             }
-            fprintf(mapfileobj, "%s\t%06ho\t", unrad50(entry->name), entry->value);
-            printf("  %s  %06ho", unrad50(entry->name), entry->value);
+            fprintf(mapfileobj, "%s\t%06ho\t", entry->unrad50name(), entry->value);
+            printf("  %s  %06ho", entry->unrad50name(), entry->value);
             tabcount++;
             if (tabcount >= Globals.NUMCOL)
             {
@@ -1537,7 +1574,7 @@ void process_pass_map_output()
             process_pass_map_fbgsd(entry);  // GENERATE AN STB ENTRY
         }
         // Next entry index should be in status field
-        if ((entry->status & 07777) == 0)
+        if (entry->nextindex() == 0)
         {
             entry = nullptr;
             if (tabcount > 0)
@@ -1547,7 +1584,7 @@ void process_pass_map_output()
             }
             break;
         }
-        entry = SymbolTable + (entry->status & 07777);  // next entry
+        entry = SymbolTable + entry->nextindex();  // next entry
 
         if (entry->flagseg & SY_SEC)
         {
@@ -1616,6 +1653,9 @@ SymbolTableEntry* process_pass2_rld_lookup(const uint8_t* data, bool global)
 // COMPLEX RELOCATION STRING PROCESSING (GLOBAL ARITHMETIC), see LINK7\RLDCPX
 uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* &data, uint16_t &offset, uint16_t blocksize)
 {
+    assert(sscur != nullptr);
+    assert(data != nullptr);
+
     bool cpxbreak = false;
     uint16_t cpxresult = 0;
     const int cpxstacksize = 16;
@@ -1755,6 +1795,7 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
 
 void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
 {
+    assert(sscur != nullptr);
     assert(data != nullptr);
 
     uint16_t blocksize = ((uint16_t*)data)[1];
@@ -1787,8 +1828,8 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             printf(" '%s'\n", unrad50(*((uint32_t*)data)));
             {
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, (command & 010) == 0);
-                //printf("        Entry '%s' value = %06ho %04X dest = %06ho\n", unrad50(entry->name), entry->value, entry->value, *((uint16_t*)dest));
-                //TODO: *((uint16_t*)dest) = entry->value;
+                //printf("        Entry '%s' value = %06ho %04X dest = %06ho\n", entry->unrad50name(), entry->value, entry->value, *((uint16_t*)dest));
+                *((uint16_t*)dest) = entry->value;
             }
             data += 4;  offset += 4;
             break;
@@ -1805,7 +1846,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             printf(" '%s'\n", unrad50(*((uint32_t*)data)));
             {
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, (command & 010) == 0);
-                //printf("        Entry '%s' value = %06ho %04X dest = %06ho\n", unrad50(entry->name), entry->value, entry->value, *((uint16_t*)dest));
+                //printf("        Entry '%s' value = %06ho %04X dest = %06ho\n", entry->unrad50name(), entry->value, entry->value, *((uint16_t*)dest));
                 *((uint16_t*)dest) = entry->value; //TODO: fix wrong value
             }
             data += 4;  offset += 4;
@@ -1843,7 +1884,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             {
                 Globals.MBPTR = 0;  // 0 SAYS TO STORE TXT INFO
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, false);
-                if (entry->flagseg & (040/*SY$REL*/ << 8))  // IS SYMBOL ABSOLUTE ?
+                if (entry->flags() & 0040/*SY$REL*/)  // IS SYMBOL ABSOLUTE ?
                 {
                     if (entry->name != RAD50_ABS)  // ARE WE LOOKING AT THE ASECT?
                         Globals.MBPTR++;  // SAY NOT TO STORE TXT FOR ABS SECTION
@@ -1979,6 +2020,7 @@ void process_pass2_dump_txtblk()  // DUMP TEXT SUBROUTINE, see LINK7\TDMP0, LINK
     memcpy(dest, src, Globals.TXTLEN);
 
     mark_bitmap_bits(addr, Globals.TXTLEN);
+    //TODO: if ((Globals.SWITCH & SW_X) != 0)
 
     Globals.TXTLEN = 0;  // MARK TXT BLOCK EMPTY, see LINK7\CLRTXL
 }
@@ -2063,6 +2105,8 @@ void process_pass2()
 // PROCESS COMMAND STRING SWITCHES, see LINK1\SWLOOP in source
 void parse_commandline(int argc, char **argv)
 {
+    assert(argv != nullptr);
+
     uint16_t TMPIDD = 0;  // D BIT TO TEST FOR /J PROCESSING
     uint16_t TMPIDI = 0;  // I BIT TO TEST FOR /J PROCESSING
 
