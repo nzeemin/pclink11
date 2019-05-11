@@ -328,6 +328,8 @@ void process_test(string& stestdirname)
     string filenamestbmy = findfile_bymask(stestdirpath, "*-my.stb");
 
     bool isfileabsent = false;
+    bool resmylog = true, resmaps = true, ressavs = true, resstbs = true;
+
     //if (filenamelog11.empty())
     //{
     //    std::cout << "  File not found: *-11.log" << std::endl;
@@ -338,6 +340,11 @@ void process_test(string& stestdirname)
         std::cout << "  File not found: *-my.log" << std::endl;
         isfileabsent = true;
     }
+    else
+    {
+        resmylog = process_mylog(stestdirpath + "\\" + filenamelogmy);
+    }
+
     if (filenamemap11.empty())
     {
         std::cout << "  File not found: *-11.MAP" << std::endl;
@@ -368,19 +375,26 @@ void process_test(string& stestdirname)
         std::cout << "  File not found: *-my.STB" << std::endl;
         isfileabsent = true;
     }
+
+    if (!filenamemap11.empty() && !filenamemapmy.empty())
+    {
+        resmaps = process_map_files(stestdirpath + "\\" + filenamemap11, stestdirpath + "\\" + filenamemapmy);
+    }
+    if (!filenamesav11.empty() && !filenamesavmy.empty())
+    {
+        ressavs = process_sav_files(stestdirpath + "\\" + filenamesav11, stestdirpath + "\\" + filenamesavmy);
+    }
+    if (!filenamestb11.empty() && !filenamestbmy.empty())
+    {
+        resstbs = process_stb_files(stestdirpath + "\\" + filenamestb11, stestdirpath + "\\" + filenamestbmy);
+    }
+
     if (isfileabsent)
     {
         std::cout << "  Test skipped." << std::endl;
         g_testskipped++;
         return;
     }
-
-    // Process all files
-    bool resmylog = process_mylog(stestdirpath + "\\" + filenamelogmy);
-    bool resmaps = process_map_files(stestdirpath + "\\" + filenamemap11, stestdirpath + "\\" + filenamemapmy);
-    bool ressavs = process_sav_files(stestdirpath + "\\" + filenamesav11, stestdirpath + "\\" + filenamesavmy);
-    bool resstbs = process_stb_files(stestdirpath + "\\" + filenamestb11, stestdirpath + "\\" + filenamestbmy);
-
     if (!resmylog || !resmaps || !ressavs || !resstbs)
         g_testsfailed++;
     else if (g_verbose)
