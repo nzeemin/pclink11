@@ -22,7 +22,7 @@
 struct SaveStatusEntry
 {
     char     filename[64];
-    uint16_t filesize;
+    size_t   filesize;
     bool     islibrary;
     uint8_t* data;
 };
@@ -173,12 +173,12 @@ FILE* stbfileobj = nullptr;
 
 struct tagGlobals
 {
-    uint16_t	ODBLK[15]; // BLOCK TO HOLD BINOUT SPEC
+    uint16_t    ODBLK[15]; // BLOCK TO HOLD BINOUT SPEC
     // LNKOV1->STORE TIME TO ROLL OVER DATE
-    uint16_t	TEMP;	// TEMPORARY STORAGE
-    uint8_t	TXTBLK[RECSIZ];  // SPACE FOR A FORMATTED BINARY RECORD
+    //uint16_t    TEMP;	// TEMPORARY STORAGE
+    uint8_t     TXTBLK[RECSIZ];  // SPACE FOR A FORMATTED BINARY RECORD
 
-    int 	UNDLST; // START OF UNDEFINED SYMBOL LIST
+    int         UNDLST; // START OF UNDEFINED SYMBOL LIST
     uint16_t	SYEN0;	// ADR OF SYMBOL TABLE ENTRY NUMBER 0
     // REL PTR + THIS = ABS ADDR OF SYMBOL NODE
     int     CSECT;	// PTR TO LATEST SECTION (PASS1)
@@ -621,7 +621,7 @@ void print_symbol_table()
         printf("\n");
     else  // Enumerate entries starting with UNDLST, make sure there's no loops or non-UNDEF entries
     {
-        uint16_t index = Globals.UNDLST;
+        int index = Globals.UNDLST;
         count = 0;
         while (index != 0)
         {
@@ -718,9 +718,9 @@ void read_files()
 
         fseek(file, 0L, SEEK_END);
         size_t filesize = ftell(file);
-        if (filesize > 65535)
+        if (filesize > 256 * 1024)
             fatal_error("Input file %s too long.\n", sscur->filename);
-        sscur->filesize = (uint16_t)filesize;
+        sscur->filesize = filesize;
 
         sscur->data = (uint8_t*)malloc(filesize);
         if (sscur->data == nullptr)
@@ -806,7 +806,7 @@ void process_pass1_gsd_item_taddr(const uint16_t* itemw, const SaveStatusEntry* 
         // MUST SCAN CURRENT MODULE TO FIND SIZE CONTRIBUTION TO
         // TRANSFER ADDR SECTION TO CALCULATE PROPER OFFSET
         //const SaveStatusEntry* sscurtmp = sscur;
-        int offset = 0;
+        size_t offset = 0;
         while (offset < sscur->filesize)
         {
             const uint8_t* data = sscur->data + offset;
@@ -1134,23 +1134,26 @@ void process_pass1()
         assert(sscur->data != nullptr);
 
         printf("  Processing %s\n", sscur->filename);
-        int offset = 0;
+        size_t offset = 0;
         while (offset < sscur->filesize)
         {
             uint8_t* data = sscur->data + offset;
             uint16_t* dataw = (uint16_t*)(data);
             if (*dataw != 1)
             {
-                if (*dataw == 0)  // Possibly that is filler at the end of the file
+                if (*dataw == 0)  // Possibly that is filler at the end of the block
                 {
-                    while (*data == 0 && offset < sscur->filesize)
+                    size_t offsetnext = (offset + 511) & ~511;
+                    while (*data == 0 && offset < sscur->filesize && offset < offsetnext)
                     {
                         data++; offset++;
                     }
                     if (offset == sscur->filesize)
                         break;  // End of file
                 }
-                fatal_error("Unexpected word %06ho at %06ho in %s\n", *dataw, offset, sscur->filename);
+                dataw = (uint16_t*)(data);
+                if (*dataw != 1)
+                    fatal_error("Unexpected word %06ho at %06ho in %s\n", *dataw, offset, sscur->filename);
             }
 
             uint16_t blocksize = ((uint16_t*)data)[1];
@@ -1203,23 +1206,26 @@ void process_pass15()
 
         printf("  Processing %s\n", sscur->filename);
         Globals.LIBNB++;  // BUMP LIBRARY FILE # FOR LML
-        int offset = 0;
+        size_t offset = 0;
         while (offset < sscur->filesize)
         {
             uint8_t* data = sscur->data + offset;
             uint16_t* dataw = (uint16_t*)(data);
             if (*dataw != 1)
             {
-                if (*dataw == 0)  // Possibly that is filler at the end of the file
+                if (*dataw == 0)  // Possibly that is filler at the end of the block
                 {
-                    while (*data == 0 && offset < sscur->filesize)
+                    size_t offsetnext = (offset + 511) & ~511;
+                    while (*data == 0 && offset < sscur->filesize && offset < offsetnext)
                     {
                         data++; offset++;
                     }
                     if (offset == sscur->filesize)
                         break;  // End of file
                 }
-                fatal_error("Unexpected word %06ho at %06ho in %s\n", *dataw, offset, sscur->filename);
+                dataw = (uint16_t*)(data);
+                if (*dataw != 1)
+                    fatal_error("Unexpected word %06ho at %06ho in %s\n", *dataw, offset, sscur->filename);
             }
 
             uint16_t blocksize = ((uint16_t*)data)[1];
@@ -2081,23 +2087,26 @@ void process_pass2()
         assert(sscur->data != nullptr);
 
         printf("  Processing %s\n", sscur->filename);
-        int offset = 0;
+        size_t offset = 0;
         while (offset < sscur->filesize)
         {
             uint8_t* data = sscur->data + offset;
             uint16_t* dataw = (uint16_t*)(data);
             if (*dataw != 1)
             {
-                if (*dataw == 0)  // Possibly that is filler at the end of the file
+                if (*dataw == 0)  // Possibly that is filler at the end of the block
                 {
-                    while (*data == 0 && offset < sscur->filesize)
+                    size_t offsetnext = (offset + 511) & ~511;
+                    while (*data == 0 && offset < sscur->filesize && offset < offsetnext)
                     {
                         data++; offset++;
                     }
                     if (offset == sscur->filesize)
                         break;  // End of file
                 }
-                fatal_error("Unexpected word %06ho at %06ho in %s\n", *dataw, offset, sscur->filename);
+                dataw = (uint16_t*)(data);
+                if (*dataw != 1)
+                    fatal_error("Unexpected word %06ho at %06ho in %s\n", *dataw, offset, sscur->filename);
             }
 
             uint16_t blocksize = ((uint16_t*)data)[1];
