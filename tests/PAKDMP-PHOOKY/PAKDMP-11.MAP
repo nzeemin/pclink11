@@ -1,0 +1,9 @@
+RT-11 LINK  V05.45 	Load Map 	Thursday 16-May-2019 15:17  Page 1
+PAKDMP.SAV   	Title:	PAKDMP	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	002006 = 515.    words  (RW,I,GBL,ABS,OVR)
+ 	 002006	000330 = 108.    words  (RW,I,LCL,REL,CON)
+
+Transfer address = 002006, High limit = 002334 = 622.    words

@@ -1,0 +1,9 @@
+RT-11 LINK  V05.45 	Load Map 	Thursday 16-May-2019 15:18  Page 1
+TSPAL .SAV   	Title:	.MAIN.	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
+ 	 001000	003610 = 964.    words  (RW,I,LCL,REL,CON)
+
+Transfer address = 001000, High limit = 004606 = 1219.   words

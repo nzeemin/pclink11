@@ -1,0 +1,9 @@
+RT-11 LINK  V05.45 	Load Map 	Thursday 16-May-2019 15:17  Page 1
+PAKWRT.SAV   	Title:	PAKWRT	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
+ 	 001000	000342 = 113.    words  (RW,I,LCL,REL,CON)
+
+Transfer address = 001000, High limit = 001340 = 368.    words

@@ -1,0 +1,9 @@
+RT-11 LINK  V05.45 	Load Map 	Thursday 16-May-2019 15:17  Page 1
+PDPCLK.SAV   	Title:	.MAIN.	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	005660 = 1496.   words  (RW,I,GBL,ABS,OVR)
+			DIGIT 	003476	FILL  	003754	
+
+Transfer address = 001002, High limit = 005656 = 1495.   words

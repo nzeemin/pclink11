@@ -1,7 +1,7 @@
-*.SAV
-*.MAP
-*.STB
-*.log
+*-my.SAV
+*-my.MAP
+*-my.STB
+*-my.log
 *.MAC
 *.COM
 *.DSK

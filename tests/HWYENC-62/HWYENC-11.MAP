@@ -1,0 +1,10 @@
+RT-11 LINK  V05.45 	Load Map 	Thursday 16-May-2019 15:17  Page 1
+HWYENC.SAV   	Title:	HWYENC	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	134674 = 23774.  words  (RW,I,GBL,ABS,OVR)
+			START 	001000	SPRITE	001200	L6AD0 	006726	
+			L7100 	012006	
+
+Transfer address = 001000, High limit = 134672 = 23773.  words

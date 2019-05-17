@@ -1,0 +1,9 @@
+RT-11 LINK  V05.45 	Load Map 	Thursday 16-May-2019 15:17  Page 1
+ASHC4 .SAV   	Title:	.MAIN.	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	007112 = 1829.   words  (RW,I,GBL,ABS,OVR)
+			DIGIT 	005110	FILL  	005366	
+
+Transfer address = 001002, High limit = 007110 = 1828.   words

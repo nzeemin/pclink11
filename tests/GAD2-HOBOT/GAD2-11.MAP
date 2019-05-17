@@ -1,0 +1,9 @@
+RT-11 LINK  V05.45 	Load Map 	Thursday 16-May-2019 15:17  Page 1
+GAD2  .SAV   	Title:	GAD   	Ident:	AG07.3	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
+ 	 001000	012242 = 2641.   words  (RW,I,LCL,REL,CON)
+
+Transfer address = 002116, High limit = 013240 = 2896.   words

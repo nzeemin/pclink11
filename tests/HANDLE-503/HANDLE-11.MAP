@@ -1,0 +1,18 @@
+RT-11 LINK  V05.45 	Load Map 	Thursday 16-May-2019 15:17  Page 1
+HANDLE.SAV   	Title:	HANDLE	Ident:	V05.03	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
+			.HANDL	000003	.AUDIT	107123	
+ PCODE 	 001000	004350 = 1140.   words  (RW,I,LCL,REL,CON)
+			START 	001000	
+ DATA  	 005350	003144 = 818.    words  (RW,I,LCL,REL,CON)
+			BUF   	005422	BUF1  	006422	
+ TABLES	 010514	000624 = 202.    words  (RW,I,LCL,REL,CON)
+			IDTABL	010514	CLTABL	011134	CMTABL	011244	
+			S2TABL	011260	SFTABL	011310	
+ TEXT  	 011340	006626 = 1739.   words  (RW,I,LCL,REL,CON)
+			TOP   	020166	
+
+Transfer address = 001000, High limit = 020164 = 4154.   words

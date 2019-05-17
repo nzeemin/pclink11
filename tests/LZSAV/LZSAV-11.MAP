@@ -1,0 +1,8 @@
+RT-11 LINK  V05.45 	Load Map 	Thursday 16-May-2019 15:17  Page 1
+LZSAV .SAV   	Title:	.MAIN.	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	004614 = 1222.   words  (RW,I,GBL,ABS,OVR)
+
+Transfer address = 000001, High limit = 004612 = 1221.   words

@@ -1,0 +1,10 @@
+RT-11 LINK  V05.45 	Load Map 	Thursday 16-May-2019 15:17  Page 1
+HELLO .SAV   	Title:	HELLO 	Ident:	V001  	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
+ 	 001000	000036 = 15.     words  (RW,I,LCL,REL,CON)
+			HELLO 	001000	
+
+Transfer address = 001000, High limit = 001034 = 270.    words

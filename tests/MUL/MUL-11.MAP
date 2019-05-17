@@ -1,0 +1,9 @@
+RT-11 LINK  V05.45 	Load Map 	Thursday 16-May-2019 15:17  Page 1
+MUL   .SAV   	Title:	.MAIN.	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	006526 = 1707.   words  (RW,I,GBL,ABS,OVR)
+			DIGIT 	004226	FILL  	004504	
+
+Transfer address = 001002, High limit = 006524 = 1706.   words

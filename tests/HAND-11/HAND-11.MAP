@@ -1,0 +1,12 @@
+RT-11 LINK  V05.45 	Load Map 	Thursday 16-May-2019 15:17  Page 1
+HAND  .SAV   	Title:	HAND  	Ident:	MOD1.1	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	003124 = 810.    words  (RW,I,GBL,ABS,OVR)
+ TABL  	 003124	000014 = 6.      words  (RW,I,LCL,REL,CON)
+ DCOD  	 003140	000100 = 32.     words  (RW,I,LCL,REL,CON)
+ MSG   	 003240	003766 = 1019.   words  (RW,I,LCL,REL,CON)
+ VARS  	 007226	000000 = 0.      words  (RW,I,LCL,REL,CON)
+
+Transfer address = 001102, High limit = 007224 = 1866.   words

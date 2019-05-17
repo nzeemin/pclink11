@@ -1,0 +1,10 @@
+RT-11 LINK  V05.45 	Load Map 	Thursday 16-May-2019 15:18  Page 1
+SPCINV.SAV   	Title:	SPACE 	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
+ 	 001000	010222 = 2121.   words  (RW,I,LCL,REL,CON)
+			TOCKS 	001436	
+
+Transfer address = 001000, High limit = 011220 = 2376.   words
