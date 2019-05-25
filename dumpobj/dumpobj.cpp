@@ -351,6 +351,21 @@ void dumpobj_rld_block(uint8_t* data)
     }
 }
 
+void dumpobj_titlib_block(uint8_t* data, uint16_t eptsize)
+{
+    int eptcount = eptsize / 8;
+    for (int eptno = 0; eptno < eptcount; eptno++)
+    {
+        const uint16_t* itemw = (const uint16_t*)(data + 8 * eptno);
+        uint32_t itemnamerad50 = MAKEDWORD(itemw[0], itemw[1]);
+        if (itemnamerad50 == 0)
+            continue;
+        uint16_t block = itemw[2];
+        uint16_t offset = itemw[3] & 0777;
+        printf("      EPT '%s' block %06o offset %06o\n", unrad50(itemnamerad50), block, offset);
+    }
+}
+
 void dumpobj()
 {
     printf("Processing %s size %06o\n", objfilename, objfilesize);
@@ -361,16 +376,19 @@ void dumpobj()
         uint16_t* dataw = (uint16_t*)(data);
         if (*dataw != 1)
         {
-            if (*dataw == 0)  // Possibly that is filler at the end of the file
+            if (*dataw == 0)  // Possibly that is filler at the end of the block
             {
-                while (*data == 0 && offset < objfilesize)
+                size_t offsetnext = (offset + 511) & ~511;
+                while (*data == 0 && offset < objfilesize && offset < offsetnext)
                 {
                     data++; offset++;
                 }
                 if (offset == objfilesize)
                     break;  // End of file
             }
-            fatal_error("Unexpected word %06ho at %06ho in %s\n", *dataw, offset, objfilename);
+            dataw = (uint16_t*)(data);
+            if (*dataw != 1)
+                fatal_error("Unexpected word %06ho at %06ho in %s\n", *dataw, offset, objfilename);
         }
 
         uint16_t blocksize = ((uint16_t*)data)[1];
@@ -412,10 +430,11 @@ void dumpobj()
         else if (blocktype == 7)  // 7 - TITLIB
         {
             printf("  Block type 7 - TITLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
-            uint16_t eptsize = *(uint16_t*)(data + 24/*L_HEAB*/);
+            uint16_t eptsize = *(uint16_t*)(data + 24/*L_HEAB*/);  // EPT SIZE IN LIBRARY HEADER
             printf("      EPT size %06ho bytes, %d. records\n", eptsize, (int)(eptsize / 8));
             //data += 32/*L_HEPT*/; offset += 32/*L_HEPT*/;  // Move to 1ST EPT ENTRY
-            //TODO
+            dumpobj_titlib_block(data + 32, eptsize);
+            data += eptsize; offset += eptsize;
         }
         else if (blocktype == 8)
         {

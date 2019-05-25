@@ -32,8 +32,10 @@ int SaveStatusCount = 0;
 
 struct LibraryModuleEntry
 {
-    //TODO
-    uint16_t stub[3];
+    uint8_t libfileno;      // LIBRARY FILE # (8 BITS) 1-255
+    uint16_t relblockno;    // REL BLK # (15 BITS)
+    uint16_t byteoffset;    // BYTE OFFSET (9 BITS)
+    uint16_t segmentno;     // SEGMENT NUMBER FOR THIS MODULE
 };
 const int LibraryModuleListSize = LMLSIZ;
 LibraryModuleEntry LibraryModuleList[LibraryModuleListSize];
@@ -394,13 +396,13 @@ void symbol_table_add_undefined(int index)
     if (Globals.UNDLST != 0)
     {
         SymbolTableEntry* oldentry = SymbolTable + Globals.UNDLST;
-        oldentry->status = (uint16_t)((oldentry->status & 0170000) | index);  // set back reference
+        oldentry->value = (uint16_t)(oldentry->value | index);  // set back reference
     }
 
     SymbolTableEntry* entry = SymbolTable + index;
     entry->status |= SY_UDF;  // MAKE CUR SYM UNDEFINED
     entry->flagseg = (entry->flagseg & ~SY_SEG) | Globals.SEGNUM;  // SET SEGMENT # WHERE INITIAL REF
-    entry->value = (uint16_t)Globals.UNDLST;
+    entry->status |= (uint16_t)Globals.UNDLST;
 
     Globals.UNDLST = index;
 }
@@ -1173,6 +1175,23 @@ void process_pass1()
     }
 }
 
+// SEARCH THE ENTRY POINT TABLE FOR A MATCH OF THE INDICATED SYMBOL. See LINK3\EPTSER
+uint16_t* process_pass15_eptsearch(uint8_t* data, uint16_t eptsize, uint32_t symbol)
+{
+    for (uint16_t eptno = 0; eptno < eptsize; eptno++)
+    {
+        uint16_t* itemw = (uint16_t*)(data + 8 * eptno);
+        if (itemw[0] == 0)
+            break;  // IF 0 AT END OF TBL
+        if (itemw[2] == 0)
+            continue;  // SKIP MODULE NAMES IN EPT, THEY ARE NOT VALID ENTRY POINTS
+        uint32_t itemnamerad50 = MAKEDWORD(itemw[0], itemw[1]);
+        if (itemnamerad50 == symbol)  // MATCH
+            return itemw;
+    }
+    return nullptr;
+}
+
 // PASS 1.5 SCANS ONLY LIBRARIES
 void process_pass15()
 {
@@ -1248,15 +1267,25 @@ void process_pass15()
                     while (index > 0)
                     {
                         SymbolTableEntry* entry = SymbolTable + index;
-                        if (entry->status & SY_WK)  // IS THIS A WEAK SYMBOL?
+                        if ((entry->status & SY_WK) == 0)  // IS THIS A WEAK SYMBOL? SKIP WEAK SYMBOL
                         {
-                            //TODO: WE HAVE A WEAK SYMBOL;  NOW DEFINE IT WITH ABS VALUE OF 0
-                            //TODO: CSECT = ASECT;  // ALL WEAK SYMBOLS GO IN . ABS. PSECT
-                            Globals.BASE = 0;
-                            //TODO: CALL DEFREF
+                            //TODO: IS SYMBOL A DUP SYMBOL?
+                            uint16_t* itemw = process_pass15_eptsearch(data, eptsize, entry->name);
+                            if (itemw == nullptr)
+                                continue;  // CONTINUE THRU UNDEF LIST
+                            // THE UNDEFINED SYMBOL HAS BEEN FOUND IN THE CURRENT ENTRY POINT TABLE.
+                            //TODO: CALL LMLBLD - PLACE MOD ADR IN LML
+                            //// Find module name
+                            //uint16_t* itemwmod = itemw;
+                            //while (itemwmod[2] != 0)
+                            //    itemwmod -= 4;
+                            //uint32_t itemmodnamerad50 = MAKEDWORD(itemwmod[0], itemwmod[1]);
+                            printf("        Found EPT for '%s'\n", entry->unrad50name());
+                            //printf(" module '%s'\n", unrad50(itemmodnamerad50));
+
                             NOTIMPLEMENTED
                         }
-                        index = entry->value & 07777;
+                        index = entry->nextindex();
                     }
                 }
 
@@ -1481,7 +1510,7 @@ void print_undefined_globals()
         SymbolTableEntry* entry = SymbolTable + index;
         printf(" '%s'", entry->unrad50name());
         fprintf(mapfileobj, "%s\n", entry->unrad50name());
-        index = entry->value;
+        index = entry->nextindex();
         count++;
     }
     printf("\n");
@@ -2134,9 +2163,11 @@ void process_pass2()
             else if (blocktype == 7)  // See LINK7\LIBPA2
             {
                 printf("    Block type 7 - TITLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+                uint16_t eptsize = *(uint16_t*)(data + 24/*L_HEAB*/);  // EPT SIZE IN LIBRARY HEADER
                 //TODO
                 NOTIMPLEMENTED
                 break;  // Skip for now
+                //data += eptsize; offset += eptsize;
             }
 
             data += blocksize; offset += blocksize;

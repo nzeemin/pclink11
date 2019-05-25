@@ -24,8 +24,7 @@
 
 /////////////////////////////////////////////////////////////////////////////
 
-const int LMLSIZ = 0525; // DEFAULT NUMBER OF LIBRARY MOD LIST ENTRIES
-// EACH ENTRY IS 6 BYTES LONG
+const int LMLSIZ = 0525; // NUMBER OF LIBRARY MOD LIST ENTRIES (0252 DEFAULT, 0525 FOR RSTS)
 
 const uint16_t LINPPG = 60; // NUMBER OF LINES PER PAGE FOR MAP
 
