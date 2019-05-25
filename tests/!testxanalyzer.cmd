@@ -1,3 +1,3 @@
 @echo off
 CD ..
-Debug\testanalyzer.exe
+Debug\testanalyzer.exe %1 %2 %3 %4 %5
