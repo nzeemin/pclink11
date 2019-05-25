@@ -38,26 +38,26 @@ struct LibraryModuleEntry
 const int LibraryModuleListSize = LMLSIZ;
 LibraryModuleEntry LibraryModuleList[LibraryModuleListSize];
 
-// ****	GSD ENTRY STRUCTURE
+// **** GSD ENTRY STRUCTURE
 struct GSDentry
 {
-    uint32_t	symbol;		// SYMBOL CHARS 1-6(RAD50)
-    uint8_t	    flags;		// FLAGS
-    uint8_t	    code;		// CODE BYTE
-    uint16_t	value;		// SIZE OR OFFSET
+    uint32_t    symbol;     // SYMBOL CHARS 1-6(RAD50)
+    uint8_t     flags;      // FLAGS
+    uint8_t     code;       // CODE BYTE
+    uint16_t    value;      // SIZE OR OFFSET
 };
 
-// ****	SYMBOL TABLE STRUCTURE
+// **** SYMBOL TABLE STRUCTURE
 struct SymbolTableEntry
 {
-    uint32_t	name;		// 2 WD RAD50 NAME
-    uint16_t	flagseg;    // PSECT FLAGS !  SEG #
-    uint16_t	value;      // VALUE WORD
-    uint16_t	status;     // A!B!C!D!  ENTRY # PTR
+    uint32_t    name;       // 2 WD RAD50 NAME
+    uint16_t    flagseg;    // PSECT FLAGS !  SEG #
+    uint16_t    value;      // VALUE WORD
+    uint16_t    status;     // A!B!C!D!  ENTRY # PTR
 
     const char* unrad50name() const { return unrad50(name); }
     uint8_t flags() const { return (flagseg >> 8); }
-    uint8_t seg() const { return flagseg && 0xff; }
+    uint8_t seg() const { return flagseg & 0xff; }
     uint16_t nextindex() const { return status & 07777; }
 };
 
@@ -65,21 +65,6 @@ SymbolTableEntry* SymbolTable = nullptr;
 SymbolTableEntry* ASECTentry = nullptr;
 const int SymbolTableSize = 4095;  // STSIZE
 int SymbolTableCount = 0;  // STCNT -- SYMBOL TBL ENTRIES COUNTER
-
-// ****	INTERNAL SYMBOL TABLE FLAGS BIT ASSIGNMENT
-const uint16_t SY_UDF = 0100000;	// SET TO DECLARE SYMBOL IS UNDEFINED (PSECT NEVER UNDEFINED)
-const uint16_t SY_DUP =  040000;	// SET TO ALLOW DUPLICATE LIBRARY SYMBOLS
-const uint16_t SY_IND =  020000;	// SET TO PUT SYMBOL IN OVERLAY HANDLER TABLE
-const uint16_t SY_WK  =  010000;	// SET TO INDICATE SYMBOL IS WEAK
-const uint16_t SY_SAV = SY_WK;		// SET TO INDICATE PSECT HAS SAV ATTRIBUTE
-const uint16_t SY_ENB = 0170000;	// MASK TO ISOLATE SYMBOL ENTRY NUMBER PTR
-const uint16_t SY_SEC =   04000;	// CS$NU POSITION IN PSECT FLAGS INDICATING SYMBOL IS A SECTION
-const uint16_t SY_SPA = 0100000;	// CS$TYP POSITION IN PSECT FLAGS INDICATING SYMBOL IS I OR D
-// SPACE - 1 IF D PSECT, 0 IF I PSECT.  SY.SEC MUST ALSO BE
-// SET IF THIS BIT IS USED.  NOTE SY.UDF IS NEVER USED FOR
-// A PSECT
-const uint16_t SY_SWI =  010000;	// (CS$ACC)SET IF THIS SYMBOL PUT IN SYMBOL TABLE BY /I UNDEF SYMBOL
-const uint16_t SY_SEG =   01777;	// SEGMENT NUMBER BITS IN FLAGS WORD
 
 
 const uint32_t RAD50_ABS    = rad50x2(". ABS.");  // ASECT
@@ -175,163 +160,163 @@ struct tagGlobals
 {
     uint16_t    ODBLK[15]; // BLOCK TO HOLD BINOUT SPEC
     // LNKOV1->STORE TIME TO ROLL OVER DATE
-    //uint16_t    TEMP;	// TEMPORARY STORAGE
+    //uint16_t    TEMP; // TEMPORARY STORAGE
     uint8_t     TXTBLK[RECSIZ];  // SPACE FOR A FORMATTED BINARY RECORD
 
     int         UNDLST; // START OF UNDEFINED SYMBOL LIST
-    uint16_t	SYEN0;	// ADR OF SYMBOL TABLE ENTRY NUMBER 0
+    uint16_t    SYEN0;  // ADR OF SYMBOL TABLE ENTRY NUMBER 0
     // REL PTR + THIS = ABS ADDR OF SYMBOL NODE
-    int     CSECT;	// PTR TO LATEST SECTION (PASS1)
+    int         CSECT;  // PTR TO LATEST SECTION (PASS1)
 
-    uint16_t	PA2LML;	// START OF LML BUFR
+    uint16_t    PA2LML; // START OF LML BUFR
     // LNKOV1->TEMP. SEGMENT POINTER
-    uint16_t	LMLPTR;	// CURRENT PTR TO LIBRARY MOD LIST
-    uint16_t	STLML;	// CURRENT START OF LMLPTR IF MULTI-LIBR FILES
-    uint16_t	ENDLML;	// END OF LIB MOD LIST
-    uint16_t	ESZRBA;	// SIZE OF CURRENT LIBRARY EPT
+    uint16_t    LMLPTR; // CURRENT PTR TO LIBRARY MOD LIST
+    uint16_t    STLML;  // CURRENT START OF LMLPTR IF MULTI-LIBR FILES
+    uint16_t    ENDLML; // END OF LIB MOD LIST
+    uint16_t    ESZRBA; // SIZE OF CURRENT LIBRARY EPT
     // RELOCATION INFO OUTPUT BUFR ADR
-    uint16_t	OVCOUN;	// NO. OF OVERLAY ENTRY PTS.
-    uint16_t	OVSPTR;	// PTR TO OVERLAY SEGMENT BLK
-    uint8_t	PAS1_5; // PASS 1.5 SWITCH(0 ON PASS1, 1 IF TO DO LIBRARY,
+    uint16_t    OVCOUN; // NO. OF OVERLAY ENTRY PTS.
+    uint16_t    OVSPTR; // PTR TO OVERLAY SEGMENT BLK
+    uint8_t     PAS1_5; // PASS 1.5 SWITCH(0 ON PASS1, 1 IF TO DO LIBRARY,
     // BIT 7 SET IF DOING LIBRARIES
-    uint8_t	DUPMOD;	// 1 IF LIB MOD IS DUP
+    uint8_t     DUPMOD; // 1 IF LIB MOD IS DUP
     // 0 IF LIB MOD IS NOT DUP
-    uint8_t	NUMCOL;	// NUMBER OF COLUMNS WIDE FOR MAP
+    uint8_t     NUMCOL; // NUMBER OF COLUMNS WIDE FOR MAP
     // IND + OR - RELOCATION DURING PASS 2
-    uint8_t	LIBNB;  // LIBRARY FILE NUMBER FOR LML
+    uint8_t     LIBNB;  // LIBRARY FILE NUMBER FOR LML
 
-    uint16_t	SWITCH;	// SWITCHES FROM CSI (SEE "LINK1" FOR DETAILS)
-    uint16_t	SWIT1;	// Switches
-    uint16_t	FILPT1; // START OF SAVESTATUS AREA -4
+    uint16_t    SWITCH; // SWITCHES FROM CSI (SEE "LINK1" FOR DETAILS)
+    uint16_t    SWIT1;  // Switches
+    uint16_t    FILPT1; // START OF SAVESTATUS AREA -4
 
     // VARIABLES FOR PROGRAM BEING LINKED
-    uint16_t	HGHLIM;	// MAX # OF SECTIONS IN ANY MODULE PROCESSED
+    uint16_t    HGHLIM; // MAX # OF SECTIONS IN ANY MODULE PROCESSED
     // HIGHEST LOCATION USED BY PROGRAM (I-SPACE)
-    uint16_t	DHGHLM;	// MAX # OF SECTIONS IN ANY MODULE PROCESSED
+    uint16_t    DHGHLM; // MAX # OF SECTIONS IN ANY MODULE PROCESSED
     // HIGHEST LOCATION USED BY PROGRAM (D-SPACE)
 
     GSDentry BEGBLK; // TRANSFER ADDRESS BLOCK (4 WD GSD ENTRY)
     //   TRANS ADDR OR REL OFFSET FROM PSECT
 
-    uint16_t	STKBLK[3]; // USER STACK ADDRESS BLOCK(SYMBOL & VALUE)
+    uint16_t    STKBLK[3]; // USER STACK ADDRESS BLOCK(SYMBOL & VALUE)
     // LNKSAV->TEMP 4 WORD STORAGE FOR GSD RECORD
 
-    uint16_t	HSWVAL;	// /H SWITCH VALUE - I-SPACE
-    uint16_t	DHSWVL;	// /H SWITCH VALUE - D-SPACE
+    uint16_t    HSWVAL; // /H SWITCH VALUE - I-SPACE
+    uint16_t    DHSWVL; // /H SWITCH VALUE - D-SPACE
 
-    uint16_t	ESWVAL;	// /E SWITCH VALUE - I-SPACE
-    uint32_t	ESWNAM; // /E SWITCH NAME - I-SPACE
-    uint16_t	DESWVL; // /E SWITCH VALUE - D-SPACE
-    uint32_t	DESWNM;	// /E SWITCH NAME - D-SPACE
-    uint16_t	KSWVAL;	// /K SWITCH VALUE OR STACK SIZE FOR REL FILE
-    uint16_t	YSWNAM[25]; // /Y SECTION NAME ARRAY(TEMP OVERLAY # IN OV1 & SAV)
+    uint16_t    ESWVAL; // /E SWITCH VALUE - I-SPACE
+    uint32_t    ESWNAM; // /E SWITCH NAME - I-SPACE
+    uint16_t    DESWVL; // /E SWITCH VALUE - D-SPACE
+    uint32_t    DESWNM; // /E SWITCH NAME - D-SPACE
+    uint16_t    KSWVAL; // /K SWITCH VALUE OR STACK SIZE FOR REL FILE
+    uint16_t    YSWNAM[25]; // /Y SECTION NAME ARRAY(TEMP OVERLAY # IN OV1 & SAV)
     // +2 NEXT ASSIGNABLE OUTPUT BLK(LNKMAP)
     //    RELOCATION INFO BLOCK #(LNKSAV) - I-SPACE
     // YSWVAL==YSWNAM+4
-    uint16_t	DYSWNM[25];
+    uint16_t    DYSWNM[25];
     // DYSWVL==DYSWNM+4
-    uint8_t	YSWT;	// SAY WE ARE USING /Y
-    uint8_t	YCNT;	// NUMBER OF TIMES TO PROMPT FOR /Y (SET IN LINK2)
-    uint16_t	DEFALT;	// DEFAULT BOUNDARY VALUE FOR /Y (SET IN LINK2)
-    uint16_t	USWVAL;	// /U SWITCH VALUE - I-SPACE
-    uint32_t	USWNAM;	// /U SWITCH NAME - I-SPACE
-    uint16_t	DUSWVL;	// /U SWITCH VALUE - D-SPACE
-    uint32_t	DUSWNM;	// /U SWITCH NAME - D-SPACE
-    uint16_t	QSWVAL;	// /Q BUFFER POINTER
-    uint16_t	ZSWVAL;	// /Z SWITCH VALUE - I-SPACE
-    uint16_t	DZSWVL;	// /Z SWITCH VALUE - D-SPACE
-    uint16_t	LRUNUM;	// USED TO COUNT MAX # OF SECTIONS AND AS
+    uint8_t     YSWT;   // SAY WE ARE USING /Y
+    uint8_t     YCNT;   // NUMBER OF TIMES TO PROMPT FOR /Y (SET IN LINK2)
+    uint16_t    DEFALT; // DEFAULT BOUNDARY VALUE FOR /Y (SET IN LINK2)
+    uint16_t    USWVAL; // /U SWITCH VALUE - I-SPACE
+    uint32_t    USWNAM; // /U SWITCH NAME - I-SPACE
+    uint16_t    DUSWVL; // /U SWITCH VALUE - D-SPACE
+    uint32_t    DUSWNM; // /U SWITCH NAME - D-SPACE
+    uint16_t    QSWVAL; // /Q BUFFER POINTER
+    uint16_t    ZSWVAL; // /Z SWITCH VALUE - I-SPACE
+    uint16_t    DZSWVL; // /Z SWITCH VALUE - D-SPACE
+    uint16_t    LRUNUM; // USED TO COUNT MAX # OF SECTIONS AND AS
     //  TIME STAMP FOR SAV FILE CACHING
-    uint16_t	BITBAD;	// -> START OF BITMAP TABLE (D-SPACE IF /J USED)
-    uint16_t	IBITBD;	// -> START OF I-SPACE BITMAP TABLE
-    uint8_t     BITMAP[16];	// CONTAINS BITMAP OR IBITBD (IF /J USED)
-    uint16_t	CACHER;	// -> CACHE CONTROL BLOCKS
-    uint16_t	NUMBUF;	// NUMBER OF AVAILABLE CACHING BLOCKS (DEF=3)
-    uint16_t	BASE;	// BASE OF CURRENT SECTION
-    uint16_t	CKSUM;	// CHECKSUM FOR STB & LDA OUTPUT
+    uint16_t    BITBAD; // -> START OF BITMAP TABLE (D-SPACE IF /J USED)
+    uint16_t    IBITBD; // -> START OF I-SPACE BITMAP TABLE
+    uint8_t     BITMAP[16]; // CONTAINS BITMAP OR IBITBD (IF /J USED)
+    uint16_t    CACHER; // -> CACHE CONTROL BLOCKS
+    uint16_t    NUMBUF; // NUMBER OF AVAILABLE CACHING BLOCKS (DEF=3)
+    uint16_t    BASE;   // BASE OF CURRENT SECTION
+    uint16_t    CKSUM;  // CHECKSUM FOR STB & LDA OUTPUT
     // LNKOV1->TEMP LINK POINTER TO NEW REGION BLK
     // CURRENT REL BLK OVERLAY NUM
-    uint16_t	ENDRT;	// END OF ROOT SYMBOL TBL LIST
-    uint16_t	VIRSIZ;	// LARGEST REGION IN A PARTITION
-    uint16_t	REGION;	// XM REGION NUMBER
-    uint16_t	WDBCNT;	// WDB TABLE SIZE ( 14. * NUMBER OF PARTITIONS)
-    uint16_t	HIPHYS;	// HIGH LIMIT FOR EXTENDED MEMORY (96K MAX)
-    uint16_t	SVLML;	// START OF LML LIST FOR WHOLE LIBRARY
-    uint16_t	SW_LML;	// LML INTO OVERLAY SWITCH, AND PASS INDICATOR
-    uint16_t	LOC0;	// USED FOR CONTENTS OF LOC 0 IN SAV HEADER
-    uint16_t	LOC66;	// # /O SEGMENTS SAVED FOR CONVERSION TO ADDR OF
+    uint16_t    ENDRT;  // END OF ROOT SYMBOL TBL LIST
+    uint16_t    VIRSIZ; // LARGEST REGION IN A PARTITION
+    uint16_t    REGION; // XM REGION NUMBER
+    uint16_t    WDBCNT; // WDB TABLE SIZE ( 14. * NUMBER OF PARTITIONS)
+    uint16_t    HIPHYS; // HIGH LIMIT FOR EXTENDED MEMORY (96K MAX)
+    uint16_t    SVLML;  // START OF LML LIST FOR WHOLE LIBRARY
+    uint16_t    SW_LML; // LML INTO OVERLAY SWITCH, AND PASS INDICATOR
+    uint16_t    LOC0;   // USED FOR CONTENTS OF LOC 0 IN SAV HEADER
+    uint16_t    LOC66;  // # /O SEGMENTS SAVED FOR CONVERSION TO ADDR OF
     //  /V SEGS IN OVERLAY HANLDER TABLE
-    uint16_t	LSTFMT;	// CREF LISTING FORMAT (0=80COL, -1=132COL)
+    uint16_t    LSTFMT; // CREF LISTING FORMAT (0=80COL, -1=132COL)
 
     // I-D SPACE VARIABLES
 
-    uint16_t	IDSWIT;	// BITMASK WORD FOR WHICH SWITCHES USE SEPARATED
+    uint16_t    IDSWIT; // BITMASK WORD FOR WHICH SWITCHES USE SEPARATED
     // I-D SPACE
     // D-SPACE, LOW BYTE, I-SPACE, HI BYTE
-    uint16_t	ILEN;	// TOTAL LENGTH OF I-SPACE PSECTS IN WORDS
-    uint16_t	DLEN;	// TOTAL LENGTH OF D-SPACE PSECTS IN WORDS
-    uint16_t	IBLK;	// TOTAL LENGTH OF I-SPACE PSECTS IN BLOCKS
-    uint16_t	DBLK;	// TOTAL LENGTH OF D-SPACE PSECTS IN BLOCKS
-    uint16_t	IROOT;	// SIZE OF THE I-SPACE ROOT IN WORDS
-    uint16_t	DROOT;	// SIZE OF THE D-SPACE ROOT IN WORDS
-    uint16_t	IBASE;	// START OF THE I BASE (BLOCKS)
-    uint16_t	DBASE;	// START OF THE D BASE (BLOCKS)
-    uint16_t	ILOC40;	// CONTENTS OF LOC 40 FOR I-SPACE CCB
-    uint16_t	IFLG;	// NON-ZERO MEANS WRITING I-SPACE BITMAP
-    uint16_t	IDSTRT;	// I-D SPACE ENTRY POINT ($OVRHZ)
-    uint16_t	ZTAB;	// I-D SPACE START ADDRESS OF PSECT $ZTABL
-    uint16_t	OVRCNT;	// # OF OVERLAY SEGMENTS, USED FOR COMPUTING $OVDF6
-    uint16_t	DSGBAS;	// PASS 2 BASE ADR OF D-SPACE OVERLAY SEGMENT
-    uint16_t	DSGBLK;	// PASS 2 BASE BLK OF D-SPACE OVERLAY SEGMENT
+    uint16_t    ILEN;   // TOTAL LENGTH OF I-SPACE PSECTS IN WORDS
+    uint16_t    DLEN;   // TOTAL LENGTH OF D-SPACE PSECTS IN WORDS
+    uint16_t    IBLK;   // TOTAL LENGTH OF I-SPACE PSECTS IN BLOCKS
+    uint16_t    DBLK;   // TOTAL LENGTH OF D-SPACE PSECTS IN BLOCKS
+    uint16_t    IROOT;  // SIZE OF THE I-SPACE ROOT IN WORDS
+    uint16_t    DROOT;  // SIZE OF THE D-SPACE ROOT IN WORDS
+    uint16_t    IBASE;  // START OF THE I BASE (BLOCKS)
+    uint16_t    DBASE;  // START OF THE D BASE (BLOCKS)
+    uint16_t    ILOC40; // CONTENTS OF LOC 40 FOR I-SPACE CCB
+    uint16_t    IFLG;   // NON-ZERO MEANS WRITING I-SPACE BITMAP
+    uint16_t    IDSTRT; // I-D SPACE ENTRY POINT ($OVRHZ)
+    uint16_t    ZTAB;   // I-D SPACE START ADDRESS OF PSECT $ZTABL
+    uint16_t    OVRCNT; // # OF OVERLAY SEGMENTS, USED FOR COMPUTING $OVDF6
+    uint16_t    DSGBAS; // PASS 2 BASE ADR OF D-SPACE OVERLAY SEGMENT
+    uint16_t    DSGBLK; // PASS 2 BASE BLK OF D-SPACE OVERLAY SEGMENT
 
-    uint32_t	MODNAM;	// MODULE NAME, RAD50
+    uint32_t    MODNAM; // MODULE NAME, RAD50
     // LDA OUTPUT BUFR PTR OR REL INFO BUFR PTR
-    uint32_t	IDENT;	// PROGRAM IDENTIFICATION
+    uint32_t    IDENT;  // PROGRAM IDENTIFICATION
     // "RELADR" ADR OF RELOCATION CODE IN TEXT OF REL FILE
     // +2 "RELOVL" NEXT REL BLK OVERLAY #
 
-    uint16_t	ASECT[8];
+    //uint16_t    ASECT[8];
 
-    uint16_t	DHLRT;	// D-SPACE HIGH ADDR LIMIT OF REGION (R.GHLD)
-    uint16_t	DBOTTM;	// ST ADDR OF REGION AREA - D-SPACE (R.GSAD)
-    uint16_t	DBOTTM_2; // REGION NUMBER (R.GNB)
-    uint16_t	OVRG1;	// -> NEXT ORDB (R.GNXP)
-    uint16_t	OVRG1_2; // -> OSDB THIS REGION (R.GSGP)
-    uint16_t	HLRT;	// HIGH LIMIT OF AREA (R.GHL)
-    uint16_t	BOTTOM;	// ST ADDR OF REGION AREA - (I-SPACE IF /J USED)
+    uint16_t    DHLRT;  // D-SPACE HIGH ADDR LIMIT OF REGION (R.GHLD)
+    uint16_t    DBOTTM; // ST ADDR OF REGION AREA - D-SPACE (R.GSAD)
+    uint16_t    DBOTTM_2; // REGION NUMBER (R.GNB)
+    uint16_t    OVRG1;  // -> NEXT ORDB (R.GNXP)
+    uint16_t    OVRG1_2; // -> OSDB THIS REGION (R.GSGP)
+    uint16_t    HLRT;   // HIGH LIMIT OF AREA (R.GHL)
+    uint16_t    BOTTOM; // ST ADDR OF REGION AREA - (I-SPACE IF /J USED)
 
-    uint16_t	CBUF;	// START OF CREF BUFFER
-    uint16_t	CBEND;	// CBUF + 512. BYTES FOR A 1 BLOCK CREF BUFFER
-    uint16_t	QAREA[10]; // EXTRA QUEUE ELEMENT
-    uint16_t	PRAREA[5]; // AREA FOR PROGRAMMED REQUESTS
+    uint16_t    CBUF;   // START OF CREF BUFFER
+    uint16_t    CBEND;  // CBUF + 512. BYTES FOR A 1 BLOCK CREF BUFFER
+    uint16_t    QAREA[10]; // EXTRA QUEUE ELEMENT
+    uint16_t    PRAREA[5]; // AREA FOR PROGRAMMED REQUESTS
 
-    uint16_t	EIB512;	// IBUF + 512. BYTES FOR A 1 BLOCK MAP BUFR
-    uint16_t	SEGBAS;	// BASE OF OVERLAY SEGMENT
-    uint16_t	SEGBLK;	// BASE BLK OF OVERLAY SEGMENT
-    uint16_t	TXTLEN;	// TEMP FOR /V SWITCH
-    uint16_t	LINLFT; // NUMBER OF LINES LEFT ON CURRENT MAP PAGE
+    uint16_t    EIB512; // IBUF + 512. BYTES FOR A 1 BLOCK MAP BUFR
+    uint16_t    SEGBAS; // BASE OF OVERLAY SEGMENT
+    uint16_t    SEGBLK; // BASE BLK OF OVERLAY SEGMENT
+    uint16_t    TXTLEN; // TEMP FOR /V SWITCH
+    uint16_t    LINLFT; // NUMBER OF LINES LEFT ON CURRENT MAP PAGE
 
     // The following globals are defined inside the code
 
-    uint16_t	FLGWD;	// INTERNAL FLAG WORD
-    uint16_t	ENDOL;	// USE FOR CONTINUE SWITCHES /C OR //
-    uint16_t	SEGNUM;	// KEEP TRACK OF INPUT SEGMENT #'S
+    uint16_t    FLGWD;  // INTERNAL FLAG WORD
+    uint16_t    ENDOL;  // USE FOR CONTINUE SWITCHES /C OR //
+    uint16_t    SEGNUM; // KEEP TRACK OF INPUT SEGMENT #'S
 
     // INPUT BUFFER INFORMATION
 
-    uint16_t	IRAREA;	// CHANNEL NUMBER AND .READ EMT CODE
-    uint16_t	CURBLK;	// RELATIVE INPUT BLOCK NUMBER
-    uint16_t	IBUF;	// INPUT BUFR ADR(ALSO END OF OUTPUT BUFR (OBUF+512))
-    uint16_t	IBFSIZ;	// INPUT BUFR SIZE (MULTIPLE OF 256) WORD COUNT
+    uint16_t    IRAREA; // CHANNEL NUMBER AND .READ EMT CODE
+    uint16_t    CURBLK; // RELATIVE INPUT BLOCK NUMBER
+    uint16_t    IBUF;   // INPUT BUFR ADR(ALSO END OF OUTPUT BUFR (OBUF+512))
+    uint16_t    IBFSIZ; // INPUT BUFR SIZE (MULTIPLE OF 256) WORD COUNT
 
-    uint16_t	OBLK;	// RELATIVE OUTPUT BLOCK #
-    uint16_t	OBUF;	// OUTPUT BUFR ADR
+    uint16_t    OBLK;   // RELATIVE OUTPUT BLOCK #
+    uint16_t    OBUF;   // OUTPUT BUFR ADR
 
-    uint16_t	MBLK;	// OUTPUT BLK # (INIT TO -1 FOR BUMP BEFORE WRITE)
-    uint16_t	MBPTR;	// OUTPUT BUFR POINTER (0 MEANS NO MAP OUTPUT)
+    uint16_t    MBLK;   // OUTPUT BLK # (INIT TO -1 FOR BUMP BEFORE WRITE)
+    uint16_t    MBPTR;  // OUTPUT BUFR POINTER (0 MEANS NO MAP OUTPUT)
 
-    uint16_t	CBLK;	// OUTPUT BLK # (INIT TO -1 FOR BUMP BEFORE WRITE)
-    uint16_t	CBPTR;	// DEFAULT IS NO CREF
+    uint16_t    CBLK;   // OUTPUT BLK # (INIT TO -1 FOR BUMP BEFORE WRITE)
+    uint16_t    CBPTR;  // DEFAULT IS NO CREF
 }
 Globals;
 
@@ -529,8 +514,8 @@ bool symbol_table_search_routine(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk,
 }
 
 // 'DLOOKE' DOES A LOOKUP & IF NOT FOUND THEN ENTERS THE NEW SYMBOL INTO
-//	   THE SYMBOL TABLE.  DOES NOT REQUIRE A SEGMENT NUMBER MATCH
-//	   WHETHER THE SYMBOL IS A DUPLICATE OR NOT.
+//     THE SYMBOL TABLE.  DOES NOT REQUIRE A SEGMENT NUMBER MATCH
+//     WHETHER THE SYMBOL IS A DUPLICATE OR NOT.
 // Out: return = true if found, false if new entry
 bool symbol_table_dlooke(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk, int* pindex)
 {
@@ -544,7 +529,7 @@ bool symbol_table_dlooke(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk, int* pi
     return false;
 }
 // 'LOOKUP' ONLY SEARCHES THE SYMBOL TABLE FOR A SYMBOL MATCH.  IF SYMBOL
-//	   IS A DUPLICATE, THIS ROUTINE REQUIRES A SEGMENT NUMBER MATCH.
+//     IS A DUPLICATE, THIS ROUTINE REQUIRES A SEGMENT NUMBER MATCH.
 bool symbol_table_lookup(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk, int* pindex)
 {
     assert(pindex != nullptr);
@@ -552,8 +537,8 @@ bool symbol_table_lookup(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk, int* pi
     return symbol_table_search_routine(lkname, lkwd, lkmsk, SY_DUP, pindex);
 }
 // 'LOOKE'  DOES A LOOKUP & IF NOT FOUND THEN ENTERS THE NEW SYMBOL INTO
-//	   THE SYMBOL TABLE.  IF SYMBOL IS A DUPLICATE, THIS ROUTINE
-//	   REQUIRES A SEGMENT NUMBER MATCH.
+//     THE SYMBOL TABLE.  IF SYMBOL IS A DUPLICATE, THIS ROUTINE
+//     REQUIRES A SEGMENT NUMBER MATCH.
 // Out: return = true if found, false if new entry
 bool symbol_table_looke(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk, int* pindex)
 {
@@ -567,8 +552,8 @@ bool symbol_table_looke(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk, int* pin
     return false;
 }
 // 'SEARCH' THIS ROUTINE DOES A LOOKUP ONLY AND DOES NOT CARE WHETHER THE
-//	   SYMBOL IS A DUPLICATE OR NOT.  THIS ROUTINE IS USED REPEATEDLY
-//	   AFTER A SINGLE CALL TO 'DLOOKE'.
+//     SYMBOL IS A DUPLICATE OR NOT.  THIS ROUTINE IS USED REPEATEDLY
+//     AFTER A SINGLE CALL TO 'DLOOKE'.
 bool symbol_table_search(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk, int* pindex)
 {
     assert(pindex != nullptr);
@@ -1032,7 +1017,6 @@ void process_pass1_gsd_item_psecnm(const uint16_t* itemw, int& itemflags)
             //int sectindex = pSect - SymbolTable;
             pSect->status |= index;  // set link to the new segment
         }
-        index = index;
     }
 
     //TODO: primitive version, depends on section flags
@@ -1308,6 +1292,33 @@ void process_pass1_endp1()
     }
 }
 
+// STB subroutine, see LINK5\FBNEW
+void process_pass_map_fbnew(uint16_t blocktype)
+{
+    if (stbfileobj == nullptr)  // IS THERE AN STB FILE?
+        return;
+
+    uint16_t* txtblkwp = (uint16_t*)(Globals.TXTBLK);
+
+    if (Globals.TXTLEN > 0)  // Save the previous block
+    {
+        txtblkwp[1] = Globals.TXTLEN;
+
+        uint8_t chksum = 0;
+        for (int i = 0; i < Globals.TXTLEN; i++)  // Calculate checksum
+            chksum += Globals.TXTBLK[i];
+        Globals.TXTBLK[Globals.TXTLEN] = (256 - chksum) & 0xff;
+
+        fwrite(Globals.TXTBLK, Globals.TXTLEN + 1, 1, stbfileobj);
+    }
+
+    memset(Globals.TXTBLK, 0, sizeof(Globals.TXTBLK));
+    txtblkwp[0] = 1;
+    txtblkwp[1] = 0;
+    txtblkwp[2] = blocktype;
+    Globals.TXTLEN = 6;
+}
+
 // Map processing: see LINK4/MAP in source
 void process_pass_map_init()
 {
@@ -1320,7 +1331,37 @@ void process_pass_map_init()
 
     if (Globals.FLGWD & FG_STB) // IS THERE AN STB FILE?
     {
-        //TODO: Start .STB file preparation
+        // Prepare STB file name
+        char stbfilename[64];
+        memcpy(stbfilename, SaveStatusArea[0].filename, 64);
+        char* pext = strrchr(stbfilename, '.');
+        pext++; *pext++ = 'S'; *pext++ = 'T'; *pext++ = 'B';
+
+        // Open STB file
+        assert(stbfileobj == nullptr);
+        stbfileobj = fopen(stbfilename, "wb");
+        if (stbfileobj == nullptr)
+            fatal_error("ERR5: Failed to open %s file, errno %d.\n", stbfilename, errno);
+        // Prepare STB buffer
+        memset(Globals.TXTBLK, 0, sizeof(Globals.TXTBLK));
+        Globals.TXTLEN = 0;
+        process_pass_map_fbnew(1/*GSD*/);
+        // First GSD entry is the module name
+        uint16_t* txtblkwp = (uint16_t*)(Globals.TXTBLK + Globals.TXTLEN);
+        txtblkwp[0] = LOWORD(Globals.MODNAM);
+        txtblkwp[1] = HIWORD(Globals.MODNAM);
+        txtblkwp[2] = 0; // MODULE NAME
+        txtblkwp[3] = 0;
+        Globals.TXTLEN += 8;
+        if (Globals.IDENT != 0)
+        {
+            txtblkwp = (uint16_t*)(Globals.TXTBLK + Globals.TXTLEN);
+            txtblkwp[0] = LOWORD(Globals.IDENT);
+            txtblkwp[1] = HIWORD(Globals.IDENT);
+            txtblkwp[2] = 6 << 8; // IDENT
+            txtblkwp[3] = 0;
+            Globals.TXTLEN += 8;
+        }
     }
 
     uint16_t& bottom = (Globals.SWIT1 & SW_J) ? Globals.DBOTTM : Globals.BOTTOM;
@@ -1352,33 +1393,6 @@ void process_pass_map_done()
     {
         fclose(stbfileobj);  stbfileobj = nullptr;
     }
-}
-
-// STB subroutine, see LINK5\FBNEW
-void process_pass_map_fbnew(uint16_t blocktype)
-{
-    if (stbfileobj == nullptr)  // IS THERE AN STB FILE?
-        return;
-
-    uint16_t* txtblkwp = (uint16_t*)(Globals.TXTBLK);
-
-    if (Globals.TXTLEN > 0)  // Save the previous block
-    {
-        txtblkwp[1] = Globals.TXTLEN;
-
-        uint8_t chksum = 0;
-        for (int i = 0; i < Globals.TXTLEN; i++)  // Calculate checksum
-            chksum += Globals.TXTBLK[i];
-        Globals.TXTBLK[Globals.TXTLEN] = (256 - chksum) & 0xff;
-
-        fwrite(Globals.TXTBLK, Globals.TXTLEN + 1, 1, stbfileobj);
-    }
-
-    memset(Globals.TXTBLK, 0, sizeof(Globals.TXTBLK));
-    txtblkwp[0] = 1;
-    txtblkwp[1] = 0;
-    txtblkwp[2] = blocktype;
-    Globals.TXTLEN = 6;
 }
 
 // STB subroutine, see LINK5\FBGEG
@@ -1428,9 +1442,12 @@ void process_pass_map_endstb()
 
     process_pass_map_fbnew(0);  // CLOSE THAT
 
+    if (stbfileobj == nullptr)  // IS THERE AN STB FILE?
+        return;
+
     // Write zeroes till the end of 512-byte file block
     long stblen = ftell(stbfileobj);
-    long stbalign = 512 - (stblen & 0x1ff);
+    long stbalign = 512 - (stblen % 512);
     if (stbalign > 0 && stbalign != 512)
     {
         memset(Globals.TXTBLK, 0, sizeof(Globals.TXTBLK));
@@ -1487,38 +1504,6 @@ void process_pass_map_output()
     if (mapfileobj == nullptr)
         fatal_error("ERR5: Failed to open file %s, errno %d.\n", mapfilename, errno);
 
-    // Prepare STB file name
-    char stbfilename[64];
-    memcpy(stbfilename, SaveStatusArea[0].filename, 64);
-    pext = strrchr(stbfilename, '.');
-    pext++; *pext++ = 'S'; *pext++ = 'T'; *pext++ = 'B';
-
-    // Open STB file
-    assert(stbfileobj == nullptr);
-    stbfileobj = fopen(stbfilename, "wb");
-    if (stbfileobj == nullptr)
-        fatal_error("ERR5: Failed to open %s file, errno %d.\n", stbfilename, errno);
-    // Prepare STB buffer
-    memset(Globals.TXTBLK, 0, sizeof(Globals.TXTBLK));
-    Globals.TXTLEN = 0;
-    process_pass_map_fbnew(1/*GSD*/);
-    // First GSD entry is the module name
-    uint16_t* txtblkwp = (uint16_t*)(Globals.TXTBLK + Globals.TXTLEN);
-    txtblkwp[0] = LOWORD(Globals.MODNAM);
-    txtblkwp[1] = HIWORD(Globals.MODNAM);
-    txtblkwp[2] = 0; // MODULE NAME
-    txtblkwp[3] = 0;
-    Globals.TXTLEN += 8;
-    if (Globals.IDENT != 0)
-    {
-        txtblkwp = (uint16_t*)(Globals.TXTBLK + Globals.TXTLEN);
-        txtblkwp[0] = LOWORD(Globals.IDENT);
-        txtblkwp[1] = HIWORD(Globals.IDENT);
-        txtblkwp[2] = 6 << 8; // IDENT
-        txtblkwp[3] = 0;
-        Globals.TXTLEN += 8;
-    }
-
     Globals.LINLFT = LINPPG;
 
     // OUTPUT THE HEADERS
@@ -1557,7 +1542,7 @@ void process_pass_map_output()
     fprintf(mapfileobj, "\n\n");
     printf("\n");
 
-    // RESOLV	SECTION STARTS & GLOBAL SYMBOL VALUES; see LINK5\RESOLV
+    // RESOLV  SECTION STARTS & GLOBAL SYMBOL VALUES; see LINK5\RESOLV
     uint16_t baseaddr = 0; // ASECT BASE ADDRESS IS 0
     SymbolTableEntry* entry = ASECTentry;
     uint16_t sectsize = (entry != nullptr && entry->value > 0) ?
@@ -2074,6 +2059,9 @@ void process_pass2_dump_txtblk()  // DUMP TEXT SUBROUTINE, see LINK7\TDMP0, LINK
     mark_bitmap_bits(addr, Globals.TXTLEN);
     //TODO: if ((Globals.SWITCH & SW_X) != 0)
 
+    if (addr < 0400 && addr + Globals.TXTLEN > 0360)
+        Globals.FLGWD |= 02000/*FG.XX*/;  // YES->SET FLAG NOT TO OUTPUT BITMAP
+
     Globals.TXTLEN = 0;  // MARK TXT BLOCK EMPTY, see LINK7\CLRTXL
 }
 
@@ -2359,12 +2347,12 @@ void parse_commandline(int argc, char **argv)
             //TODO: Parse options associated with the file
             //while (*cur == '/')
             //{
-            //	cur++;
-            //	switch (*cur)
-            //	{
-            //	default:
-            //		fatal_error("Bad switch: %s\n", argvcur);
-            //	}
+            //  cur++;
+            //  switch (*cur)
+            //  {
+            //  default:
+            //      fatal_error("Bad switch: %s\n", argvcur);
+            //  }
             //}
         }
     }
@@ -2419,6 +2407,7 @@ int main(int argc, char *argv[])
     initialize();
 
     parse_commandline(argc, argv);
+    Globals.FLGWD |= FG_STB; //DEBUG: Always generate STB
 
     read_files();
 
@@ -2437,7 +2426,8 @@ int main(int argc, char *argv[])
     //TODO: Pass 2.5
 
     // Copy the bitmap to block 0
-    memcpy(OutputBuffer + SysCom_BITMAP, Globals.BITMAP, 16);
+    if ((Globals.FLGWD & 02000) == 0)
+        memcpy(OutputBuffer + SysCom_BITMAP, Globals.BITMAP, 16);
 
     size_t bytestowrite = OutputBlockCount == 0 ? 65536 : OutputBlockCount * 512;
     size_t byteswrit = fwrite(OutputBuffer, 1, bytestowrite, outfileobj);

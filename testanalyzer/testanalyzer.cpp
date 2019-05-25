@@ -80,7 +80,6 @@ string findfile_bymask(const string& dirname, const string& mask)
 bool process_mylog(string& mylogfilepath)
 {
     bool haserrors = false;
-    bool haswarnings = false;
     string prefix = "  my.LOG: ";
     std::vector<string> problems;
 
@@ -95,7 +94,7 @@ bool process_mylog(string& mylogfilepath)
         if (str.find("*** NOT IMPLEMENTED") == 0)
         {
             problems.push_back(str);
-            haswarnings = true;
+            haserrors = true;
         }
         if (str.find("ERROR") == 0)
         {
@@ -159,7 +158,7 @@ bool process_map_files(string& filepathmap11, string& filepathmapmy)
     return (diffcount == 0);
 }
 
-bool countdiff_binary_files(string& filepath11, string& filepathmy, string filekind)
+bool countdiff_binary_files(string& filepath11, string& filepathmy, const string& filekind)
 {
     bool hasdiffs = false;
 
@@ -217,7 +216,7 @@ bool countdiff_binary_files(string& filepath11, string& filepathmy, string filek
     return !hasdiffs;
 }
 
-void showdiff_binary_files(string& filepath11, string& filepathmy, string filekind, int maxchunkstoshow)
+void showdiff_binary_files(string& filepath11, string& filepathmy, const string& filekind, int maxchunkstoshow)
 {
     std::ifstream f1(filepath11, std::ifstream::binary | std::ifstream::ate);
     if (f1.fail())

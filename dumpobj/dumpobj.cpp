@@ -354,7 +354,7 @@ void dumpobj_rld_block(uint8_t* data)
 void dumpobj()
 {
     printf("Processing %s size %06o\n", objfilename, objfilesize);
-    int offset = 0;
+    size_t offset = 0;
     while (offset < objfilesize)
     {
         uint8_t* data = (uint8_t*)(objfiledata) + offset;
