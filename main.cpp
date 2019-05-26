@@ -30,16 +30,6 @@ const int SaveStatusAreaSize = 8;
 SaveStatusEntry SaveStatusArea[SaveStatusAreaSize];
 int SaveStatusCount = 0;
 
-struct LibraryModuleEntry
-{
-    uint8_t libfileno;      // LIBRARY FILE # (8 BITS) 1-255
-    uint16_t relblockno;    // REL BLK # (15 BITS)
-    uint16_t byteoffset;    // BYTE OFFSET (9 BITS)
-    uint16_t segmentno;     // SEGMENT NUMBER FOR THIS MODULE
-};
-const int LibraryModuleListSize = LMLSIZ;
-LibraryModuleEntry LibraryModuleList[LibraryModuleListSize];
-
 // **** GSD ENTRY STRUCTURE
 struct GSDentry
 {
@@ -67,6 +57,19 @@ SymbolTableEntry* SymbolTable = nullptr;
 SymbolTableEntry* ASECTentry = nullptr;
 const int SymbolTableSize = 4095;  // STSIZE
 int SymbolTableCount = 0;  // STCNT -- SYMBOL TBL ENTRIES COUNTER
+
+struct LibraryModuleEntry
+{
+    uint8_t  libfileno;     // LIBRARY FILE # (8 BITS) 1-255
+    uint16_t relblockno;    // REL BLK # (15 BITS)
+    uint16_t byteoffset;    // BYTE OFFSET (9 BITS)
+    uint16_t segmentno;     // SEGMENT NUMBER FOR THIS MODULE
+
+    size_t offset() const { return relblockno * 512 + byteoffset; }
+};
+const int LibraryModuleListSize = LMLSIZ;
+LibraryModuleEntry LibraryModuleList[LibraryModuleListSize];
+int LibraryModuleCount = 0;  // Count of records in LibraryModuleList, see LMLPTR
 
 
 const uint32_t RAD50_ABS    = rad50x2(". ABS.");  // ASECT
@@ -172,9 +175,9 @@ struct tagGlobals
 
     uint16_t    PA2LML; // START OF LML BUFR
     // LNKOV1->TEMP. SEGMENT POINTER
-    uint16_t    LMLPTR; // CURRENT PTR TO LIBRARY MOD LIST
-    uint16_t    STLML;  // CURRENT START OF LMLPTR IF MULTI-LIBR FILES
-    uint16_t    ENDLML; // END OF LIB MOD LIST
+    //uint16_t    LMLPTR; // CURRENT PTR TO LIBRARY MOD LIST
+    //uint16_t    STLML;  // CURRENT START OF LMLPTR IF MULTI-LIBR FILES
+    //uint16_t    ENDLML; // END OF LIB MOD LIST
     uint16_t    ESZRBA; // SIZE OF CURRENT LIBRARY EPT
     // RELOCATION INFO OUTPUT BUFR ADR
     uint16_t    OVCOUN; // NO. OF OVERLAY ENTRY PTS.
@@ -563,6 +566,16 @@ bool symbol_table_search(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk, int* pi
     return symbol_table_search_routine(lkname, lkwd, lkmsk, 0, pindex);
 }
 
+void print_lml_table()
+{
+    printf("  LibraryModuleList count = %d.\n", LibraryModuleCount);
+    for (int i = 0; i < LibraryModuleCount; i++)
+    {
+        const LibraryModuleEntry* lmlentry = LibraryModuleList + i;
+        printf("    #%04d file %02d block %06ho offset %06ho\n", (uint16_t)i, lmlentry->libfileno, lmlentry->relblockno, lmlentry->byteoffset/*, lmlentry->segmentno*/);
+    }
+}
+
 void print_symbol_table()
 {
     printf("  SymbolTable count = %d.\n", SymbolTableCount);
@@ -640,6 +653,8 @@ void initialize()
 
     SymbolTable = (SymbolTableEntry*) ::calloc(SymbolTableSize, sizeof(SymbolTableEntry));
     SymbolTableCount = 0;
+
+    memset(LibraryModuleList, 0, sizeof(LibraryModuleList));
 
     // Set globals defaults, see LINK1\START1
     Globals.NUMCOL = 3; // 3-COLUMN MAP IS NORMAL
@@ -1166,6 +1181,7 @@ void process_pass1()
                 if (libver < L_HVER)
                     fatal_error("ERR23: Old library format (%03ho) in %s\n", libver, sscur->filename);
                 sscur->islibrary = true;
+                Globals.PAS1_5 |= 1;  // ALSO SAY LIBRARY FILE PROCESSING REQUIRED
                 break;  // Skipping library files on Pass 1
             }
 
@@ -1190,6 +1206,96 @@ uint16_t* process_pass15_eptsearch(uint8_t* data, uint16_t eptsize, uint32_t sym
             return itemw;
     }
     return nullptr;
+}
+
+// PLACE THE ADDR OF A LIBR SYMBOL INTO THE LML. See LINK3\LMLBLD
+void process_pass15_lmlbld(uint16_t blockno, uint16_t offset)
+{
+    if (LibraryModuleCount >= LibraryModuleListSize)
+        fatal_error("ERR22: Library list overflow.\n");
+
+    // SEARCH ALL PREVIOUS LML'S FOR A DUPLICATE
+    for (int i = 0; i < LibraryModuleCount; i++)
+    {
+        const LibraryModuleEntry* lmlentry0 = LibraryModuleList + i;
+        if (lmlentry0->libfileno == Globals.LIBNB &&
+            lmlentry0->relblockno == (blockno & 077777) && lmlentry0->byteoffset == offset)
+            return;  // MATCH, DON'T ADD LML TO LIST
+    }
+
+    LibraryModuleEntry* lmlentry = LibraryModuleList + LibraryModuleCount;
+    lmlentry->libfileno = Globals.LIBNB;
+    lmlentry->relblockno = blockno & 077777;
+    lmlentry->byteoffset = offset;
+    lmlentry->segmentno = 0;  // SET SEGMNT NUMBER TO ZERO=ROOT
+    //TODO
+
+    LibraryModuleCount++;
+}
+
+// ORDER LIBRARY MODULE LIST. See LINK3\ORLIB
+void process_pass15_lmlorder()
+{
+    if (LibraryModuleCount < 2)
+        return;  // NOTHING TO ORDER.  RETURN
+
+    for (int k = 1; k < LibraryModuleCount; k++)
+    {
+        LibraryModuleEntry* ek = LibraryModuleList + k;
+        for (int j = 0; j < k; j++)
+        {
+            LibraryModuleEntry* ej = LibraryModuleList + j;
+            if (ek->libfileno < ej->libfileno ||
+                ek->libfileno == ej->libfileno && (ek->offset() < ej->offset()))
+            {
+                LibraryModuleEntry etemp = *ek;
+                memmove(ej + 1, ej, sizeof(LibraryModuleEntry) * (k - j));
+                *ej = etemp;
+            }
+        }
+    }
+}
+
+// READ MODULES FROM THE LIBRARY. See LINK3\LIBPRO
+void process_pass15_libpro(SaveStatusEntry* sscur)
+{
+    assert(sscur != nullptr);
+    assert(sscur->data != nullptr);
+    //printf("      process_pass15_libpro() for library #%d %s\n", (int)Globals.LIBNB, sscur->filename);
+    size_t offset = 0;
+    for (int i = 0; i < LibraryModuleCount; i++)
+    {
+        const LibraryModuleEntry* lmlentry = LibraryModuleList + i;
+        if (lmlentry->libfileno != Globals.LIBNB)
+            continue;  // not this library file
+        if (lmlentry->offset() == offset)
+            continue;  // same offset
+        offset = lmlentry->offset();
+        printf("      process_pass15_libpro() for offset %06o\n", offset);
+        while (offset < sscur->filesize)
+        {
+            uint8_t* data = sscur->data + offset;
+            uint16_t* dataw = (uint16_t*)(data);
+            uint16_t blocksize = ((uint16_t*)data)[1];
+            uint16_t blocktype = ((uint16_t*)data)[2];
+
+            if (blocktype == 0 || blocktype > 8)
+                fatal_error("Illegal record type at %06ho in %s\n", offset, sscur->filename);
+            else if (blocktype == 1)  // 1 - START GSD RECORD, see LINK3\GSD
+            {
+                printf("    Block type 1 - GSD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+                process_pass1_gsd_block(sscur, data);
+            }
+            else if (blocktype == 6)  // 6 - MODULE END, see LINK3\MODND
+            {
+                printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+                break;
+            }
+
+            data += blocksize; offset += blocksize;
+            data += 1; offset += 1;  // Skip checksum
+        }
+    }
 }
 
 // PASS 1.5 SCANS ONLY LIBRARIES
@@ -1234,15 +1340,15 @@ void process_pass15()
             uint16_t blocksize = ((uint16_t*)data)[1];
             uint16_t blocktype = ((uint16_t*)data)[2];
 
-            if (blocktype != 7 && blocktype != 8)
-                fatal_error("Illegal record type at %06ho in %s\n", offset, sscur->filename);
+            if (blocktype < 0 || blocktype > 8)
+                fatal_error("Illegal record type %03ho at %06ho in %s\n", blocktype, offset, sscur->filename);
             if (blocktype == 7)  // See LINK3\LIBRA, WE ARE ON PASS 1.5 , SO PROCESS LIBRARIES
             {
                 printf("    Block type 7 - TITLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
                 uint16_t eptsize = *(uint16_t*)(data + L_HEAB);
                 printf("      EPT size %06ho bytes, %d. records\n", eptsize, (int)(eptsize / 8));
 
-                Globals.SVLML = Globals.STLML; // SAVE START OF ALL LML'S FOR THIS LIB
+                //Globals.SVLML = Globals.STLML; // SAVE START OF ALL LML'S FOR THIS LIB
                 Globals.FLGWD |= LB_OBJ; // IND LIB FILE TO LINKER
                 //TODO: R4 -> 1ST WD OF BUFR & C=0
                 if (Globals.SWITCH & SW_I) // ANY /I MODULES?
@@ -1258,7 +1364,7 @@ void process_pass15()
                     Globals.SEGBAS++; // /X LIBRARY ->SEGBAS=1
                     //TODO: WILL  /X EPT FIT IN BUFFER?
                 }
-                data += L_HEPT; offset += L_HEPT;  // Move to 1ST EPT ENTRY
+                //data += L_HEPT; offset += L_HEPT;  // Move to 1ST EPT ENTRY
 
                 // Resolve undefined symbols using EPT
                 if (is_any_undefined())  // IF NO UNDEFS, THEN END LIBRARY
@@ -1270,37 +1376,39 @@ void process_pass15()
                         if ((entry->status & SY_WK) == 0)  // IS THIS A WEAK SYMBOL? SKIP WEAK SYMBOL
                         {
                             //TODO: IS SYMBOL A DUP SYMBOL?
-                            uint16_t* itemw = process_pass15_eptsearch(data, eptsize, entry->name);
+                            uint16_t* itemw = process_pass15_eptsearch(data + L_HEPT, eptsize, entry->name);
                             if (itemw == nullptr)
                                 continue;  // CONTINUE THRU UNDEF LIST
                             // THE UNDEFINED SYMBOL HAS BEEN FOUND IN THE CURRENT ENTRY POINT TABLE.
-                            //TODO: CALL LMLBLD - PLACE MOD ADR IN LML
-                            //// Find module name
-                            //uint16_t* itemwmod = itemw;
-                            //while (itemwmod[2] != 0)
-                            //    itemwmod -= 4;
-                            //uint32_t itemmodnamerad50 = MAKEDWORD(itemwmod[0], itemwmod[1]);
-                            printf("        Found EPT for '%s'\n", entry->unrad50name());
-                            //printf(" module '%s'\n", unrad50(itemmodnamerad50));
+                            uint16_t eptblock = itemw[2];
+                            uint16_t eptoffset = itemw[3] & 0777;
+                            printf("        Found EPT for '%s' block %06ho offset %06ho\n", entry->unrad50name(), eptblock, eptoffset);
+                            // CALL LMLBLD - PLACE MOD ADR IN LML
+                            process_pass15_lmlbld(eptblock, eptoffset);
+                            //TODO: Find module name
 
-                            NOTIMPLEMENTED
+                            //TODO NOTIMPLEMENTED
                         }
                         index = entry->nextindex();
                     }
                 }
 
-                break;
+                data += eptsize; offset += eptsize;
             }
-            else if (blocktype == 8)
+            else if (blocktype == 8)  // LINK3\ENDLIB
             {
                 printf("    Block type 10 - ENDLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+
+                // ORDER THIS LIBRARY LML
+                process_pass15_lmlorder();
+
+                // READ MODULES FROM THE LIBRARY
+                process_pass15_libpro(sscur);
             }
 
             data += blocksize; offset += blocksize;
             data += 1; offset += 1;  // Skip checksum
         }
-
-        //TODO: LINK3\ENDLIB
     }
 }
 
@@ -1997,7 +2105,7 @@ void process_pass2_init()
 
     // See LINK6\DOCASH
     Globals.LRUNUM = 0; // INIT LEAST RECENTLY USED TIME STAMP
-    Globals.BITBAD = Globals.LMLPTR + 2 + Globals.STLML * 4;  // START OF SAV FILE MASTER BITMAP IN BLK 0
+    //Globals.BITBAD = Globals.LMLPTR + 2 + Globals.STLML * 4;  // START OF SAV FILE MASTER BITMAP IN BLK 0
     //TODO
 
     // CLEAR & SETUP SYSCOM AREA OF IMAGE FILE
@@ -2443,8 +2551,11 @@ int main(int argc, char *argv[])
     read_files();
 
     process_pass1();
-    //TODO: Check if we need Pass 1.5
-    process_pass15();
+    if (Globals.PAS1_5 & 1)  // Check if we need Pass 1.5 (we have library files)
+    {
+        process_pass15();  // SCANS ONLY LIBRARIES
+        //print_lml_table();//DEBUG
+    }
     print_symbol_table();//DEBUG
     process_pass1_endp1();
 

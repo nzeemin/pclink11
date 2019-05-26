@@ -24,7 +24,7 @@
 
 /////////////////////////////////////////////////////////////////////////////
 
-const int LMLSIZ = 0525; // NUMBER OF LIBRARY MOD LIST ENTRIES (0252 DEFAULT, 0525 FOR RSTS)
+const int LMLSIZ = 512; // NUMBER OF LIBRARY MOD LIST ENTRIES (0252 DEFAULT, 0525 FOR RSTS)
 
 const uint16_t LINPPG = 60; // NUMBER OF LINES PER PAGE FOR MAP
 
