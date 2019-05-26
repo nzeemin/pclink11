@@ -117,10 +117,10 @@ bool process_mylog(string& mylogfilepath)
     if (!haserrors && !hassuccess)
         std::cout << prefix << "has no SUCCESS line" << std::endl;
 
-    return !haserrors;
+    return !haserrors && hassuccess;
 }
 
-// Compare MAP files as text, ignore first line
+// Compare MAP files as text, ignore page header lines
 bool process_map_files(string& filepathmap11, string& filepathmapmy)
 {
     std::ifstream file1(filepathmap11);  //TODO: open for read only
@@ -133,14 +133,24 @@ bool process_map_files(string& filepathmap11, string& filepathmapmy)
     for (;;)
     {
         bool res1 = (bool)std::getline(file1, str1);
+        if (res1 && str1.find("RT-11 LINK ") == 0)  // skip top header line
+            res1 = (bool)std::getline(file1, str1);
+        if (res1 && str1.find("\fRT-11 LINK ") == 0)  // skip next page three header lines
+        {
+            std::getline(file1, str1);
+            std::getline(file1, str1);
+            res1 = (bool)std::getline(file1, str1);
+        }
         bool res2 = (bool)std::getline(file2, str2);
+        if (res2 && str2.find("PCLINK11 ") == 0)  // skip top header line
+            res2 = (bool)std::getline(file2, str2);
         if (!res1 && !res2)
             break;
         if (res1) count1++;
         if (res2) count2++;
         if (res1 && res2)
         {
-            if (str1 != str2 && line > 0)
+            if (str1 != str2)
                 diffcount++;
         }
         else

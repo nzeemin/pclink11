@@ -1,0 +1,10 @@
+RT-11 LINK  V05.45 	Load Map 	Sunday 26-May-2019 19:05  Page 1
+REGPER.SAV   	Title:	REGPER	Ident:	6.66  	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
+ 	 001000	005114 = 1318.   words  (RW,I,LCL,REL,CON)
+			ITOO  	004324	
+
+Transfer address = 003432, High limit = 006112 = 1573.   words
