@@ -935,9 +935,9 @@ void process_pass1_gsd_item_symnam(const uint16_t* itemw)
             SymbolTableEntry* entry = SymbolTable + index;
             if ((itemw[2] & 001/*SY$WK*/) != 0)  // IS THIS A STRONG REFERENCE?
                 entry->status &= ~SY_WK;  // YES, SO MAKE SURE WEAK BIT IS CLEARED
-
             //TODO
-            NOTIMPLEMENTED
+            if (Globals.SW_LML & 0100000)  // ARE WE ON LIB. PREPROCESS PASS?
+                Globals.FLGWD |= 020/*AD.LML*/;  // IND TO ADD TO LML LATER IF LIBRARY CAUSED A NEW UNDEF SYM
         }
     }
     //TODO
@@ -2033,7 +2033,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             printf(" '%s' %06ho\n", unrad50(*((uint32_t*)data)), constdata);
             {
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, (command & 010) == 0);
-                *((uint16_t*)dest) = entry->value + constdata; //TODO: fix wrong value
+                *((uint16_t*)dest) = entry->value + constdata;
             }
             data += 6;  offset += 6;
             break;
@@ -2045,8 +2045,8 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             constdata = ((uint16_t*)data)[2];
             printf(" '%s' %06ho\n", unrad50(*((uint32_t*)data)), constdata);
             {
-                SymbolTableEntry* entry = process_pass2_rld_lookup(data, false);
-                *((uint16_t*)dest) = entry->value + constdata - addr - 2;
+                SymbolTableEntry* entry = process_pass2_rld_lookup(data, (command & 010) == 0);
+                *((uint16_t*)dest) = Globals.BASE + entry->value + constdata - (addr + 2);
                 //TODO: IS SYMBOL IN OVERLAY BY ISOLATING THE SEGMENT #
             }
             data += 6;  offset += 6;
@@ -2063,9 +2063,9 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
                     if (entry->name != RAD50_ABS)  // ARE WE LOOKING AT THE ASECT?
                         Globals.MBPTR++;  // SAY NOT TO STORE TXT FOR ABS SECTION
                 }
-                Globals.BASE = entry->value;
-                //printf("        BASE %06ho\n", Globals.BASE);
+                Globals.BASE = entry->value;  // SET UP NEW SECTION BASE
                 //TODO: ARE WE DOING I-D SPACE?
+                *((uint16_t*)dest) = constdata + Globals.BASE;  // BASE OF SECTION + OFFSET = CURRENT LOCATION COUNTER
             }
             data += 6;  offset += 6;
             break;
@@ -2073,7 +2073,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             // THE CURRENT SECTION BASE IS ADDED TO THE SPECIFIED CONSTANT & RESULT IS STORED AS THE CURRENT LOCATION CTR.
             constdata = ((uint16_t*)data)[0];
             printf(" %06ho\n", constdata);
-            *((uint16_t*)dest) = constdata + Globals.BASE;
+            *((uint16_t*)dest) = constdata + Globals.BASE;  // BASE OF SECTION + OFFSET = CURRENT LOCATION COUNTER
             data += 2;  offset += 2;
             break;
         case 011:  // SET PROGRAM LIMITS
