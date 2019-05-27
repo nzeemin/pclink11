@@ -1,0 +1,8 @@
+RT-11 LINK  V05.45 	Load Map 	Monday 27-May-2019 18:52  Page 1
+T402  .SAV   	Title:	T402  	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	017030 = 3852.   words  (RW,I,GBL,ABS,OVR)
+
+Transfer address = 000001, High limit = 017026 = 3851.   words

@@ -1,0 +1,8 @@
+RT-11 LINK  V05.45 	Load Map 	Monday 27-May-2019 18:52  Page 1
+T404  .SAV   	Title:	T404  	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	013410 = 2948.   words  (RW,I,GBL,ABS,OVR)
+
+Transfer address = 000001, High limit = 013406 = 2947.   words

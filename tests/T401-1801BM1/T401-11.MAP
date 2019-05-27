@@ -1,0 +1,8 @@
+RT-11 LINK  V05.45 	Load Map 	Monday 27-May-2019 18:52  Page 1
+T401  .SAV   	Title:	T401  	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	017576 = 4031.   words  (RW,I,GBL,ABS,OVR)
+
+Transfer address = 000001, High limit = 017574 = 4030.   words
