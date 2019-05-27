@@ -173,12 +173,12 @@ struct tagGlobals
     // REL PTR + THIS = ABS ADDR OF SYMBOL NODE
     int         CSECT;  // PTR TO LATEST SECTION (PASS1)
 
-    uint16_t    PA2LML; // START OF LML BUFR
+    //uint16_t    PA2LML; // START OF LML BUFR
     // LNKOV1->TEMP. SEGMENT POINTER
     //uint16_t    LMLPTR; // CURRENT PTR TO LIBRARY MOD LIST
     //uint16_t    STLML;  // CURRENT START OF LMLPTR IF MULTI-LIBR FILES
     //uint16_t    ENDLML; // END OF LIB MOD LIST
-    uint16_t    ESZRBA; // SIZE OF CURRENT LIBRARY EPT
+    //uint16_t    ESZRBA; // SIZE OF CURRENT LIBRARY EPT
     // RELOCATION INFO OUTPUT BUFR ADR
     uint16_t    OVCOUN; // NO. OF OVERLAY ENTRY PTS.
     uint16_t    OVSPTR; // PTR TO OVERLAY SEGMENT BLK
@@ -192,7 +192,7 @@ struct tagGlobals
 
     uint16_t    SWITCH; // SWITCHES FROM CSI (SEE "LINK1" FOR DETAILS)
     uint16_t    SWIT1;  // Switches
-    uint16_t    FILPT1; // START OF SAVESTATUS AREA -4
+    //uint16_t    FILPT1; // START OF SAVESTATUS AREA -4
 
     // VARIABLES FOR PROGRAM BEING LINKED
     uint16_t    HGHLIM; // MAX # OF SECTIONS IN ANY MODULE PROCESSED
@@ -290,12 +290,12 @@ struct tagGlobals
     uint16_t    HLRT;   // HIGH LIMIT OF AREA (R.GHL)
     uint16_t    BOTTOM; // ST ADDR OF REGION AREA - (I-SPACE IF /J USED)
 
-    uint16_t    CBUF;   // START OF CREF BUFFER
-    uint16_t    CBEND;  // CBUF + 512. BYTES FOR A 1 BLOCK CREF BUFFER
+    //uint16_t    CBUF;   // START OF CREF BUFFER
+    //uint16_t    CBEND;  // CBUF + 512. BYTES FOR A 1 BLOCK CREF BUFFER
     uint16_t    QAREA[10]; // EXTRA QUEUE ELEMENT
     uint16_t    PRAREA[5]; // AREA FOR PROGRAMMED REQUESTS
 
-    uint16_t    EIB512; // IBUF + 512. BYTES FOR A 1 BLOCK MAP BUFR
+    //uint16_t    EIB512; // IBUF + 512. BYTES FOR A 1 BLOCK MAP BUFR
     uint16_t    SEGBAS; // BASE OF OVERLAY SEGMENT
     uint16_t    SEGBLK; // BASE BLK OF OVERLAY SEGMENT
     uint16_t    TXTLEN; // TEMP FOR /V SWITCH
@@ -304,24 +304,24 @@ struct tagGlobals
     // The following globals are defined inside the code
 
     uint16_t    FLGWD;  // INTERNAL FLAG WORD
-    uint16_t    ENDOL;  // USE FOR CONTINUE SWITCHES /C OR //
+    //uint16_t    ENDOL;  // USE FOR CONTINUE SWITCHES /C OR //
     uint16_t    SEGNUM; // KEEP TRACK OF INPUT SEGMENT #'S
 
     // INPUT BUFFER INFORMATION
 
     uint16_t    IRAREA; // CHANNEL NUMBER AND .READ EMT CODE
     uint16_t    CURBLK; // RELATIVE INPUT BLOCK NUMBER
-    uint16_t    IBUF;   // INPUT BUFR ADR(ALSO END OF OUTPUT BUFR (OBUF+512))
-    uint16_t    IBFSIZ; // INPUT BUFR SIZE (MULTIPLE OF 256) WORD COUNT
+    //uint16_t    IBUF;   // INPUT BUFR ADR(ALSO END OF OUTPUT BUFR (OBUF+512))
+    //uint16_t    IBFSIZ; // INPUT BUFR SIZE (MULTIPLE OF 256) WORD COUNT
 
-    uint16_t    OBLK;   // RELATIVE OUTPUT BLOCK #
-    uint16_t    OBUF;   // OUTPUT BUFR ADR
+    //uint16_t    OBLK;   // RELATIVE OUTPUT BLOCK #
+    //uint16_t    OBUF;   // OUTPUT BUFR ADR
 
-    uint16_t    MBLK;   // OUTPUT BLK # (INIT TO -1 FOR BUMP BEFORE WRITE)
+    //uint16_t    MBLK;   // OUTPUT BLK # (INIT TO -1 FOR BUMP BEFORE WRITE)
     uint16_t    MBPTR;  // OUTPUT BUFR POINTER (0 MEANS NO MAP OUTPUT)
 
-    uint16_t    CBLK;   // OUTPUT BLK # (INIT TO -1 FOR BUMP BEFORE WRITE)
-    uint16_t    CBPTR;  // DEFAULT IS NO CREF
+    //uint16_t    CBLK;   // OUTPUT BLK # (INIT TO -1 FOR BUMP BEFORE WRITE)
+    //uint16_t    CBPTR;  // DEFAULT IS NO CREF
 }
 Globals;
 
@@ -1288,7 +1288,7 @@ void process_pass15_libpro(SaveStatusEntry* sscur)
             }
             else if (blocktype == 6)  // 6 - MODULE END, see LINK3\MODND
             {
-                printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+                //printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
                 break;
             }
 
@@ -1355,9 +1355,9 @@ void process_pass15()
                     Globals.FLGWD |= FG_IP; // SET FLAG INDICATING /I PASS FIRST
                 if (Globals.SW_LML) // IS SW.LML SET?
                     Globals.SW_LML |= 0100000; // MAKE SURE BIT IS SET, /I TURNS IT OFF
-                Globals.ESZRBA = *(uint16_t*)(data + L_HEAB); // SIZE OF EPT IN BYTES
+                //Globals.ESZRBA = *(uint16_t*)(data + L_HEAB); // SIZE OF EPT IN BYTES
                 Globals.SEGBAS = 0; // SEGBAS->TEMP FOR /X LIB FLAG
-                Globals.ESZRBA = Globals.ESZRBA >> 1; // NOW WORDS
+                //Globals.ESZRBA = Globals.ESZRBA >> 1; // NOW WORDS
                 if (*(uint16_t*)(data + L_HX)) // IS /X SWITCH SET IN LIB. HEADER?
                 {
                     Globals.SW_LML &= ~0100000; // NO PREPROCESSING ON /X LIBRARIES
@@ -2167,7 +2167,6 @@ void process_pass2_init()
     Globals.SEGBLK = 0;
     //TODO: INIT FOR LIBRARY PROCESSING
     //TODO: RESET NUMBER OF ENTRIES IN MODULE SECTION TBL
-    Globals.LIBNB = 1;
 
     //TODO: FORCE BASE OF ZERO FOR VSECT IF ANY
 }
@@ -2202,16 +2201,75 @@ void process_pass2_dump_txtblk()  // DUMP TEXT SUBROUTINE, see LINK7\TDMP0, LINK
     Globals.TXTLEN = 0;  // MARK TXT BLOCK EMPTY, see LINK7\CLRTXL
 }
 
+void proccess_pass2_libpa2(SaveStatusEntry* sscur)
+{
+    assert(sscur != nullptr);
+    assert(sscur->data != nullptr);
+
+    size_t offset = 0;
+    for (int i = 0; i < LibraryModuleCount; i++)
+    {
+        const LibraryModuleEntry* lmlentry = LibraryModuleList + i;
+        if (lmlentry->libfileno != Globals.LIBNB)
+            continue;  // not this library file
+        if (lmlentry->offset() == offset)
+            continue;  // same offset
+        offset = lmlentry->offset();
+        printf("      process_pass15_libpro() for offset %06o\n", offset);
+        while (offset < sscur->filesize)
+        {
+            uint8_t* data = sscur->data + offset;
+            uint16_t* dataw = (uint16_t*)(data);
+            uint16_t blocksize = ((uint16_t*)data)[1];
+            uint16_t blocktype = ((uint16_t*)data)[2];
+
+            if (blocktype == 0 || blocktype > 8)
+                fatal_error("Illegal record type at %06ho in %s\n", offset, sscur->filename);
+            else if (blocktype == 3)  // See LINK7\DMPTXT
+            {
+                process_pass2_dump_txtblk();
+
+                uint16_t addr = ((uint16_t*)data)[3];
+                uint16_t datasize = blocksize - 8;
+                printf("    Block type 3 - TXT at %06ho size %06ho addr %06ho len %06ho\n", (uint16_t)offset, blocksize, addr, datasize);
+                Globals.TXTLEN = datasize;
+                assert(datasize <= sizeof(Globals.TXTBLK));
+                memcpy(Globals.TXTBLK, data + 6, blocksize - 6);
+
+                *((uint16_t*)Globals.TXTBLK) = addr + Globals.BASE;  // ADD BASE TO GIVE ABS LOAD ADDR
+            }
+            else if (blocktype == 4)  // See LINK7\RLD
+            {
+                printf("    Block type 4 - RLD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+                process_pass2_rld(sscur, data);
+            }
+            else if (blocktype == 6)  // MODULE END RECORD, See LINK7\MODND
+            {
+                //printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+                process_pass2_dump_txtblk();
+                break;
+            }
+
+            data += blocksize; offset += blocksize;
+            data += 1; offset += 1;  // Skip checksum
+        }
+    }
+}
+
 // PRODUCE SAVE IMAGE FILE, see LINK7\PASS2
 void process_pass2()
 {
     printf("PASS 2\n");
+    Globals.LIBNB = 0;
     for (int i = 0; i < SaveStatusCount; i++)
     {
         SaveStatusEntry* sscur = SaveStatusArea + i;
         assert(sscur->data != nullptr);
 
         printf("  Processing %s\n", sscur->filename);
+        if (sscur->islibrary)
+            Globals.LIBNB++;
+
         size_t offset = 0;
         while (offset < sscur->filesize)
         {
@@ -2273,8 +2331,8 @@ void process_pass2()
                 printf("    Block type 7 - TITLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
                 uint16_t eptsize = *(uint16_t*)(data + 24/*L_HEAB*/);  // EPT SIZE IN LIBRARY HEADER
                 //TODO
-                NOTIMPLEMENTED
-                break;  // Skip for now
+                proccess_pass2_libpa2(sscur);
+                break;
                 //data += eptsize; offset += eptsize;
             }
 
