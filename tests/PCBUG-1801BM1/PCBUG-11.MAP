@@ -1,0 +1,8 @@
+RT-11 LINK  V05.45 	Load Map 	Monday 27-May-2019 18:44  Page 1
+PCBUG .SAV   	Title:	PCBUG 	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001634 = 462.    words  (RW,I,GBL,ABS,OVR)
+
+Transfer address = 000001, High limit = 001632 = 461.    words
