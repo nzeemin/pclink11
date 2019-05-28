@@ -1047,7 +1047,15 @@ void process_pass1_gsd_item_psecnm(const uint16_t* itemw, int& itemflags)
         Globals.BASE = 0;  // OVR PSECT, GBL SYM OFFSET IS FROM START OF SECTION
         //if (itemw[3] > entry->value)
     }
-    entry->value += sectsize;
+    if ((itemflags & 0040/*CS$REL*/) == 0)
+    {
+        if (sectsize > entry->value)
+            entry->value = sectsize;
+    }
+    else
+    {
+        entry->value += sectsize;
+    }
 
     Globals.BASE = 0; //TODO
 }
@@ -1670,7 +1678,7 @@ void process_pass_map_output()
     fprintf(mapfileobj, "%s", unrad50(Globals.IDENT));
     fprintf(mapfileobj, "\t\n\n");
     fprintf(mapfileobj, "Section  Addr\tSize");
-    printf("  Section  Addr   Size ");
+    //printf("  Section  Addr   Size ");
     for (uint8_t i = 0; i < Globals.NUMCOL; i++)
     {
         fprintf(mapfileobj, "\tGlobal\tValue");
@@ -2021,7 +2029,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             {
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, (command & 010) == 0);
                 //printf("        Entry '%s' value = %06ho %04X dest = %06ho\n", entry->unrad50name(), entry->value, entry->value, *((uint16_t*)dest));
-                *((uint16_t*)dest) = entry->value; //TODO: fix wrong value
+                *((uint16_t*)dest) = entry->value - addr - 2; //TODO: fix wrong value
             }
             data += 4;  offset += 4;
             break;
