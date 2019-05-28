@@ -71,6 +71,15 @@ const int LibraryModuleListSize = LMLSIZ;
 LibraryModuleEntry LibraryModuleList[LibraryModuleListSize];
 int LibraryModuleCount = 0;  // Count of records in LibraryModuleList, see LMLPTR
 
+struct ModuleSectionEntry
+{
+    uint16_t stindex;        // SymbolTable index
+    uint16_t stub2;
+};
+const int ModuleSectionTableSize = 256;
+ModuleSectionEntry ModuleSectionTable[ModuleSectionTableSize];
+int ModuleSectionCount = 0;
+
 
 const uint32_t RAD50_ABS    = rad50x2(". ABS.");  // ASECT
 const uint32_t RAD50_VSEC   = rad50x2(". VIR.");  // VIRTUAL SECTION SYMBOL NAME
@@ -1847,6 +1856,7 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
     {
         uint8_t cpxcmd = *data;  data += 1;  offset += 1;
         SymbolTableEntry* cpxentry = nullptr;
+        ModuleSectionEntry* mstentry = nullptr;
         uint8_t cpxsect;
         uint16_t cpxval;
         uint32_t cpxname;
@@ -1914,9 +1924,9 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
                 cpxstack[cpxstacktop] = cpxstack[cpxstacktop] ^ cpxstack[cpxstacktop + 1];
             }
             break;
-        case 010:  // NEGATE -- DECREMENT TOP ITEM
+        case 010:  // NEGATE TOP ITEM
             printf("\n");
-            cpxstack[cpxstacktop]--;
+            cpxstack[cpxstacktop] = 0 - cpxstack[cpxstacktop];
             break;
         case 011:  // COMPLEMENT -- COMPLEMENT TOP ITEM
             printf("\n");
@@ -1945,7 +1955,7 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
             cpxstacktop++;
             if (cpxstacktop >= cpxstacksize)
                 fatal_error("ERR35: Complex relocation stack overflow in %s\n", sscur->filename);
-            cpxstack[cpxstacktop] = cpxentry->value;  //TODO
+            cpxstack[cpxstacktop] = cpxentry->value;
             break;
         case 017:  // PUSH RELOCATABLE VALUE, see LINK7\CPXPRL
             // GET SECTION NUMBER
@@ -1953,11 +1963,15 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
             cpxval = *((uint16_t*)data);  data += 2;  offset += 2;  // GET OFFSET WITHIN SECTION
             printf(" %03ho %06ho\n", (uint16_t)cpxsect, cpxval);
             //TODO: SEE IF SECTION NO. OK
-            cpxentry = SymbolTable + cpxsect * 4;  //TODO
+            //if (cpxsect >= ModuleSectionCount)
+            //    fatal_error("ERR35: Invalid complex relocation section number in %s\n", sscur->filename);
+            mstentry = ModuleSectionTable + (size_t)cpxsect;
+            //print_mst_table();//DEBUG
+            NOTIMPLEMENTED;
             cpxstacktop++;
             if (cpxstacktop >= cpxstacksize)
                 fatal_error("ERR35: Complex relocation stack overflow in %s\n", sscur->filename);
-            cpxstack[cpxstacktop] = cpxentry->value + cpxval;  //TODO
+            cpxstack[cpxstacktop] = cpxval;  //TODO
             break;
         case 020:  // PUSH CONSTANT
             cpxval = *((uint16_t*)data);  data += 2;  offset += 2;
@@ -2203,7 +2217,7 @@ void process_pass2_dump_txtblk()  // DUMP TEXT SUBROUTINE, see LINK7\TDMP0, LINK
     mark_bitmap_bits(addr, Globals.TXTLEN);
     //TODO: if ((Globals.SWITCH & SW_X) != 0)
 
-    if (addr < 0400 && addr + Globals.TXTLEN > 0360)
+    if (addr < 0400 && addr + Globals.TXTLEN > 0360 && (Globals.SWITCH & SW_X) != 0)
         Globals.FLGWD |= 02000/*FG.XX*/;  // YES->SET FLAG NOT TO OUTPUT BITMAP
 
     Globals.TXTLEN = 0;  // MARK TXT BLOCK EMPTY, see LINK7\CLRTXL
@@ -2264,6 +2278,37 @@ void proccess_pass2_libpa2(SaveStatusEntry* sscur)
     }
 }
 
+void process_pass2_gsd_block(const SaveStatusEntry* sscur, const uint8_t* data)
+{
+    assert(sscur != nullptr);
+    assert(data != nullptr);
+
+    uint16_t blocksize = ((uint16_t*)data)[1];
+    int itemcount = (blocksize - 6) / 8;
+    //printf("    Processing GSD block, %d items\n", itemcount);
+
+    for (int i = 0; i < itemcount; i++)
+    {
+        const uint16_t* itemw = (const uint16_t*)(data + 6 + 8 * i);
+
+        uint32_t itemnamerad50 = MAKEDWORD(itemw[0], itemw[1]);
+        int itemtype = (itemw[2] >> 8) & 0xff;
+        int itemflags = (itemw[2] & 0377);
+
+        printf("      Item '%s' type %d - %s", unrad50(itemnamerad50), itemtype, (itemtype > 7) ? "UNKNOWN" : GSDItemTypeNames[itemtype]);
+        if (itemtype == 5)
+        {
+            uint32_t lkname = itemnamerad50;
+            uint16_t lkmsk = (uint16_t)~SY_SEC;
+            uint16_t lkwd = (uint16_t)SY_SEC;
+            int index;
+            bool isfound = symbol_table_lookup(lkname, lkwd, lkmsk, &index);
+            //TODO: if not found error
+            //
+        }
+    }
+}
+
 // PRODUCE SAVE IMAGE FILE, see LINK7\PASS2
 void process_pass2()
 {
@@ -2307,7 +2352,8 @@ void process_pass2()
                 fatal_error("ERR4: Illegal record type at %06ho in %s\n", offset, sscur->filename);
             else if (blocktype == 1)  // START GSD RECORD, see LINK7\GSD
             {
-                //printf("    Block type 1 - GSD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+                printf("    Block type 1 - GSD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+                process_pass2_gsd_block(sscur, data);
             }
             else if (blocktype == 3)  // See LINK7\DMPTXT
             {
@@ -2348,6 +2394,25 @@ void process_pass2()
             data += 1; offset += 1;  // Skip checksum
         }
     }
+}
+
+void process_pass2_done()
+{
+    uint16_t highlim = (Globals.SWIT1 & SW_J) ? Globals.DHGHLM : Globals.HGHLIM;
+
+    // Copy the bitmap to block 0
+    if ((Globals.FLGWD & 02000) == 0)
+    {
+        int bitstowrite = ((int)highlim + 511) / 512;
+        int bytestowrite = (bitstowrite + 7) / 8;
+        memcpy(OutputBuffer + SysCom_BITMAP, Globals.BITMAP, bytestowrite);
+    }
+
+    // Write the SAV file
+    size_t bytestowrite = OutputBlockCount == 0 ? 65536 : OutputBlockCount * 512;
+    size_t byteswrit = fwrite(OutputBuffer, 1, bytestowrite, outfileobj);
+    if (byteswrit != bytestowrite)
+        fatal_error("ERR6: Failed to write output file.\n");
 }
 
 // PROCESS COMMAND STRING SWITCHES, see LINK1\SWLOOP in source
@@ -2622,7 +2687,7 @@ int main(int argc, char *argv[])
         process_pass15();  // SCANS ONLY LIBRARIES
         //print_lml_table();//DEBUG
     }
-    print_symbol_table();//DEBUG
+    //print_symbol_table();//DEBUG
     process_pass1_endp1();
 
     process_pass_map_init();
@@ -2631,16 +2696,8 @@ int main(int argc, char *argv[])
 
     process_pass2_init();
     process_pass2();
+    process_pass2_done();
     //TODO: Pass 2.5
-
-    // Copy the bitmap to block 0
-    if ((Globals.FLGWD & 02000) == 0)
-        memcpy(OutputBuffer + SysCom_BITMAP, Globals.BITMAP, 16);
-
-    size_t bytestowrite = OutputBlockCount == 0 ? 65536 : OutputBlockCount * 512;
-    size_t byteswrit = fwrite(OutputBuffer, 1, bytestowrite, outfileobj);
-    if (byteswrit != bytestowrite)
-        fatal_error("ERR6: Failed to write output file.\n");
 
     printf("SUCCESS\n");
     finalize();
