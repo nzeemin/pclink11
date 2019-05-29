@@ -74,7 +74,7 @@ int LibraryModuleCount = 0;  // Count of records in LibraryModuleList, see LMLPT
 struct ModuleSectionEntry
 {
     uint16_t stindex;        // SymbolTable index
-    uint16_t stub2;
+    uint16_t size;
 };
 const int ModuleSectionTableSize = 256;
 ModuleSectionEntry ModuleSectionTable[ModuleSectionTableSize];
@@ -839,7 +839,7 @@ void process_pass1_gsd_item_taddr(const uint16_t* itemw, const SaveStatusEntry* 
                         int newvalue = /*entry->value - sectsize +*/ itemw[3];
                         //TODO: UPDATE OFFSET VALUE
                         //TODO
-                        // See LINK3\TADDR\100$ in source
+                        // See LINK3\TADDR\100$
                         Globals.BEGBLK.symbol = entry->name;  // NAME OF THE SECTION
                         Globals.BEGBLK.flags = entry->flags();
                         Globals.BEGBLK.code = entry->seg();
@@ -854,7 +854,7 @@ void process_pass1_gsd_item_taddr(const uint16_t* itemw, const SaveStatusEntry* 
     }
 }
 
-// LINK3\SYMNAM
+// GLOBAL SYMBOL. See LINK3\SYMNAM
 void process_pass1_gsd_item_symnam(const uint16_t* itemw)
 {
     assert(itemw != nullptr);
@@ -893,7 +893,7 @@ void process_pass1_gsd_item_symnam(const uint16_t* itemw)
         else  // OLD SYMBOL, see LINK3\DEFREF
         {
             SymbolTableEntry* entry = SymbolTable + index;
-            if ((entry->status & 0100000) == 0)  // DEFINED BEFORE?
+            if ((entry->status & 0100000/*SY.UDF*/) == 0)  // DEFINED BEFORE?
             {
                 // SYMBOL WAS DEFINED BEFORE, ABSOLUTE SYMBOLS WITH SAME VALUE NOT MULTIPLY DEFINED
                 if ((itemw[2] & 040/*SY$REL*/) != 0 || entry->value != itemw[3])
@@ -902,7 +902,7 @@ void process_pass1_gsd_item_symnam(const uint16_t* itemw)
             else  // DEFINES A REFERENCED SYMBOL, see LINK3\DEFREF\130$
             {
                 symbol_table_remove_undefined(index);  // REMOVE ENTRY FROM UNDEFINED LIST
-                entry->status &= ~(0117777/*SY.UDF+SY.WK+^CSY.ENB*/);
+                entry->status &= ~(0117777);  // CLR SY.UDF+SY.WK+^CSY.ENB
                 //TODO: IF INPUT SEG # .NE. SYM SEG # THEN SET EXTERNAL REFERENCE BIT
                 //TODO: CLEAR SEGMENT # BITS & SET SEGMENT # WHERE DEFINED
                 entry->value = itemw[3] + Globals.BASE;
@@ -1056,17 +1056,17 @@ void process_pass1_gsd_item_psecnm(const uint16_t* itemw, int& itemflags)
         Globals.BASE = 0;  // OVR PSECT, GBL SYM OFFSET IS FROM START OF SECTION
         //if (itemw[3] > entry->value)
     }
-    if ((itemflags & 0040/*CS$REL*/) == 0)
+    if ((itemflags & 0040/*CS$REL*/) == 0)  // ASECT
     {
-        if (sectsize > entry->value)
+        if (sectsize > entry->value)  // Size is maximum from all ASECT sections
             entry->value = sectsize;
+        Globals.BASE = 0;
     }
     else
     {
+        Globals.BASE = entry->value;
         entry->value += sectsize;
     }
-
-    Globals.BASE = 0; //TODO
 }
 
 // PROCESS GSD TYPES, see LINK3\GSD
@@ -1106,12 +1106,12 @@ void process_pass1_gsd_item(const uint16_t* itemw, const SaveStatusEntry* sscur)
         printf(" flags %03o maxlen %06ho\n", itemflags, itemw[3]);
         process_pass1_gsd_item_psecnm(itemw, itemflags);
         break;
-    case 6: // 6 - IDENT DEFINITION; see LINK3\PGMIDN in source
+    case 6: // 6 - IDENT DEFINITION; see LINK3\PGMIDN
         printf("\n");
         if (Globals.IDENT == 0)
             Globals.IDENT = itemnamerad50;
         break;
-    case 7: // 7 - VIRTUAL SECTION; see LINK3\VSECNM in source
+    case 7: // 7 - VIRTUAL SECTION; see LINK3\VSECNM
         printf("\n");
         //TODO
         NOTIMPLEMENTED
@@ -1145,7 +1145,7 @@ void process_pass1()
 {
     printf("PASS 1\n");
     Globals.PAS1_5 = 0;  // PASS 1 PHASE INDICATOR
-    // PROCESS FORMATTED BINARY RECORDS, see LINK3\PA1 in source
+    // PROCESS FORMATTED BINARY RECORDS, see LINK3\PA1
     for (int i = 0; i < SaveStatusCount; i++)
     {
         SaveStatusEntry* sscur = SaveStatusArea + i;
@@ -1473,7 +1473,7 @@ void process_pass_map_fbnew(uint16_t blocktype)
     Globals.TXTLEN = 6;
 }
 
-// Map processing: see LINK4/MAP in source
+// Map processing: see LINK4/MAP
 void process_pass_map_init()
 {
     // START PROCESSING FOR MAP, AND Q,U,V,Y SWITCHES
@@ -1641,7 +1641,29 @@ void print_undefined_globals()
     printf("\n");
 }
 
-// Map output: see LINK5\MAPHDR in source
+void process_pass_map_output_sectionline(const SymbolTableEntry* entry, uint16_t baseaddr, uint16_t sectsize)
+{
+    assert(entry != nullptr);
+
+    // OUTPUT SECTION NAME, BASE ADR, SIZE & ATTRIBUTES
+    uint8_t entryflags = entry->flags();
+    char bufsize[20];
+    sprintf(bufsize, "%06ho = %d.", sectsize, (sectsize + 1) / 2);
+    const char* sectaccess = (entryflags & 0020) ? "RO" : "RW";
+    const char* secttypedi = (entryflags & 0200) ? "D" : "I";
+    const char* sectscope = (entryflags & 0100) ? "GBL" : "LCL";
+    const char* sectsav = ((entryflags & 0100) && (entryflags & 010000)) ? ",SAV" : "";
+    const char* sectreloc = (entryflags & 0040) ? "REL" : "ABS";
+    const char* sectalloc = (entryflags & 0004) ? "OVR" : "CON";
+    fprintf(mapfileobj, " %s\t %06ho\t%-16s words  (%s,%s,%s%s,%s,%s)\n",
+            (entry->name >= 03100) ? entry->unrad50name() : "",
+            baseaddr, bufsize, sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
+    printf("  '%s' %06ho %-16s words  (%s,%s,%s%s,%s,%s)\n",
+           (entry->name >= 03100) ? entry->unrad50name() : "      ",
+           baseaddr, bufsize, sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
+}
+
+// Map output: see LINK5\MAPHDR
 void process_pass_map_output()
 {
     printf("PASS MAP\n");
@@ -1696,6 +1718,8 @@ void process_pass_map_output()
     fprintf(mapfileobj, "\n\n");
     printf("\n");
 
+    print_symbol_table();//DEBUG
+
     // RESOLV  SECTION STARTS & GLOBAL SYMBOL VALUES; see LINK5\RESOLV
     uint16_t baseaddr = 0; // ASECT BASE ADDRESS IS 0
     SymbolTableEntry* entry = ASECTentry;
@@ -1704,7 +1728,7 @@ void process_pass_map_output()
     int tabcount = 0;
     while (entry != nullptr)
     {
-        if (entry->flagseg & SY_SEC)
+        if (entry->flagseg & SY_SEC)  // SECTION
         {
             if (tabcount > 0)
             {
@@ -1719,25 +1743,9 @@ void process_pass_map_output()
             bool skipsect = ((entry->name >= 03100) == 0 && sectsize == 0);
             if (!skipsect)
             {
-                // OUTPUT SECTION NAME, BASE ADR, SIZE & ATTRIBUTES
-                uint8_t entryflags = entry->flags();
-                char bufsize[20];
-                sprintf(bufsize, "%06ho = %d.", sectsize, (sectsize + 1) / 2);
-                const char* sectaccess = (entryflags & 0020) ? "RO" : "RW";
-                const char* secttypedi = (entryflags & 0200) ? "D" : "I";
-                const char* sectscope = (entryflags & 0100) ? "GBL" : "LCL";
-                const char* sectsav = ((entryflags & 0100) && (entryflags & 010000)) ? ",SAV" : "";
-                const char* sectreloc = (entryflags & 0040) ? "REL" : "ABS";
-                const char* sectalloc = (entryflags & 0004) ? "OVR" : "CON";
-                //const char* sectname = (entry->name >= 03100) ? entry->unrad50name() : "      ";
-                fprintf(mapfileobj, " %s\t %06ho\t%-16s words  (%s,%s,%s%s,%s,%s)\n",
-                        (entry->name >= 03100) ? entry->unrad50name() : "",
-                        baseaddr, bufsize, sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
-                printf("  '%s' %06ho %-16s words  (%s,%s,%s%s,%s,%s)\n",
-                       (entry->name >= 03100) ? entry->unrad50name() : "      ",
-                       baseaddr, bufsize, sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
+                process_pass_map_output_sectionline(entry, baseaddr, sectsize);
 
-                if ((entryflags & 0040) == 0)  // For ABS section only
+                if ((entry->flags() & 0040) == 0)  // For ABS section only
                     process_pass_map_fbseg(entry);  // PUT NEW SEGMENT INTO STB FILE
             }
         }
@@ -1785,7 +1793,7 @@ void process_pass_map_output()
             sectsize = entry->value;
         }
     }
-    //TODO: see LINK5\POSTN\10$ in source
+    //TODO: see LINK5\POSTN\10$
     uint16_t totalsize = baseaddr + sectsize;
     uint16_t blockcount = (totalsize + 511) / 512;
     printf("  Total size %06ho = %u. bytes, %u. blocks\n", totalsize, totalsize, blockcount);
@@ -1962,16 +1970,16 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
             cpxsect = *data;  data += 1;  offset += 1;
             cpxval = *((uint16_t*)data);  data += 2;  offset += 2;  // GET OFFSET WITHIN SECTION
             printf(" %03ho %06ho\n", (uint16_t)cpxsect, cpxval);
-            //TODO: SEE IF SECTION NO. OK
-            //if (cpxsect >= ModuleSectionCount)
-            //    fatal_error("ERR35: Invalid complex relocation section number in %s\n", sscur->filename);
+            // SEE IF SECTION NO. OK
+            if (cpxsect >= ModuleSectionCount)
+                fatal_error("ERR35: Invalid complex relocation section number in %s\n", sscur->filename);
             mstentry = ModuleSectionTable + (size_t)cpxsect;
+            cpxentry = SymbolTable + mstentry->stindex;
             //print_mst_table();//DEBUG
-            NOTIMPLEMENTED;
             cpxstacktop++;
             if (cpxstacktop >= cpxstacksize)
                 fatal_error("ERR35: Complex relocation stack overflow in %s\n", sscur->filename);
-            cpxstack[cpxstacktop] = cpxval;  //TODO
+            cpxstack[cpxstacktop] = cpxval + cpxentry->value;
             break;
         case 020:  // PUSH CONSTANT
             cpxval = *((uint16_t*)data);  data += 2;  offset += 2;
@@ -2115,9 +2123,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
 // Prapare SYSCOM area, pass 2 initialization; see LINK6
 void process_pass2_init()
 {
-    printf("PASS 2 init\n");
-
-    print_symbol_table();//DEBUG
+    //printf("PASS 2 init\n");
 
     // Allocate space for .SAV file image
     OutputBufferSize = 65536;
@@ -2127,6 +2133,7 @@ void process_pass2_init()
 
     // See LINK6\DOCASH
     Globals.LRUNUM = 0; // INIT LEAST RECENTLY USED TIME STAMP
+    Globals.BASE = 0;
     //Globals.BITBAD = Globals.LMLPTR + 2 + Globals.STLML * 4;  // START OF SAV FILE MASTER BITMAP IN BLK 0
     //TODO
 
@@ -2278,6 +2285,7 @@ void proccess_pass2_libpa2(SaveStatusEntry* sscur)
     }
 }
 
+// PROCESS GSD RECORD DURING PASS 2. See LINK7\GSD
 void process_pass2_gsd_block(const SaveStatusEntry* sscur, const uint8_t* data)
 {
     assert(sscur != nullptr);
@@ -2295,7 +2303,7 @@ void process_pass2_gsd_block(const SaveStatusEntry* sscur, const uint8_t* data)
         int itemtype = (itemw[2] >> 8) & 0xff;
         int itemflags = (itemw[2] & 0377);
 
-        printf("      Item '%s' type %d - %s", unrad50(itemnamerad50), itemtype, (itemtype > 7) ? "UNKNOWN" : GSDItemTypeNames[itemtype]);
+        printf("      Item '%s' type %d - %s\n", unrad50(itemnamerad50), itemtype, (itemtype > 7) ? "UNKNOWN" : GSDItemTypeNames[itemtype]);
         if (itemtype == 5)
         {
             uint32_t lkname = itemnamerad50;
@@ -2303,8 +2311,19 @@ void process_pass2_gsd_block(const SaveStatusEntry* sscur, const uint8_t* data)
             uint16_t lkwd = (uint16_t)SY_SEC;
             int index;
             bool isfound = symbol_table_lookup(lkname, lkwd, lkmsk, &index);
-            //TODO: if not found error
-            //
+            if (!isfound)
+                fatal_error("ERR21: Invalid GSD in %s\n", sscur->filename);
+
+            ModuleSectionEntry* msentry = ModuleSectionTable + ModuleSectionCount;
+            msentry->stindex = (uint16_t)index;
+            msentry->size = 0;  // ASSUME CONTRIBUTION OF 0 FOR THIS SECTION
+            ModuleSectionCount++;
+            //SymbolTableEntry* entry = SymbolTable + index;
+            //TODO: DON'T UPDATE SECTION BASE IF OVR SECT
+            //uint16_t sectsize = itemw[3];
+            //TODO: ROUND ALL SECTIONS EXCEPT "CON" DATA SECTIONS TO WORD BOUNDARIES
+            //sectsize = (sectsize + 1) & ~1;
+            //msentry->size = sectsize;
         }
     }
 }
@@ -2375,15 +2394,17 @@ void process_pass2()
             }
             else if (blocktype == 6)  // MODULE END RECORD, See LINK7\MODND
             {
-                //printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+                printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
 
                 process_pass2_dump_txtblk();
-                //TODO
+
+                //TODO: AT THE END OF EACH MODULE THE BASE ADR OF EACH SECTION IS UPDATED AS DETERMINED BY THE MST.
+                //NOTIMPLEMENTED;
             }
             else if (blocktype == 7)  // See LINK7\LIBPA2
             {
                 printf("    Block type 7 - TITLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
-                uint16_t eptsize = *(uint16_t*)(data + 24/*L_HEAB*/);  // EPT SIZE IN LIBRARY HEADER
+                //uint16_t eptsize = *(uint16_t*)(data + 24/*L_HEAB*/);  // EPT SIZE IN LIBRARY HEADER
                 //TODO
                 proccess_pass2_libpa2(sscur);
                 break;
@@ -2415,7 +2436,7 @@ void process_pass2_done()
         fatal_error("ERR6: Failed to write output file.\n");
 }
 
-// PROCESS COMMAND STRING SWITCHES, see LINK1\SWLOOP in source
+// PROCESS COMMAND STRING SWITCHES, see LINK1\SWLOOP
 void parse_commandline(int argc, char **argv)
 {
     assert(argv != nullptr);
@@ -2687,12 +2708,12 @@ int main(int argc, char *argv[])
         process_pass15();  // SCANS ONLY LIBRARIES
         //print_lml_table();//DEBUG
     }
-    //print_symbol_table();//DEBUG
     process_pass1_endp1();
 
     process_pass_map_init();
     process_pass_map_output();
     process_pass_map_done();
+    print_symbol_table();//DEBUG
 
     process_pass2_init();
     process_pass2();
