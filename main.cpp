@@ -26,7 +26,7 @@ struct SaveStatusEntry
     bool     islibrary;
     uint8_t* data;
 };
-const int SaveStatusAreaSize = 8;
+const int SaveStatusAreaSize = 31;
 SaveStatusEntry SaveStatusArea[SaveStatusAreaSize];
 int SaveStatusCount = 0;
 
@@ -74,7 +74,7 @@ int LibraryModuleCount = 0;  // Count of records in LibraryModuleList, see LMLPT
 struct ModuleSectionEntry
 {
     uint16_t stindex;        // SymbolTable index
-    uint16_t size;
+    uint16_t size;           // Section size
 };
 const int ModuleSectionTableSize = 256;
 ModuleSectionEntry ModuleSectionTable[ModuleSectionTableSize];
@@ -645,6 +645,13 @@ void print_symbol_table()
         else
             printf("; the list has %d entries.\n", count);
     }
+}
+
+// Clear Module Section Table (MST)
+void mst_table_clear()
+{
+    memset(ModuleSectionTable, 0, sizeof(ModuleSectionTable));
+    ModuleSectionCount = 0;
 }
 
 void print_mst_table()
@@ -2139,6 +2146,8 @@ void process_pass2_init()
 {
     //printf("PASS 2 init\n");
 
+    mst_table_clear();
+
     // Allocate space for .SAV file image
     OutputBufferSize = 65536;
     OutputBuffer = (uint8_t*) calloc(OutputBufferSize, 1);
@@ -2258,7 +2267,7 @@ void proccess_pass2_libpa2(SaveStatusEntry* sscur)
         if (lmlentry->offset() == offset)
             continue;  // same offset
         offset = lmlentry->offset();
-        printf("      process_pass15_libpro() for offset %06o\n", offset);
+        //printf("      process_pass15_libpro() for offset %06o\n", offset);
         while (offset < sscur->filesize)
         {
             uint8_t* data = sscur->data + offset;
@@ -2334,11 +2343,12 @@ void process_pass2_gsd_block(const SaveStatusEntry* sscur, const uint8_t* data)
             msentry->stindex = (uint16_t)index;
             msentry->size = 0;  // ASSUME CONTRIBUTION OF 0 FOR THIS SECTION
             ModuleSectionCount++;
-            //SymbolTableEntry* entry = SymbolTable + index;
+            SymbolTableEntry* entry = SymbolTable + index;
             //TODO: DON'T UPDATE SECTION BASE IF OVR SECT
             uint16_t sectsize = itemw[3];
             //TODO: ROUND ALL SECTIONS EXCEPT "CON" DATA SECTIONS TO WORD BOUNDARIES
-            sectsize = (sectsize + 1) & ~1;
+            if ((entry->flags() & 4/*CS$ALO*/) == 0 && (entry->flags() & 0200/*CS$TYP*/) == 0)
+                sectsize = (sectsize + 1) & ~1;
             msentry->size = sectsize;
         }
     }
@@ -2417,7 +2427,7 @@ void process_pass2()
                 process_pass2_dump_txtblk();
 
                 // AT THE END OF EACH MODULE THE BASE ADR OF EACH SECTION IS UPDATED AS DETERMINED BY THE MST.
-                print_mst_table();//DEBUG
+                //print_mst_table();//DEBUG
                 for (int i = 0; i < ModuleSectionCount; i++)
                 {
                     ModuleSectionEntry* mstentry = ModuleSectionTable + i;
@@ -2425,7 +2435,7 @@ void process_pass2()
                     if (entry->name != RAD50_ABS)
                         entry->value += mstentry->size;
                 }
-                ModuleSectionCount = 0;
+                mst_table_clear();
             }
             else if (blocktype == 7)  // See LINK7\LIBPA2
             {
@@ -2551,7 +2561,7 @@ void parse_commandline(int argc, char **argv)
                     if (result < 1)
                         fatal_error("Invalid /K option, use /K:value\n");
                     if (param1 < 2 || param1 > 28)
-                        fatal_error("Invalid /K option value, should be: 2 < value < 28.\n");
+                        fatal_error("Invalid /K option value, should be: 2 < value < 28\n");
                     Globals.SWITCH |= SW_K;
                     //TODO: if (Globals.SWITCH & SW_R)
                     Globals.KSWVAL = param1;

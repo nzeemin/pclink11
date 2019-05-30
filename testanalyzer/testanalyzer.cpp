@@ -79,15 +79,14 @@ string findfile_bymask(const string& dirname, const string& mask)
 // Process my log, show NOT IMPLEMENTED lines, make sure it ends with SUCCESS
 bool process_mylog(string& mylogfilepath)
 {
-    bool haserrors = false;
-    string prefix = "  my.LOG: ";
-    std::vector<string> problems;
-
-    std::ifstream file(mylogfilepath);  //TODO: open for read only
-    //TODO: check if open fails
+    std::ifstream file(mylogfilepath, std::ifstream::in);
+    if (file.fail())
+        return false;
 
     // Enumerate the lines and collect all problematic lines
+    std::vector<string> problems;
     string str;
+    bool haserrors = false;
     bool hassuccess = false;
     while (std::getline(file, str))
     {
@@ -106,16 +105,20 @@ bool process_mylog(string& mylogfilepath)
             hassuccess = true;
         }
     }
+
     // Sort and unique the list of problematic lines
     sort(problems.begin(), problems.end());
     problems.erase(unique(problems.begin(), problems.end()), problems.end());
+
+    if (!haserrors && !hassuccess)
+        problems.push_back("Has no SUCCESS line.");
+
     // Report the lines
+    const string prefix = "  my.LOG: ";
     for (std::vector<string>::iterator it = problems.begin(); it != problems.end(); ++it)
     {
         std::cout << prefix << *it << std::endl;
     }
-    if (!haserrors && !hassuccess)
-        std::cout << prefix << "has no SUCCESS line" << std::endl;
 
     return !haserrors && hassuccess;
 }
@@ -123,9 +126,12 @@ bool process_mylog(string& mylogfilepath)
 // Compare MAP files as text, ignore page header lines
 bool process_map_files(string& filepathmap11, string& filepathmapmy)
 {
-    std::ifstream file1(filepathmap11);  //TODO: open for read only
-    std::ifstream file2(filepathmapmy);  //TODO: open for read only
-    //TODO: check if open fails
+    std::ifstream file1(filepathmap11, std::ifstream::in);
+    if (file1.fail())
+        return false;
+    std::ifstream file2(filepathmapmy, std::ifstream::in);
+    if (file2.fail())
+        return false;
 
     // Enumerate the lines and count diffs
     string str1, str2;
@@ -302,24 +308,6 @@ void showdiff_binary_files(string& filepath11, string& filepathmy, const string&
     SetConsoleTextAttribute(g_hConsole, TEXTATTRIBUTES_WARNING);
 }
 
-// Compare SAV files as binary
-bool process_sav_files(string& filepathsav11, string& filepathsavmy)
-{
-    bool res = countdiff_binary_files(filepathsav11, filepathsavmy, "SAV");
-    if (!res && g_verbose)
-        showdiff_binary_files(filepathsav11, filepathsavmy, "SAV", g_maxchunkstoshow);
-    return res;
-}
-
-// Compare STB files as binary
-bool process_stb_files(string& filepathstb11, string& filepathstbmy)
-{
-    bool res = countdiff_binary_files(filepathstb11, filepathstbmy, "STB");
-    if (!res && g_verbose)
-        showdiff_binary_files(filepathstb11, filepathstbmy, "STB", g_maxchunkstoshow);
-    return res;
-}
-
 void process_test(string& stestdirname)
 {
     SetConsoleTextAttribute(g_hConsole, TEXTATTRIBUTES_NORMAL);
@@ -327,7 +315,6 @@ void process_test(string& stestdirname)
     SetConsoleTextAttribute(g_hConsole, TEXTATTRIBUTES_WARNING);
 
     string stestdirpath = "tests\\" + stestdirname;
-    //string filenamelog11 = findfile_bymask(stestdirpath, "*-11.log");
     string filenamelogmy = findfile_bymask(stestdirpath, "*-my.log");
     string filenamemap11 = findfile_bymask(stestdirpath, "*-11.map");
     string filenamemapmy = findfile_bymask(stestdirpath, "*-my.map");
@@ -339,11 +326,6 @@ void process_test(string& stestdirname)
     bool isfileabsent = false;
     bool resmylog = true, resmaps = true, ressavs = true, resstbs = true;
 
-    //if (filenamelog11.empty())
-    //{
-    //    std::cout << "  File not found: *-11.log" << std::endl;
-    //    isfileabsent = true;
-    //}
     if (filenamelogmy.empty())
     {
         std::cout << "  File not found: *-my.log" << std::endl;
@@ -391,11 +373,19 @@ void process_test(string& stestdirname)
     }
     if (!filenamesav11.empty() && !filenamesavmy.empty())
     {
-        ressavs = process_sav_files(stestdirpath + "\\" + filenamesav11, stestdirpath + "\\" + filenamesavmy);
+        string filepathsav11 = stestdirpath + "\\" + filenamesav11;
+        string filepathsavmy = stestdirpath + "\\" + filenamesavmy;
+        bool ressavs = countdiff_binary_files(filepathsav11, filepathsavmy, "SAV");
+        if (!ressavs && g_verbose)
+            showdiff_binary_files(filepathsav11, filepathsavmy, "SAV", g_maxchunkstoshow);
     }
     if (!filenamestb11.empty() && !filenamestbmy.empty())
     {
-        resstbs = process_stb_files(stestdirpath + "\\" + filenamestb11, stestdirpath + "\\" + filenamestbmy);
+        string filepathstb11 = stestdirpath + "\\" + filenamestb11;
+        string filepathstbmy = stestdirpath + "\\" + filenamestbmy;
+        bool resstbs = countdiff_binary_files(filepathstb11, filepathstbmy, "STB");
+        if (!resstbs && g_verbose)
+            showdiff_binary_files(filepathstb11, filepathstbmy, "STB", g_maxchunkstoshow);
     }
 
     if (isfileabsent)
