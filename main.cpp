@@ -647,6 +647,20 @@ void print_symbol_table()
     }
 }
 
+void print_mst_table()
+{
+    printf("  ModuleSectionTable count = %d.\n", ModuleSectionCount);
+    for (int i = 0; i < ModuleSectionCount; i++)
+    {
+        const ModuleSectionEntry* mstentry = ModuleSectionTable + i;
+        const SymbolTableEntry* entry = SymbolTable + mstentry->stindex;
+        printf("    #%04d index %06ho '%s' size %06ho\n",
+               (uint16_t)i, mstentry->stindex,
+               mstentry->stindex == 0 ? "" : entry->unrad50name(),
+               mstentry->size);
+    }
+}
+
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -2004,12 +2018,12 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
 
     uint16_t blocksize = ((uint16_t*)data)[1];
     uint16_t offset = 6;  data += 6;
+    uint16_t baseaddr = *((uint16_t*)Globals.TXTBLK);
     while (offset < blocksize)
     {
         uint8_t command = *data;  data++;  offset++;  // CMD BYTE OF RLD
         uint8_t disbyte = *data;  data++;  offset++;  // DISPLACEMENT BYTE
         uint8_t* dest = Globals.TXTBLK + (disbyte - 2);
-        uint16_t baseaddr = *((uint16_t*)Globals.TXTBLK) + Globals.BASE;
         uint16_t addr = baseaddr + (disbyte - 2) - 2;
 
         printf("      %06ho RLD type %03ho %s",
@@ -2042,7 +2056,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             // THE ADDRESS + 2 THAT THE RELOCATED VALUE IS TO BE WRITTEN INTO IS SUBTRACTED FROM THE SPECIFIED CONSTANT & RESULTS STORED.
             constdata = *((uint16_t*)data);
             printf(" %06ho\n", constdata);
-            *((uint16_t*)dest) = constdata + Globals.BASE - (addr + 2);
+            *((uint16_t*)dest) = constdata - (addr + 2);
             data += 2;  offset += 2;
             break;
         case 004:  // GLOBAL DISPLACED, see LINK7\RLDGDR
@@ -2051,7 +2065,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             {
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, (command & 010) == 0);
                 //printf("        Entry '%s' value = %06ho %04X dest = %06ho\n", entry->unrad50name(), entry->value, entry->value, *((uint16_t*)dest));
-                *((uint16_t*)dest) = entry->value - addr - 2; //TODO: fix wrong value
+                *((uint16_t*)dest) = entry->value - addr - 2;
             }
             data += 4;  offset += 4;
             break;
@@ -2076,7 +2090,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             printf(" '%s' %06ho\n", unrad50(*((uint32_t*)data)), constdata);
             {
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, (command & 010) == 0);
-                *((uint16_t*)dest) = Globals.BASE + entry->value + constdata - (addr + 2);
+                *((uint16_t*)dest) = entry->value + constdata - (addr + 2);
                 //TODO: IS SYMBOL IN OVERLAY BY ISOLATING THE SEGMENT #
             }
             data += 6;  offset += 6;
@@ -2260,7 +2274,8 @@ void proccess_pass2_libpa2(SaveStatusEntry* sscur)
 
                 uint16_t addr = ((uint16_t*)data)[3];
                 uint16_t datasize = blocksize - 8;
-                printf("    Block type 3 - TXT at %06ho size %06ho addr %06ho len %06ho\n", (uint16_t)offset, blocksize, addr, datasize);
+                printf("    Block type 3 - TXT at %06ho size %06ho addr %06ho %06ho len %06ho\n",
+                       (uint16_t)offset, blocksize, addr, addr + Globals.BASE, datasize);
                 Globals.TXTLEN = datasize;
                 assert(datasize <= sizeof(Globals.TXTBLK));
                 memcpy(Globals.TXTBLK, data + 6, blocksize - 6);
@@ -2269,7 +2284,8 @@ void proccess_pass2_libpa2(SaveStatusEntry* sscur)
             }
             else if (blocktype == 4)  // See LINK7\RLD
             {
-                printf("    Block type 4 - RLD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+                uint16_t base = *((uint16_t*)Globals.TXTBLK);
+                printf("    Block type 4 - RLD at %06ho size %06ho base %06ho\n", (uint16_t)offset, blocksize, base);
                 process_pass2_rld(sscur, data);
             }
             else if (blocktype == 6)  // MODULE END RECORD, See LINK7\MODND
@@ -2320,10 +2336,10 @@ void process_pass2_gsd_block(const SaveStatusEntry* sscur, const uint8_t* data)
             ModuleSectionCount++;
             //SymbolTableEntry* entry = SymbolTable + index;
             //TODO: DON'T UPDATE SECTION BASE IF OVR SECT
-            //uint16_t sectsize = itemw[3];
+            uint16_t sectsize = itemw[3];
             //TODO: ROUND ALL SECTIONS EXCEPT "CON" DATA SECTIONS TO WORD BOUNDARIES
-            //sectsize = (sectsize + 1) & ~1;
-            //msentry->size = sectsize;
+            sectsize = (sectsize + 1) & ~1;
+            msentry->size = sectsize;
         }
     }
 }
@@ -2380,7 +2396,8 @@ void process_pass2()
 
                 uint16_t addr = ((uint16_t*)data)[3];
                 uint16_t datasize = blocksize - 8;
-                printf("    Block type 3 - TXT at %06ho size %06ho addr %06ho len %06ho\n", (uint16_t)offset, blocksize, addr, datasize);
+                printf("    Block type 3 - TXT at %06ho size %06ho addr %06ho %06ho len %06ho\n",
+                       (uint16_t)offset, blocksize, addr, addr + Globals.BASE, datasize);
                 Globals.TXTLEN = datasize;
                 assert(datasize <= sizeof(Globals.TXTBLK));
                 memcpy(Globals.TXTBLK, data + 6, blocksize - 6);
@@ -2389,7 +2406,8 @@ void process_pass2()
             }
             else if (blocktype == 4)  // See LINK7\RLD
             {
-                printf("    Block type 4 - RLD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+                uint16_t base = *((uint16_t*)Globals.TXTBLK);
+                printf("    Block type 4 - RLD at %06ho size %06ho base %06ho\n", (uint16_t)offset, blocksize, base);
                 process_pass2_rld(sscur, data);
             }
             else if (blocktype == 6)  // MODULE END RECORD, See LINK7\MODND
@@ -2398,8 +2416,16 @@ void process_pass2()
 
                 process_pass2_dump_txtblk();
 
-                //TODO: AT THE END OF EACH MODULE THE BASE ADR OF EACH SECTION IS UPDATED AS DETERMINED BY THE MST.
-                //NOTIMPLEMENTED;
+                // AT THE END OF EACH MODULE THE BASE ADR OF EACH SECTION IS UPDATED AS DETERMINED BY THE MST.
+                print_mst_table();//DEBUG
+                for (int i = 0; i < ModuleSectionCount; i++)
+                {
+                    ModuleSectionEntry* mstentry = ModuleSectionTable + i;
+                    SymbolTableEntry* entry = SymbolTable + mstentry->stindex;
+                    if (entry->name != RAD50_ABS)
+                        entry->value += mstentry->size;
+                }
+                ModuleSectionCount = 0;
             }
             else if (blocktype == 7)  // See LINK7\LIBPA2
             {
