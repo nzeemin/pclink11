@@ -857,7 +857,7 @@ void process_pass1_gsd_item_taddr(const uint16_t* itemw, const SaveStatusEntry* 
                         uint16_t itemvaltmp = itemwtmp[3];
                         uint16_t sectsize = (itemvaltmp + 1) & ~1;  // ROUND SECTION SIZE TO WORD BOUNDARY
                         printf("        Item '%s' type %d - CSECT or PSECT size %06ho\n", unrad50(itemwtmp[0], itemwtmp[1]), itemtypetmp, sectsize);
-                        int newvalue = /*entry->value - sectsize +*/ itemw[3];
+                        int newvalue = entry->value - sectsize + itemw[3];
                         //TODO: UPDATE OFFSET VALUE
                         //TODO
                         // See LINK3\TADDR\100$
@@ -2749,7 +2749,7 @@ int main(int argc, char *argv[])
     process_pass_map_init();
     process_pass_map_output();
     process_pass_map_done();
-    print_symbol_table();//DEBUG
+    //print_symbol_table();//DEBUG
 
     process_pass2_init();
     process_pass2();
