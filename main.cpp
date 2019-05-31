@@ -417,6 +417,8 @@ void symbol_table_add_undefined(int index)
     entry->status |= (uint16_t)Globals.UNDLST;
 
     Globals.UNDLST = index;
+
+    Globals.FLGWD |= AD_LML;  // IND TO ADD TO LML LATER
 }
 
 // REMOVE A ENTRY FROM THE UNDEFINED LIST, see LINK3\REMOVE
@@ -887,7 +889,10 @@ void process_pass1_gsd_item_symnam(const uint16_t* itemw)
     bool found;
     if (itemw[2] & 010/*SY$DEF*/)  // IS SYMBOL DEFINED HERE?
     {
-        if (Globals.SEGNUM == 0) // ROOT DEF?
+        if (Globals.SW_LML & 0100000)  // LIBRARY PREPROCESS PASS?
+            return;  // IGNORE PREPROCESS PASS DEFS
+
+        if ((Globals.PAS1_5 & 0200) != 0 && Globals.SEGNUM == 0) // ROOT DEF?
         {
             found = symbol_table_dlooke(lkname, lkwd, lkmsk, &index);
             SymbolTableEntry* entry = SymbolTable + index;
@@ -1295,10 +1300,13 @@ void process_pass15_lmlorder()
 }
 
 // READ MODULES FROM THE LIBRARY. See LINK3\LIBPRO
-void process_pass15_libpro(SaveStatusEntry* sscur)
+void process_pass15_libpro(const SaveStatusEntry* sscur)
 {
     assert(sscur != nullptr);
     assert(sscur->data != nullptr);
+
+    Globals.DUPMOD = 0;  // ASSUME THIS IS NOT A DUP MOD
+
     //printf("      process_pass15_libpro() for library #%d %s\n", (int)Globals.LIBNB, sscur->filename);
     size_t offset = 0;
     for (int i = 0; i < LibraryModuleCount; i++)
@@ -1309,7 +1317,7 @@ void process_pass15_libpro(SaveStatusEntry* sscur)
         if (lmlentry->offset() == offset)
             continue;  // same offset
         offset = lmlentry->offset();
-        printf("      process_pass15_libpro() for offset %06o\n", offset);
+        printf("      Module #%d offset %06o\n", i, offset);
         while (offset < sscur->filesize)
         {
             uint8_t* data = sscur->data + offset;
@@ -1336,6 +1344,105 @@ void process_pass15_libpro(SaveStatusEntry* sscur)
     }
 }
 
+void process_pass15_library(const SaveStatusEntry* sscur)
+{
+    size_t offset = 0;
+    while (offset < sscur->filesize)
+    {
+        uint8_t* data = sscur->data + offset;
+        uint16_t* dataw = (uint16_t*)(data);
+        if (*dataw != 1)
+        {
+            if (*dataw == 0)  // Possibly that is filler at the end of the block
+            {
+                size_t offsetnext = (offset + 511) & ~511;
+                while (*data == 0 && offset < sscur->filesize && offset < offsetnext)
+                {
+                    data++; offset++;
+                }
+                if (offset == sscur->filesize)
+                    break;  // End of file
+            }
+            dataw = (uint16_t*)(data);
+            if (*dataw != 1)
+                fatal_error("Unexpected word %06ho at %06ho in %s\n", *dataw, offset, sscur->filename);
+        }
+
+        uint16_t blocksize = ((uint16_t*)data)[1];
+        uint16_t blocktype = ((uint16_t*)data)[2];
+
+        if (blocktype < 0 || blocktype > 8)
+            fatal_error("Illegal record type %03ho at %06ho in %s\n", blocktype, offset, sscur->filename);
+        if (blocktype == 7)  // See LINK3\LIBRA, WE ARE ON PASS 1.5 , SO PROCESS LIBRARIES
+        {
+            printf("    Block type 7 - TITLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+            uint16_t eptsize = *(uint16_t*)(data + L_HEAB);
+            printf("      EPT size %06ho bytes, %d. records\n", eptsize, (int)(eptsize / 8));
+
+            //Globals.SVLML = Globals.STLML; // SAVE START OF ALL LML'S FOR THIS LIB
+            Globals.FLGWD |= LB_OBJ; // IND LIB FILE TO LINKER
+            //TODO: R4 -> 1ST WD OF BUFR & C=0
+            if (Globals.SWITCH & SW_I) // ANY /I MODULES?
+                Globals.FLGWD |= FG_IP; // SET FLAG INDICATING /I PASS FIRST
+            if (Globals.SW_LML) // IS SW.LML SET?
+                Globals.SW_LML |= 0100000; // MAKE SURE BIT IS SET, /I TURNS IT OFF
+            //Globals.ESZRBA = *(uint16_t*)(data + L_HEAB); // SIZE OF EPT IN BYTES
+            Globals.SEGBAS = 0; // SEGBAS->TEMP FOR /X LIB FLAG
+            //Globals.ESZRBA = Globals.ESZRBA >> 1; // NOW WORDS
+            if (*(uint16_t*)(data + L_HX)) // IS /X SWITCH SET IN LIB. HEADER?
+            {
+                Globals.SW_LML &= ~0100000; // NO PREPROCESSING ON /X LIBRARIES
+                Globals.SEGBAS++; // /X LIBRARY ->SEGBAS=1
+                //TODO: WILL  /X EPT FIT IN BUFFER?
+            }
+            //data += L_HEPT; offset += L_HEPT;  // Move to 1ST EPT ENTRY
+
+            // Resolve undefined symbols using EPT
+            if (is_any_undefined())  // IF NO UNDEFS, THEN END LIBRARY
+            {
+                int index = Globals.UNDLST;  // GET A WEAK SYMBOL FROM THE UNDEFINED SYMBOL TABLE LIST
+                while (index > 0)
+                {
+                    SymbolTableEntry* entry = SymbolTable + index;
+                    if ((entry->status & SY_WK) == 0)  // IS THIS A WEAK SYMBOL? SKIP WEAK SYMBOL
+                    {
+                        //TODO: IS SYMBOL A DUP SYMBOL?
+                        uint16_t* itemw = process_pass15_eptsearch(data + L_HEPT, eptsize, entry->name);
+                        if (itemw == nullptr)
+                            continue;  // CONTINUE THRU UNDEF LIST
+                        // THE UNDEFINED SYMBOL HAS BEEN FOUND IN THE CURRENT ENTRY POINT TABLE.
+                        uint16_t eptblock = itemw[2];
+                        uint16_t eptoffset = itemw[3] & 0777;
+                        printf("        Found EPT for '%s' block %06ho offset %06ho\n", entry->unrad50name(), eptblock, eptoffset);
+                        // CALL LMLBLD - PLACE MOD ADR IN LML
+                        process_pass15_lmlbld(eptblock, eptoffset);
+                        //TODO: IS THIS A /I SYMBOL
+                        //TODO: Find module name
+                    }
+                    index = entry->nextindex();
+                }
+            }
+
+            data += eptsize; offset += eptsize;
+        }
+        else if (blocktype == 8)  // LINK3\ENDLIB
+        {
+            printf("    Block type 10 - ENDLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+
+            process_pass15_lmlorder();  // ORDER THIS LIBRARY LML
+
+            Globals.SW_LML &= ~0100000;  // RESET FOR FINAL OBJ. PROCESSING
+            Globals.FLGWD &= ~AD_LML;  // CLEAR NEW UNDF FLAG
+
+            // READ MODULES FROM THE LIBRARY
+            process_pass15_libpro(sscur);
+        }
+
+        data += blocksize; offset += blocksize;
+        data += 1; offset += 1;  // Skip checksum
+    }
+}
+
 // PASS 1.5 SCANS ONLY LIBRARIES
 void process_pass15()
 {
@@ -1351,101 +1458,17 @@ void process_pass15()
         if (!sscur->islibrary)  // SKIP ALL NON-LIBRARY FILES ON LIBRARY PASS
             continue;
 
-        printf("  Processing %s\n", sscur->filename);
         Globals.LIBNB++;  // BUMP LIBRARY FILE # FOR LML
-        size_t offset = 0;
-        while (offset < sscur->filesize)
+
+        for (int j = 1; ; j++)
         {
-            uint8_t* data = sscur->data + offset;
-            uint16_t* dataw = (uint16_t*)(data);
-            if (*dataw != 1)
-            {
-                if (*dataw == 0)  // Possibly that is filler at the end of the block
-                {
-                    size_t offsetnext = (offset + 511) & ~511;
-                    while (*data == 0 && offset < sscur->filesize && offset < offsetnext)
-                    {
-                        data++; offset++;
-                    }
-                    if (offset == sscur->filesize)
-                        break;  // End of file
-                }
-                dataw = (uint16_t*)(data);
-                if (*dataw != 1)
-                    fatal_error("Unexpected word %06ho at %06ho in %s\n", *dataw, offset, sscur->filename);
-            }
+            Globals.FLGWD &= ~AD_LML;  // CLEAR NEW UNDF FLAG
 
-            uint16_t blocksize = ((uint16_t*)data)[1];
-            uint16_t blocktype = ((uint16_t*)data)[2];
+            printf("  Processing %s (%d)\n", sscur->filename, j);
+            process_pass15_library(sscur);
 
-            if (blocktype < 0 || blocktype > 8)
-                fatal_error("Illegal record type %03ho at %06ho in %s\n", blocktype, offset, sscur->filename);
-            if (blocktype == 7)  // See LINK3\LIBRA, WE ARE ON PASS 1.5 , SO PROCESS LIBRARIES
-            {
-                printf("    Block type 7 - TITLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
-                uint16_t eptsize = *(uint16_t*)(data + L_HEAB);
-                printf("      EPT size %06ho bytes, %d. records\n", eptsize, (int)(eptsize / 8));
-
-                //Globals.SVLML = Globals.STLML; // SAVE START OF ALL LML'S FOR THIS LIB
-                Globals.FLGWD |= LB_OBJ; // IND LIB FILE TO LINKER
-                //TODO: R4 -> 1ST WD OF BUFR & C=0
-                if (Globals.SWITCH & SW_I) // ANY /I MODULES?
-                    Globals.FLGWD |= FG_IP; // SET FLAG INDICATING /I PASS FIRST
-                if (Globals.SW_LML) // IS SW.LML SET?
-                    Globals.SW_LML |= 0100000; // MAKE SURE BIT IS SET, /I TURNS IT OFF
-                //Globals.ESZRBA = *(uint16_t*)(data + L_HEAB); // SIZE OF EPT IN BYTES
-                Globals.SEGBAS = 0; // SEGBAS->TEMP FOR /X LIB FLAG
-                //Globals.ESZRBA = Globals.ESZRBA >> 1; // NOW WORDS
-                if (*(uint16_t*)(data + L_HX)) // IS /X SWITCH SET IN LIB. HEADER?
-                {
-                    Globals.SW_LML &= ~0100000; // NO PREPROCESSING ON /X LIBRARIES
-                    Globals.SEGBAS++; // /X LIBRARY ->SEGBAS=1
-                    //TODO: WILL  /X EPT FIT IN BUFFER?
-                }
-                //data += L_HEPT; offset += L_HEPT;  // Move to 1ST EPT ENTRY
-
-                // Resolve undefined symbols using EPT
-                if (is_any_undefined())  // IF NO UNDEFS, THEN END LIBRARY
-                {
-                    int index = Globals.UNDLST;  // GET A WEAK SYMBOL FROM THE UNDEFINED SYMBOL TABLE LIST
-                    while (index > 0)
-                    {
-                        SymbolTableEntry* entry = SymbolTable + index;
-                        if ((entry->status & SY_WK) == 0)  // IS THIS A WEAK SYMBOL? SKIP WEAK SYMBOL
-                        {
-                            //TODO: IS SYMBOL A DUP SYMBOL?
-                            uint16_t* itemw = process_pass15_eptsearch(data + L_HEPT, eptsize, entry->name);
-                            if (itemw == nullptr)
-                                continue;  // CONTINUE THRU UNDEF LIST
-                            // THE UNDEFINED SYMBOL HAS BEEN FOUND IN THE CURRENT ENTRY POINT TABLE.
-                            uint16_t eptblock = itemw[2];
-                            uint16_t eptoffset = itemw[3] & 0777;
-                            printf("        Found EPT for '%s' block %06ho offset %06ho\n", entry->unrad50name(), eptblock, eptoffset);
-                            // CALL LMLBLD - PLACE MOD ADR IN LML
-                            process_pass15_lmlbld(eptblock, eptoffset);
-                            //TODO: Find module name
-
-                            //TODO NOTIMPLEMENTED
-                        }
-                        index = entry->nextindex();
-                    }
-                }
-
-                data += eptsize; offset += eptsize;
-            }
-            else if (blocktype == 8)  // LINK3\ENDLIB
-            {
-                printf("    Block type 10 - ENDLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
-
-                // ORDER THIS LIBRARY LML
-                process_pass15_lmlorder();
-
-                // READ MODULES FROM THE LIBRARY
-                process_pass15_libpro(sscur);
-            }
-
-            data += blocksize; offset += blocksize;
-            data += 1; offset += 1;  // Skip checksum
+            //if ((Globals.FLGWD & AD_LML) == 0)  // NEW UNDEF'S ADDED WHILE PROCESSING LIBR ?
+            break;
         }
     }
 }
@@ -2127,16 +2150,17 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             *((uint16_t*)dest) = constdata + Globals.BASE;  // BASE OF SECTION + OFFSET = CURRENT LOCATION COUNTER
             data += 2;  offset += 2;
             break;
-        case 011:  // SET PROGRAM LIMITS
+        case 011:  // SET PROGRAM LIMITS, see LINK7\RLDSPL
             printf("\n");
-            NOTIMPLEMENTED
+            *((uint16_t*)dest) = Globals.BOTTOM;
+            *((uint16_t*)dest + 1) = Globals.HGHLIM;
             break;
         case 017:  // COMPLEX RELOCATION STRING PROCESSING (GLOBAL ARITHMETIC)
             printf("\n");
             *((uint16_t*)dest) = process_pass2_rld_complex(sscur, data, offset, blocksize);
             break;
         default:
-            fatal_error("ERR36: Unknown RLD command: %d.\n", (int)command);
+            fatal_error("ERR36: Unknown RLD command: %d in %s\n", (int)command, sscur->filename);
         }
     }
 }
