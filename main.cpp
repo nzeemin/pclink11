@@ -67,7 +67,7 @@ struct LibraryModuleEntry
 
     size_t offset() const { return relblockno * 512 + byteoffset; }
 };
-const int LibraryModuleListSize = LMLSIZ;
+const int LibraryModuleListSize = 512; // NUMBER OF LIBRARY MOD LIST ENTRIES (0252 DEFAULT, 0525 FOR RSTS)
 LibraryModuleEntry LibraryModuleList[LibraryModuleListSize];
 int LibraryModuleCount = 0;  // Count of records in LibraryModuleList, see LMLPTR
 
@@ -577,6 +577,7 @@ bool symbol_table_search(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk, int* pi
     return symbol_table_search_routine(lkname, lkwd, lkmsk, 0, pindex);
 }
 
+// Print Library Module List, for DEBUG only
 void print_lml_table()
 {
     printf("  LibraryModuleList count = %d.\n", LibraryModuleCount);
@@ -587,6 +588,7 @@ void print_lml_table()
     }
 }
 
+// Print the Symbol Table, for DEBUG only
 void print_symbol_table()
 {
     printf("  SymbolTable count = %d.\n", SymbolTableCount);
@@ -656,6 +658,7 @@ void mst_table_clear()
     ModuleSectionCount = 0;
 }
 
+// Print Module Section Table (MST), for DEBUG only
 void print_mst_table()
 {
     printf("  ModuleSectionTable count = %d.\n", ModuleSectionCount);
@@ -674,6 +677,7 @@ void print_mst_table()
 /////////////////////////////////////////////////////////////////////////////
 
 
+// Initialize arrays and variables
 void initialize()
 {
     //printf("Initialization\n");
@@ -701,6 +705,7 @@ void initialize()
     Globals.KSWVAL = 128/*RELSTK*/;
 }
 
+// Free all memory, close all files
 void finalize()
 {
     //printf("Finalization\n");
@@ -715,8 +720,7 @@ void finalize()
         SaveStatusEntry* sscur = SaveStatusArea + i;
         if (sscur->data != nullptr)
         {
-            free(sscur->data);
-            sscur->data = nullptr;
+            free(sscur->data);  sscur->data = nullptr;
         }
     }
 
@@ -739,6 +743,7 @@ void finalize()
     }
 }
 
+// Read all input files into memory
 void read_files()
 {
     for (int i = 0; i < SaveStatusCount; i++)
@@ -1005,7 +1010,7 @@ void process_pass1_gsd_item_csecnm(const uint16_t* itemw, int& itemtype, int& it
     //TODO: Set flags according to case and process as PSECT
 }
 
-// LINK3\PSECNM - process GSD item PROGRAM SECTION NAME
+// Process GSD item PROGRAM SECTION NAME, see LINK3\PSECNM
 void process_pass1_gsd_item_psecnm(const uint16_t* itemw, int& itemflags)
 {
     assert(itemw != nullptr);
@@ -1762,8 +1767,6 @@ void process_pass_map_output()
     fprintf(mapfileobj, "\n\n");
     printf("\n");
 
-    print_symbol_table();//DEBUG
-
     // RESOLV  SECTION STARTS & GLOBAL SYMBOL VALUES; see LINK5\RESOLV
     uint16_t baseaddr = 0; // ASECT BASE ADDRESS IS 0
     SymbolTableEntry* entry = ASECTentry;
@@ -2242,7 +2245,8 @@ void process_pass2_init()
     //TODO: /V OVERLAY, OR /XM?
     Globals.SEGBLK = 0;
     //TODO: INIT FOR LIBRARY PROCESSING
-    //TODO: RESET NUMBER OF ENTRIES IN MODULE SECTION TBL
+    mst_table_clear();  // RESET NUMBER OF ENTRIES IN MODULE SECTION TBL
+    Globals.LIBNB = 1;  // INITIAL LIBRARY FILE # FOR LML
 
     //TODO: FORCE BASE OF ZERO FOR VSECT IF ANY
 }
@@ -2277,7 +2281,7 @@ void process_pass2_dump_txtblk()  // DUMP TEXT SUBROUTINE, see LINK7\TDMP0, LINK
     Globals.TXTLEN = 0;  // MARK TXT BLOCK EMPTY, see LINK7\CLRTXL
 }
 
-void proccess_pass2_libpa2(SaveStatusEntry* sscur)
+void proccess_pass2_libpa2(const SaveStatusEntry* sscur)
 {
     assert(sscur != nullptr);
     assert(sscur->data != nullptr);
@@ -2451,7 +2455,6 @@ void process_pass2()
                 process_pass2_dump_txtblk();
 
                 // AT THE END OF EACH MODULE THE BASE ADR OF EACH SECTION IS UPDATED AS DETERMINED BY THE MST.
-                //print_mst_table();//DEBUG
                 for (int i = 0; i < ModuleSectionCount; i++)
                 {
                     ModuleSectionEntry* mstentry = ModuleSectionTable + i;
@@ -2548,75 +2551,75 @@ void parse_commandline(int argc, char **argv)
                     //TODO
                     break;
 
-                case 'U':  // /U - ROUND SECTION
-                    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
-                    Globals.SWITCH |= SW_U;
-                    //TMPIDD = D.SWU;
-                    //TMPIDI = I.SWU;
-                    //TODO
-                    break;
+                    //case 'U':  // /U - ROUND SECTION
+                    //    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
+                    //    Globals.SWITCH |= SW_U;
+                    //    //TMPIDD = D.SWU;
+                    //    //TMPIDI = I.SWU;
+                    //    //TODO
+                    //    break;
 
-                case 'E':  // /E - EXTEND SECTION
-                    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
-                    Globals.SWITCH |= SW_E;
-                    //TMPIDD = D.SWE;
-                    //TMPIDI = I.SWE;
-                    //TODO
-                    break;
+                    //case 'E':  // /E - EXTEND SECTION
+                    //    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
+                    //    Globals.SWITCH |= SW_E;
+                    //    //TMPIDD = D.SWE;
+                    //    //TMPIDI = I.SWE;
+                    //    //TODO
+                    //    break;
 
-                case 'Y':  // /Y - START SECTION ON MULTIPLE OF VALUE
-                    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
-                    Globals.SWITCH |= SW_Y;
-                    //TMPIDD = D.SWY;
-                    //TMPIDI = I.SWY;
-                    //TODO
-                    break;
+                    //case 'Y':  // /Y - START SECTION ON MULTIPLE OF VALUE
+                    //    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
+                    //    Globals.SWITCH |= SW_Y;
+                    //    //TMPIDD = D.SWY;
+                    //    //TMPIDI = I.SWY;
+                    //    //TODO
+                    //    break;
 
-                case 'H':  // /H - SPECIFY TOP ADR FOR LINK
-                    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
-                    Globals.SWITCH |= SW_H;
-                    //TMPIDD = D.SWH;
-                    //TMPIDI = I.SWH;
-                    //TODO
-                    break;
+                    //case 'H':  // /H - SPECIFY TOP ADR FOR LINK
+                    //    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
+                    //    Globals.SWITCH |= SW_H;
+                    //    //TMPIDD = D.SWH;
+                    //    //TMPIDI = I.SWH;
+                    //    //TODO
+                    //    break;
 
-                case 'K':  // /K - SPECIFY MINIMUM SIZE
-                    result = sscanf(cur, ":%ho", &param1);
-                    if (result < 1)
-                        fatal_error("Invalid /K option, use /K:value\n");
-                    if (param1 < 2 || param1 > 28)
-                        fatal_error("Invalid /K option value, should be: 2 < value < 28\n");
-                    Globals.SWITCH |= SW_K;
-                    //TODO: if (Globals.SWITCH & SW_R)
-                    Globals.KSWVAL = param1;
-                    break;
+                    //case 'K':  // /K - SPECIFY MINIMUM SIZE
+                    //    result = sscanf(cur, ":%ho", &param1);
+                    //    if (result < 1)
+                    //        fatal_error("Invalid /K option, use /K:value\n");
+                    //    if (param1 < 2 || param1 > 28)
+                    //        fatal_error("Invalid /K option value, should be: 2 < value < 28\n");
+                    //    Globals.SWITCH |= SW_K;
+                    //    //TODO: if (Globals.SWITCH & SW_R)
+                    //    Globals.KSWVAL = param1;
+                    //    break;
 
-                case 'P':  // /P:N  SIZE OF LML TABLE
-                    result = sscanf(cur, ":%ho", &param1);
-                    //TODO
-                    break;
+                    //case 'P':  // /P:N  SIZE OF LML TABLE
+                    //    result = sscanf(cur, ":%ho", &param1);
+                    //    //TODO
+                    //    break;
 
-                case 'Z':  // /Z - ZERO UNFILLED LOCATIONS
-                    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
-                    //TMPIDD = D.SWZ;
-                    //TMPIDI = I.SWZ;
-                    //TODO
-                    break;
+                    //case 'Z':  // /Z - ZERO UNFILLED LOCATIONS
+                    //    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
+                    //    //TMPIDD = D.SWZ;
+                    //    //TMPIDI = I.SWZ;
+                    //    //TODO
+                    //    break;
 
-                case 'R':  // /R[:stacksize] - INDICATE FOREGROUND LINK
-                    result = sscanf(cur, ":%ho", &param1);
-                    Globals.SWITCH |= SW_R;
-                    //TODO
-                    break;
+                    //case 'R':  // /R[:stacksize] - INDICATE FOREGROUND LINK
+                    //    result = sscanf(cur, ":%ho", &param1);
+                    //    Globals.SWITCH |= SW_R;
+                    //    //TODO
+                    //    break;
 
-                case 'V':  // /XM, OR /V ON 1ST LINE
-                    result = sscanf(cur, ":%ho", &param1);
-                    //TODO
-                    break;
+                    //case 'V':  // /XM, OR /V ON 1ST LINE
+                    //    result = sscanf(cur, ":%ho", &param1);
+                    //    //TODO
+                    //    break;
 
-                case 'L':  // /L - INDICATE LDA OUTPUT
-                    //TODO
-                    break;
+                    //case 'L':  // /L - INDICATE LDA OUTPUT
+                    //    //TODO
+                    //    break;
 
                 case 'W':  // /W - SPECIFY WIDE MAP LISTING
                     Globals.NUMCOL = 6; // 6 COLUMNS
@@ -2627,40 +2630,40 @@ void parse_commandline(int argc, char **argv)
                     Globals.SWITCH |= SW_X;
                     break;
 
-                case 'I':  // /I - INCLUDE MODULES FROM LIBRARY
-                    Globals.SWITCH |= SW_I;
-                    break;
+                    //case 'I':  // /I - INCLUDE MODULES FROM LIBRARY
+                    //    Globals.SWITCH |= SW_I;
+                    //    break;
 
-                case 'F':  // /F - INCLUDE FORLIB.OBJ IN LINK
-                    Globals.SWITCH |= SW_F;
-                    break;
+                    //case 'F':  // /F - INCLUDE FORLIB.OBJ IN LINK
+                    //    Globals.SWITCH |= SW_F;
+                    //    break;
 
                 case 'A':  // /A - ALPHABETIZE MAP
                     Globals.SWITCH |= SW_A;
                     break;
 
-                case 'S':  // /S - SYMBOL TABLE AS LARGE AS POSSIBLE
-                    //TODO
-                    break;
+                    //case 'S':  // /S - SYMBOL TABLE AS LARGE AS POSSIBLE
+                    //    //TODO
+                    //    break;
 
-                case 'D':  // /D - ALLOW DUPLICATE SYMBOLS
-                    Globals.SWIT1 |= SW_D;
-                    break;
+                    //case 'D':  // /D - ALLOW DUPLICATE SYMBOLS
+                    //    Globals.SWIT1 |= SW_D;
+                    //    break;
 
-                case 'N':  // /N - GENERATE CROSS REFERENCE
-                    result = sscanf(cur, ":%ho", &param1);
-                    //TODO
-                    break;
+                    //case 'N':  // /N - GENERATE CROSS REFERENCE
+                    //    result = sscanf(cur, ":%ho", &param1);
+                    //    //TODO
+                    //    break;
 
-                case 'G':  // /G - CALC. EPT SIZE ON RT-11
-                    result = sscanf(cur, ":%ho", &param1);
-                    //TODO
-                    break;
+                    //case 'G':  // /G - CALC. EPT SIZE ON RT-11
+                    //    result = sscanf(cur, ":%ho", &param1);
+                    //    //TODO
+                    //    break;
 
-                case 'Q':  // /Q:addr - SET PSECTS TO ABSOLUTE ADDRESSES
-                    result = sscanf(cur, ":%ho", &param1);
-                    //TODO
-                    break;
+                    //case 'Q':  // /Q:addr - SET PSECTS TO ABSOLUTE ADDRESSES
+                    //    result = sscanf(cur, ":%ho", &param1);
+                    //    //TODO
+                    //    break;
 
                 case 'J':  // /J - USE SEPARATED I-D SPACE
                     if (Globals.SWITCH & SW_R)
@@ -2766,14 +2769,12 @@ int main(int argc, char *argv[])
     if (Globals.PAS1_5 & 1)  // Check if we need Pass 1.5 (we have library files)
     {
         process_pass15();  // SCANS ONLY LIBRARIES
-        //print_lml_table();//DEBUG
     }
     process_pass1_endp1();
 
     process_pass_map_init();
     process_pass_map_output();
     process_pass_map_done();
-    //print_symbol_table();//DEBUG
 
     process_pass2_init();
     process_pass2();

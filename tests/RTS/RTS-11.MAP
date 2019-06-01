@@ -1,0 +1,9 @@
+RT-11 LINK  V05.45 	Load Map 	Saturday 01-Jun-2019 18:30  Page 1
+RTS   .SAV   	Title:	.MAIN.	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	006156 = 1591.   words  (RW,I,GBL,ABS,OVR)
+			DIGIT 	004264	FILL  	004542	
+
+Transfer address = 001002, High limit = 006154 = 1590.   words

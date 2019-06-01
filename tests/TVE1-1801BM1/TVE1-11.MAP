@@ -1,0 +1,9 @@
+RT-11 LINK  V05.45 	Load Map 	Saturday 01-Jun-2019 18:15  Page 1
+TVE1  .SAV   	Title:	.MAIN.	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	003420 = 904.    words  (RW,I,GBL,ABS,OVR)
+			DIGOUT	002234	DIGIT 	002246	FILL  	002410	
+
+Transfer address = 000001, High limit = 003416 = 903.    words
