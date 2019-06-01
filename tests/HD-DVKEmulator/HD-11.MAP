@@ -1,0 +1,15 @@
+RT-11 LINK  V05.45 	Load Map 	Saturday 01-Jun-2019 18:51  Page 1
+HD    .SYS   	Title:	HD    	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
+			HD$VEC	000000	HD$CSR	177720	
+ HDDVR 	 001000	000260 = 88.     words  (RW,I,LCL,REL,CON)
+			HDSTRT	001000	HDLQE 	001006	HDSYS 	001006	
+			HDCQE 	001010	HDINT 	001166	$INPTR	001254	
+			HD$END	001254	$FKPTR	001256	HDEND 	001260	
+ HDBOOT	 001260	001000 = 256.    words  (RW,I,LCL,REL,CON)
+			HDBOOT	001260	HDBEND	002260	
+
+Transfer address = 000001, High limit = 002256 = 599.    words
