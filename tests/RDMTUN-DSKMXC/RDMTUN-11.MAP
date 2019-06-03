@@ -1,0 +1,15 @@
+RT-11 LINK  V05.45 	Load Map 	Monday 03-Jun-2019 20:35  Page 1
+RDMTUN.SAV   	Title:	RT    	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
+			.IRAD5	000003	$SYSV$	000025	.SYSLB	000025	
+			$ARGER	177377	$NOARG	177777	
+ 	 001000	043002 = 8961.   words  (RW,I,LCL,REL,CON)
+ SYS$I 	 044002	000166 = 59.     words  (RW,I,LCL,REL,CON)
+			IRAD50	044002	RAD50 	044040	
+ SYS$S 	 044170	000032 = 13.     words  (RW,D,LCL,REL,CON)
+			$SYSLB	044216	$LOCK 	044220	$CRASH	044221	
+
+Transfer address = 001000, High limit = 044220 = 9288.   words
