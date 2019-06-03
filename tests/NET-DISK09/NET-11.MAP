@@ -1,0 +1,9 @@
+RT-11 LINK  V05.45 	Load Map 	Monday 03-Jun-2019 21:49  Page 1
+NET   .SAV   	Title:	.MAIN.	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
+ 	 001000	002156 = 567.    words  (RW,I,LCL,REL,CON)
+
+Transfer address = 001000, High limit = 003154 = 822.    words

@@ -1,0 +1,13 @@
+RT-11 LINK  V05.45 	Load Map 	Monday 03-Jun-2019 21:43  Page 1
+EDINST.SAV   	Title:	CONED 	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
+			VERNMB	000331	
+ 	 001000	000542 = 177.    words  (RW,I,LCL,REL,CON)
+ MSG   	 001542	000654 = 214.    words  (RW,I,LCL,REL,CON)
+			VER   	002374	
+ TABLE 	 002416	000416 = 135.    words  (RW,I,LCL,REL,CON)
+
+Transfer address = 001004, High limit = 003032 = 781.    words
