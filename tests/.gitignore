@@ -3,6 +3,7 @@
 *-my.STB
 *-my.log
 *.MAC
+*.INC
 *.COM
 *.DSK
 *.PAS

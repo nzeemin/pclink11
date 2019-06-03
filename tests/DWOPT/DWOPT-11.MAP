@@ -1,0 +1,9 @@
+RT-11 LINK  V05.45 	Load Map 	Monday 03-Jun-2019 17:09  Page 1
+DWOPT .SAV   	Title:	DW    	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
+ 	 001000	004632 = 1229.   words  (RW,I,LCL,REL,CON)
+
+Transfer address = 001000, High limit = 005630 = 1484.   words
