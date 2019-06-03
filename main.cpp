@@ -30,6 +30,8 @@ const int SaveStatusAreaSize = 31;
 SaveStatusEntry SaveStatusArea[SaveStatusAreaSize];
 int SaveStatusCount = 0;
 
+char savfilename[64] = { 0 };
+
 // **** GSD ENTRY STRUCTURE
 struct GSDentry
 {
@@ -1532,11 +1534,19 @@ void process_pass_map_init()
     Globals.HIPHYS = 0; // PARTITION EXTENDED ADDR HIGH LIMIT
     Globals.SEGBLK = 0; // BASE OF PREVIOUS XM PARTITION
 
+    // Prepare SAV file name
+    if (*savfilename == 0)
+    {
+        memcpy(savfilename, SaveStatusArea[0].filename, 64);
+        char* pext = strrchr(savfilename, '.');
+        pext++; *pext++ = 'S'; *pext++ = 'A'; *pext++ = 'V';
+    }
+
     if (Globals.FLGWD & FG_STB) // IS THERE AN STB FILE?
     {
         // Prepare STB file name
         char stbfilename[64];
-        memcpy(stbfilename, SaveStatusArea[0].filename, 64);
+        memcpy(stbfilename, savfilename, 64);
         char* pext = strrchr(stbfilename, '.');
         pext++; *pext++ = 'S'; *pext++ = 'T'; *pext++ = 'B';
 
@@ -1719,7 +1729,7 @@ void process_pass_map_output()
 
     // Prepare MAP file name
     char mapfilename[64];
-    memcpy(mapfilename, SaveStatusArea[0].filename, 64);
+    memcpy(mapfilename, savfilename, 64);
     char* pext = strrchr(mapfilename, '.');
     pext++; *pext++ = 'M'; *pext++ = 'A'; *pext++ = 'P';
 
@@ -1744,10 +1754,15 @@ void process_pass_map_output()
             timeptr->tm_hour, timeptr->tm_min);
 
     char savname[64];
-    strcpy(savname, SaveStatusArea[0].filename);
+    strcpy(savname, savfilename);
     char* pdot = strrchr(savname, '.');
     if (pdot != nullptr) *pdot = 0;
-    fprintf(mapfileobj, "%-6s.SAV   ", savname);
+    fprintf(mapfileobj, "%-6s", savname);
+    if (pdot != nullptr)
+    {
+        *pdot = '.';
+        fprintf(mapfileobj, "%-4s   ", pdot);
+    }
 
     fprintf(mapfileobj, "\tTitle:\t");
     if (Globals.MODNAM != 0)
@@ -2226,11 +2241,6 @@ void process_pass2_init()
     //TODO: SYSCOM AREA FOR REL FILE
 
     //TODO: BINOUT REQUESTED?
-    // Prepare SAV file name
-    char savfilename[64];
-    memcpy(savfilename, SaveStatusArea[0].filename, 64);
-    char* pext = strrchr(savfilename, '.');
-    pext++; *pext++ = 'S'; *pext++ = 'A'; *pext++ = 'V';
 
     // Open SAV file for writing
     assert(outfileobj == nullptr);
@@ -2518,6 +2528,13 @@ void parse_commandline(int argc, char **argv)
             uint16_t param1, param2;
             if (*cur != 0)
             {
+                // EXECUTE:filespec - Specifies the name of the memory image file
+                if (strncmp(cur, "EXECUTE:", 8) == 0)
+                {
+                    strcpy_s(savfilename, cur + 8);
+                    continue;
+                }
+
                 int result;
                 param1 = param2 = 0;  result = 0;
                 int option = toupper(*cur++);
@@ -2673,7 +2690,7 @@ void parse_commandline(int argc, char **argv)
                     break;
 
                 default:
-                    fatal_error("Unknown command line option /'%c'\n", option);
+                    fatal_error("Unknown command line option '%c'\n", option);
                 }
             }
         }
