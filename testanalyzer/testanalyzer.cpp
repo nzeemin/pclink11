@@ -388,13 +388,14 @@ void process_test(string& stestdirname)
             showdiff_binary_files(filepathstb11, filepathstbmy, "STB", g_maxchunkstoshow);
     }
 
-    if (isfileabsent)
+    if (!resmylog)
+        g_testsfailed++;
+    else if (isfileabsent)
     {
         std::cout << "  Test skipped." << std::endl;
         g_testskipped++;
-        return;
     }
-    if (!resmylog || !resmaps || !ressavs || !resstbs)
+    else if (!resmaps || !ressavs || !resstbs)
         g_testsfailed++;
     else if (g_verbose)
     {

@@ -1,0 +1,11 @@
+RT-11 LINK  V05.45 	Load Map 	Monday 03-Jun-2019 18:47  Page 1
+ELINIT.SAV   	Title:	ELINIT	Ident:	B03.01	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
+			.ELINI	000001	.AUDIT	010521	
+ 	 001000	005250 = 1364.   words  (RW,I,LCL,REL,CON)
+			ELINIT	001000	
+
+Transfer address = 001000, High limit = 006246 = 1619.   words

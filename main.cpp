@@ -1415,8 +1415,11 @@ void process_pass15_library(const SaveStatusEntry* sscur)
                     {
                         //TODO: IS SYMBOL A DUP SYMBOL?
                         uint16_t* itemw = process_pass15_eptsearch(data + L_HEPT, eptsize, entry->name);
-                        if (itemw == nullptr)
-                            continue;  // CONTINUE THRU UNDEF LIST
+                        if (itemw == nullptr)  // CONTINUE THRU UNDEF LIST
+                        {
+                            index = entry->nextindex();
+                            continue;
+                        }
                         // THE UNDEFINED SYMBOL HAS BEEN FOUND IN THE CURRENT ENTRY POINT TABLE.
                         uint16_t eptblock = itemw[2];
                         uint16_t eptoffset = itemw[3] & 0777;

@@ -1,0 +1,17 @@
+RT-11 LINK  V05.45 	Load Map 	Monday 03-Jun-2019 19:27  Page 1
+DW    .SYS   	Title:	DW    	Ident:	B03.01	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
+			DW$CSR	000000	.DW   	000001	DW$VEC	000300	
+			.AUDIT	010521	
+ DWDVR 	 001000	002242 = 593.    words  (RW,I,LCL,REL,CON)
+			DWSTRT	001000	DWSYS 	001006	DWLQE 	001006	
+			DWCQE 	001010	DW$VTB	001612	DWINT 	002504	
+			$INPTR	003236	DW$END	003236	$FKPTR	003240	
+			DWEND 	003242	
+ DWBOOT	 003242	001000 = 256.    words  (RW,I,LCL,REL,CON)
+			DWBOOT	003242	DWBEND	004242	
+
+Transfer address = 000001, High limit = 004240 = 1104.   words

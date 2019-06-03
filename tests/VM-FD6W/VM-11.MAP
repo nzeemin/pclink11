@@ -1,0 +1,16 @@
+RT-11 LINK  V05.45 	Load Map 	Monday 03-Jun-2019 19:39  Page 1
+VM    .SYS   	Title:	VM    	Ident:	B03.01	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
+			.VM   	000001	VM$VEC	000250	.AUDIT	010521	
+			VM$CSR	177572	
+ VMDVR 	 001000	000540 = 176.    words  (RW,I,LCL,REL,CON)
+			VMSTRT	001000	VMSYS 	001006	VMLQE 	001006	
+			VMCQE 	001010	VMINT 	001416	$INPTR	001534	
+			VM$END	001534	$FKPTR	001536	VMEND 	001540	
+ VMBOOT	 001540	001000 = 256.    words  (RW,I,LCL,REL,CON)
+			VMBOOT	001540	VMBEND	002540	
+
+Transfer address = 000001, High limit = 002536 = 687.    words
