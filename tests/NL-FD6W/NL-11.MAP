@@ -1,0 +1,15 @@
+RT-11 LINK  V05.45 	Load Map 	Monday 03-Jun-2019 20:54  Page 1
+NL    .SYS   	Title:	NL    	Ident:	B03.01	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
+			NL$CSR	000000	NL$VEC	000000	.NL   	000001	
+			.AUDIT	010521	
+ NLDVR 	 001000	000060 = 24.     words  (RW,I,LCL,REL,CON)
+			NLSTRT	001000	NLSYS 	001006	NLLQE 	001006	
+			NLCQE 	001010	NLINT 	001036	NLEXIT	001036	
+			$INPTR	001054	NL$END	001054	$FKPTR	001056	
+			NLEND 	001060	
+
+Transfer address = 000001, High limit = 001056 = 279.    words

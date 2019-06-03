@@ -1,0 +1,13 @@
+RT-11 LINK  V05.45 	Load Map 	Monday 03-Jun-2019 21:02  Page 1
+TT    .SYS   	Title:	TT    	Ident:	B03.01	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
+			.TT   	000001	.AUDIT	010521	
+ TTDVR 	 001000	000602 = 193.    words  (RW,I,LCL,REL,CON)
+			TTSTRT	001000	TTSYS 	001006	TTLQE 	001006	
+			TTCQE 	001010	TTINT 	001014	$INPTR	001576	
+			TT$END	001576	$FKPTR	001600	TTEND 	001602	
+
+Transfer address = 000001, High limit = 001600 = 448.    words
