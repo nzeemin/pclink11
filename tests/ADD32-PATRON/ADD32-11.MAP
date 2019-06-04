@@ -1,0 +1,9 @@
+RT-11 LINK  V05.45 	Load Map 	Tuesday 04-Jun-2019 14:54  Page 1
+ADD32 .SAV   	Title:	.MAIN.	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	003644 = 978.    words  (RW,I,GBL,ABS,OVR)
+			DIGOUT	002360	DIGIT 	002372	FILL  	002530	
+
+Transfer address = 001000, High limit = 003642 = 977.    words

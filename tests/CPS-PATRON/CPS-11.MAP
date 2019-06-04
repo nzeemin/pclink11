@@ -1,0 +1,12 @@
+RT-11 LINK  V05.45 	Load Map 	Tuesday 04-Jun-2019 14:54  Page 1
+CPS   .SAV   	Title:	.MAIN.	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
+ 	 001000	000622 = 201.    words  (RW,I,LCL,REL,CON)
+			DIGOUT	001522	DIGIT 	001534	
+ .NOVER	 001622	000622 = 201.    words  (RW,I,LCL,REL,CON)
+			FILL  	001672	
+
+Transfer address = 001000, High limit = 002442 = 657.    words
