@@ -1,0 +1,9 @@
+RT-11 LINK  V05.45 	Load Map 	Tuesday 04-Jun-2019 14:16  Page 1
+UCL   .SAV   	Title:	.MAIN.	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
+ 	 001000	000050 = 20.     words  (RW,I,LCL,REL,CON)
+
+Transfer address = 001000, High limit = 001046 = 275.    words

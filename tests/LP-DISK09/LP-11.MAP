@@ -1,0 +1,9 @@
+RT-11 LINK  V05.45 	Load Map 	Tuesday 04-Jun-2019 14:15  Page 1
+LP    .SYS   	Title:	NEW   	Ident:	V01.03	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
+ DRMAIN	 001000	011216 = 2375.   words  (RW,I,LCL,REL,CON)
+
+Transfer address = 004044, High limit = 012214 = 2630.   words
