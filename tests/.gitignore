@@ -5,6 +5,7 @@
 *.MAC
 *.INC
 *.COM
+*.LST
 *.DSK
 *.PAS
 *.FCU
