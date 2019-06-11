@@ -376,16 +376,12 @@ void dumpobj()
         uint16_t* dataw = (uint16_t*)(data);
         if (*dataw != 1)
         {
-            if (*dataw == 0)  // Possibly that is filler at the end of the block
-            {
-                size_t offsetnext = (offset + 511) & ~511;
-                while (*data == 0 && offset < objfilesize && offset < offsetnext)
-                {
-                    data++; offset++;
-                }
-                if (offset == objfilesize)
-                    break;  // End of file
-            }
+            // Possibly that is filler at the end of the block
+            size_t offsetnext = (offset + 511) & ~511;
+            size_t shift = offsetnext - offset;
+            data += shift; offset += shift;
+            if (offset >= objfilesize)
+                break;  // End of file
             dataw = (uint16_t*)(data);
             if (*dataw != 1)
                 fatal_error("Unexpected word %06ho at %06ho in %s\n", *dataw, offset, objfilename);

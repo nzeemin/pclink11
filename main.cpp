@@ -1360,16 +1360,12 @@ void process_pass15_library(const SaveStatusEntry* sscur)
         uint16_t* dataw = (uint16_t*)(data);
         if (*dataw != 1)
         {
-            if (*dataw == 0)  // Possibly that is filler at the end of the block
-            {
-                size_t offsetnext = (offset + 511) & ~511;
-                while (*data == 0 && offset < sscur->filesize && offset < offsetnext)
-                {
-                    data++; offset++;
-                }
-                if (offset == sscur->filesize)
-                    break;  // End of file
-            }
+            // Possibly that is filler at the end of the block
+            size_t offsetnext = (offset + 511) & ~511;
+            size_t shift = offsetnext - offset;
+            data += shift; offset += shift;
+            if (offset >= sscur->filesize)
+                break;  // End of file
             dataw = (uint16_t*)(data);
             if (*dataw != 1)
                 fatal_error("Unexpected word %06ho at %06ho in %s\n", *dataw, offset, sscur->filename);
@@ -2737,10 +2733,10 @@ void parse_commandline(int argc, char **argv)
 
 void print_help()
 {
-    printf("\n");
-    printf(
-        "Usage: link11 <input files> <options>\n"
+    printf("\n"
+        "Usage: pclink11 <input files and options, space-separated>\n"
         "Options:\n"
+        "  /EXECUTE:filespec  Specifies the name of the memory image file\n"
         "  /T:addr  Specifies the starting address of the linked program\n"
         "  /M:addr  Specifies the stack address for the linked program\n"
         "  /B:addr  Specifies the lowest address to be used by the linked program\n"
