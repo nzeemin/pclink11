@@ -86,6 +86,7 @@ bool process_mylog(string& mylogfilepath, stringvec& problems)
     // Enumerate the lines and collect all problematic lines
     string str;
     bool haserrors = false;
+    int warningcount = 0;
     bool hassuccess = false;
     while (std::getline(file, str))
     {
@@ -99,6 +100,12 @@ bool process_mylog(string& mylogfilepath, stringvec& problems)
             problems.push_back(str);
             haserrors = true;
         }
+        if (str.find("WARNING") == 0)
+        {
+            if (g_verbose)
+                problems.push_back(str);
+            warningcount++;
+        }
         if (str.find("SUCCESS") == 0)
         {
             hassuccess = true;
@@ -109,6 +116,8 @@ bool process_mylog(string& mylogfilepath, stringvec& problems)
     sort(problems.begin(), problems.end());
     problems.erase(unique(problems.begin(), problems.end()), problems.end());
 
+    if (!g_verbose && warningcount > 0)
+        problems.push_back("Has " + std::to_string(warningcount) + " WARNINGs.");
     if (!haserrors && !hassuccess)
         problems.push_back("Has no SUCCESS line.");
 

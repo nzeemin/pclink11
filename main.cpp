@@ -65,6 +65,7 @@ struct LibraryModuleEntry
     uint8_t  libfileno;     // LIBRARY FILE # (8 BITS) 1-255
     uint16_t relblockno;    // REL BLK # (15 BITS)
     uint16_t byteoffset;    // BYTE OFFSET (9 BITS)
+    uint8_t  passno;        // Pass 0 - not passed yet
     uint16_t segmentno;     // SEGMENT NUMBER FOR THIS MODULE
 
     size_t offset() const { return relblockno * 512 + byteoffset; }
@@ -355,6 +356,19 @@ void fatal_error(const char* message, ...)
     exit(EXIT_FAILURE);
 }
 
+void warning_message(const char* message, ...)
+{
+    assert(message != nullptr);
+
+    printf("WARNING: ");
+    {
+        va_list ptr;
+        va_start(ptr, message);
+        vprintf(message, ptr);
+        va_end(ptr);
+    }
+}
+
 
 /////////////////////////////////////////////////////////////////////////////
 // Symbol table functions
@@ -586,7 +600,7 @@ void print_lml_table()
     for (int i = 0; i < LibraryModuleCount; i++)
     {
         const LibraryModuleEntry* lmlentry = LibraryModuleList + i;
-        printf("    #%04d file %02d block %06ho offset %06ho\n", (uint16_t)i, lmlentry->libfileno, lmlentry->relblockno, lmlentry->byteoffset/*, lmlentry->segmentno*/);
+        printf("    #%04d file %02d block %06ho offset %06ho pass %d\n", (uint16_t)i, lmlentry->libfileno, lmlentry->relblockno, lmlentry->byteoffset, (int)lmlentry->passno/*, lmlentry->segmentno*/);
     }
 }
 
@@ -930,7 +944,7 @@ void process_pass1_gsd_item_symnam(const uint16_t* itemw)
             {
                 // SYMBOL WAS DEFINED BEFORE, ABSOLUTE SYMBOLS WITH SAME VALUE NOT MULTIPLY DEFINED
                 if ((itemw[2] & 040/*SY$REL*/) != 0 || entry->value != itemw[3])
-                    fatal_error("ERR24: Multiple definition of symbol '%s'.\n", unrad50(lkname));
+                    warning_message("ERR24: Multiple definition of symbol '%s'.\n", unrad50(lkname));
             }
             else  // DEFINES A REFERENCED SYMBOL, see LINK3\DEFREF\130$
             {
@@ -1116,7 +1130,8 @@ void process_pass1_gsd_item(const uint16_t* itemw, const SaveStatusEntry* sscur)
     switch (itemtype)
     {
     case 0: // 0 - MODULE NAME FROM .TITLE, see LINK3\MODNME
-        printf("\n");
+        //printf("\n");
+        printf(", base %06o\n", Globals.BASE);
         if (Globals.MODNAM == 0)
             Globals.MODNAM = itemnamerad50;
         break;
@@ -1277,6 +1292,7 @@ void process_pass15_lmlbld(uint16_t blockno, uint16_t offset)
     lmlentry->libfileno = Globals.LIBNB;
     lmlentry->relblockno = blockno & 077777;
     lmlentry->byteoffset = offset;
+    lmlentry->passno = 0;
     lmlentry->segmentno = 0;  // SET SEGMNT NUMBER TO ZERO=ROOT
     //TODO
 
@@ -1318,11 +1334,14 @@ void process_pass15_libpro(const SaveStatusEntry* sscur)
     size_t offset = 0;
     for (int i = 0; i < LibraryModuleCount; i++)
     {
-        const LibraryModuleEntry* lmlentry = LibraryModuleList + i;
+        LibraryModuleEntry* lmlentry = LibraryModuleList + i;
         if (lmlentry->libfileno != Globals.LIBNB)
             continue;  // not this library file
         if (lmlentry->offset() == offset)
             continue;  // same offset
+        if (lmlentry->passno > 0)
+            continue;  // already passed
+
         offset = lmlentry->offset();
         printf("      Module #%d offset %06o\n", i, offset);
         while (offset < sscur->filesize)
@@ -1342,12 +1361,16 @@ void process_pass15_libpro(const SaveStatusEntry* sscur)
             else if (blocktype == 6)  // 6 - MODULE END, see LINK3\MODND
             {
                 //printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+                if (Globals.HGHLIM < Globals.LRUNUM)
+                    Globals.HGHLIM = Globals.LRUNUM;
+                Globals.LRUNUM = 0;
                 break;
             }
 
             data += blocksize; offset += blocksize;
             data += 1; offset += 1;  // Skip checksum
         }
+        lmlentry->passno++;  // Mark as passed
     }
 }
 
@@ -1454,7 +1477,8 @@ void process_pass15()
 {
     printf("PASS 1.5\n");
     Globals.PAS1_5 = 0200;
-    Globals.LIBNB = 0;
+    Globals.LIBNB = 0;  // RESET LIBRARY FILE #
+
     for (int i = 0; i < SaveStatusCount; i++)
     {
         SaveStatusEntry* sscur = SaveStatusArea + i;
@@ -1470,11 +1494,12 @@ void process_pass15()
         {
             Globals.FLGWD &= ~AD_LML;  // CLEAR NEW UNDF FLAG
 
-            printf("  Processing %s (%d)\n", sscur->filename, j);
+            //printf("  Processing %s (%d)\n", sscur->filename, j);
+            printf("  Processing %s (%d), %06o\n", sscur->filename, j, Globals.BASE);
             process_pass15_library(sscur);
 
-            //if ((Globals.FLGWD & AD_LML) == 0)  // NEW UNDEF'S ADDED WHILE PROCESSING LIBR ?
-            break;
+            if ((Globals.FLGWD & AD_LML) == 0)  // NEW UNDEF'S ADDED WHILE PROCESSING LIBR ?
+                break;
         }
     }
 }
@@ -2304,7 +2329,7 @@ void proccess_pass2_libpa2(const SaveStatusEntry* sscur)
         if (lmlentry->offset() == offset)
             continue;  // same offset
         offset = lmlentry->offset();
-        //printf("      process_pass15_libpro() for offset %06o\n", offset);
+        //printf("      proccess_pass2_libpa2() for offset %06o\n", offset);
         while (offset < sscur->filesize)
         {
             uint8_t* data = sscur->data + offset;
@@ -2782,7 +2807,7 @@ int main(int argc, char *argv[])
     read_files();
 
     process_pass1();
-    if (Globals.PAS1_5 & 1)  // Check if we need Pass 1.5 (we have library files)
+    if (Globals.PAS1_5 & 1)  // BIT 0 SET IF TO DO 1.5 (we have library files)
     {
         process_pass15();  // SCANS ONLY LIBRARIES
     }
