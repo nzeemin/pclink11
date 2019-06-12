@@ -2301,7 +2301,7 @@ void process_pass2_dump_txtblk()  // DUMP TEXT SUBROUTINE, see LINK7\TDMP0, LINK
     if (Globals.TXTLEN == 0)
         return;
 
-    uint16_t addr = *((uint16_t*)Globals.TXTBLK);  //NOTE: Should be absoulte address
+    uint16_t addr = *((uint16_t*)Globals.TXTBLK);  //NOTE: Should be absolute address
     uint8_t* dest = OutputBuffer + addr;
     uint8_t* src = Globals.TXTBLK + 2;
     memcpy(dest, src, Globals.TXTLEN);
@@ -2313,63 +2313,6 @@ void process_pass2_dump_txtblk()  // DUMP TEXT SUBROUTINE, see LINK7\TDMP0, LINK
         Globals.FLGWD |= 02000/*FG.XX*/;  // YES->SET FLAG NOT TO OUTPUT BITMAP
 
     Globals.TXTLEN = 0;  // MARK TXT BLOCK EMPTY, see LINK7\CLRTXL
-}
-
-void proccess_pass2_libpa2(const SaveStatusEntry* sscur)
-{
-    assert(sscur != nullptr);
-    assert(sscur->data != nullptr);
-
-    size_t offset = 0;
-    for (int i = 0; i < LibraryModuleCount; i++)
-    {
-        const LibraryModuleEntry* lmlentry = LibraryModuleList + i;
-        if (lmlentry->libfileno != Globals.LIBNB)
-            continue;  // not this library file
-        if (lmlentry->offset() == offset)
-            continue;  // same offset
-        offset = lmlentry->offset();
-        //printf("      proccess_pass2_libpa2() for offset %06o\n", offset);
-        while (offset < sscur->filesize)
-        {
-            uint8_t* data = sscur->data + offset;
-            uint16_t* dataw = (uint16_t*)(data);
-            uint16_t blocksize = ((uint16_t*)data)[1];
-            uint16_t blocktype = ((uint16_t*)data)[2];
-
-            if (blocktype == 0 || blocktype > 8)
-                fatal_error("Illegal record type at %06ho in %s\n", offset, sscur->filename);
-            else if (blocktype == 3)  // See LINK7\DMPTXT
-            {
-                process_pass2_dump_txtblk();
-
-                uint16_t addr = ((uint16_t*)data)[3];
-                uint16_t datasize = blocksize - 8;
-                printf("    Block type 3 - TXT at %06ho size %06ho addr %06ho %06ho len %06ho\n",
-                       (uint16_t)offset, blocksize, addr, addr + Globals.BASE, datasize);
-                Globals.TXTLEN = datasize;
-                assert(datasize <= sizeof(Globals.TXTBLK));
-                memcpy(Globals.TXTBLK, data + 6, blocksize - 6);
-
-                *((uint16_t*)Globals.TXTBLK) = addr + Globals.BASE;  // ADD BASE TO GIVE ABS LOAD ADDR
-            }
-            else if (blocktype == 4)  // See LINK7\RLD
-            {
-                uint16_t base = *((uint16_t*)Globals.TXTBLK);
-                printf("    Block type 4 - RLD at %06ho size %06ho base %06ho\n", (uint16_t)offset, blocksize, base);
-                process_pass2_rld(sscur, data);
-            }
-            else if (blocktype == 6)  // MODULE END RECORD, See LINK7\MODND
-            {
-                //printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
-                process_pass2_dump_txtblk();
-                break;
-            }
-
-            data += blocksize; offset += blocksize;
-            data += 1; offset += 1;  // Skip checksum
-        }
-    }
 }
 
 // PROCESS GSD RECORD DURING PASS 2. See LINK7\GSD
@@ -2412,6 +2355,82 @@ void process_pass2_gsd_block(const SaveStatusEntry* sscur, const uint8_t* data)
             if ((entry->flags() & 4/*CS$ALO*/) == 0 && (entry->flags() & 0200/*CS$TYP*/) == 0)
                 sectsize = (sectsize + 1) & ~1;
             msentry->size = sectsize;
+        }
+    }
+}
+
+void proccess_pass2_libpa2(const SaveStatusEntry* sscur)
+{
+    assert(sscur != nullptr);
+    assert(sscur->data != nullptr);
+
+    size_t offset = 0;
+    for (int i = 0; i < LibraryModuleCount; i++)
+    {
+        const LibraryModuleEntry* lmlentry = LibraryModuleList + i;
+        if (lmlentry->libfileno != Globals.LIBNB)
+            continue;  // not this library file
+        if (lmlentry->offset() == offset)
+            continue;  // same offset
+
+        offset = lmlentry->offset();
+
+        printf("      proccess_pass2_libpa2() #%04d for offset %06o\n", i, offset);
+        while (offset < sscur->filesize)
+        {
+            uint8_t* data = sscur->data + offset;
+            uint16_t* dataw = (uint16_t*)(data);
+            uint16_t blocksize = ((uint16_t*)data)[1];
+            uint16_t blocktype = ((uint16_t*)data)[2];
+
+            if (blocktype == 0 || blocktype > 8)
+                fatal_error("Illegal record type at %06ho in %s\n", offset, sscur->filename);
+            else if (blocktype == 1)  // START GSD RECORD, see LINK7\GSD
+            {
+                printf("    Block type 1 - GSD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+                process_pass2_gsd_block(sscur, data);
+            }
+            else if (blocktype == 3)  // See LINK7\DMPTXT
+            {
+                process_pass2_dump_txtblk();
+
+                uint16_t addr = ((uint16_t*)data)[3];
+                uint16_t destaddr = addr + Globals.BASE;
+                uint16_t datasize = blocksize - 8;
+                printf("    Block type 3 - TXT at %06ho size %06ho addr %06ho dest %06ho len %06ho\n",
+                       (uint16_t)offset, blocksize, addr, destaddr, datasize);
+                Globals.TXTLEN = datasize;
+                assert(datasize <= sizeof(Globals.TXTBLK));
+                memcpy(Globals.TXTBLK, data + 6, blocksize - 6);
+
+                *((uint16_t*)Globals.TXTBLK) = destaddr;  // ADD BASE TO GIVE ABS LOAD ADDR
+            }
+            else if (blocktype == 4)  // See LINK7\RLD
+            {
+                uint16_t base = *((uint16_t*)Globals.TXTBLK);
+                printf("    Block type 4 - RLD at %06ho size %06ho base %06ho\n", (uint16_t)offset, blocksize, base);
+                process_pass2_rld(sscur, data);
+            }
+            else if (blocktype == 6)  // MODULE END RECORD, See LINK7\MODND
+            {
+                //printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+                process_pass2_dump_txtblk();
+
+                // AT THE END OF EACH MODULE THE BASE ADR OF EACH SECTION IS UPDATED AS DETERMINED BY THE MST.
+                for (int m = 0; m < ModuleSectionCount; m++)
+                {
+                    ModuleSectionEntry* mstentry = ModuleSectionTable + m;
+                    SymbolTableEntry* entry = SymbolTable + mstentry->stindex;
+                    if (entry->name != RAD50_ABS)
+                        entry->value += mstentry->size;
+                }
+                mst_table_clear();
+
+                break;
+            }
+
+            data += blocksize; offset += blocksize;
+            data += 1; offset += 1;  // Skip checksum
         }
     }
 }
@@ -2467,14 +2486,15 @@ void process_pass2()
                 process_pass2_dump_txtblk();
 
                 uint16_t addr = ((uint16_t*)data)[3];
+                uint16_t destaddr = addr + Globals.BASE;
                 uint16_t datasize = blocksize - 8;
-                printf("    Block type 3 - TXT at %06ho size %06ho addr %06ho %06ho len %06ho\n",
-                       (uint16_t)offset, blocksize, addr, addr + Globals.BASE, datasize);
+                printf("    Block type 3 - TXT at %06ho size %06ho addr %06ho dest %06ho len %06ho\n",
+                       (uint16_t)offset, blocksize, addr, destaddr, datasize);
                 Globals.TXTLEN = datasize;
                 assert(datasize <= sizeof(Globals.TXTBLK));
                 memcpy(Globals.TXTBLK, data + 6, blocksize - 6);
 
-                *((uint16_t*)Globals.TXTBLK) = addr + Globals.BASE;  // ADD BASE TO GIVE ABS LOAD ADDR
+                *((uint16_t*)Globals.TXTBLK) = destaddr;  // ADD BASE TO GIVE ABS LOAD ADDR
             }
             else if (blocktype == 4)  // See LINK7\RLD
             {
