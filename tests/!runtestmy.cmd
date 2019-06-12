@@ -1,5 +1,6 @@
 @echo off
-SET PCLINK11=..\..\Debug\pclink11.exe
+if "%CONFIGURATION%"=="" set CONFIGURATION=Debug
+SET PCLINK11=..\..\%CONFIGURATION%\pclink11.exe
 DEL /S /Q *-my.log *-my.SAV *-my.MAP *-my.STB > NUL
 rem
 echo ADD32-PATRON
