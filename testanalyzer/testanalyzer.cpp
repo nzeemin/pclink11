@@ -489,5 +489,9 @@ int main(int argc, char *argv[])
     std::cout << std::endl;
     SetConsoleTextAttribute(g_hConsole, TEXTATTRIBUTES_NORMAL);
 
+    if (g_testsfailed > 0)
+        return 5;
+    if (g_testskipped > 0)
+        return 2;
     return 0;
 }
