@@ -22,3 +22,9 @@ environment:
 
 build:
   project: pclink11.sln
+
+test_script:
+  - cmd: cd tests
+  - cmd: !runtestmy.cmd
+  - cmd: cd ..
+  - cmd: %CONFIGURATION%\testanalyzer.exe
