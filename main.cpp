@@ -263,7 +263,7 @@ struct tagGlobals
     uint16_t    LOC0;   // USED FOR CONTENTS OF LOC 0 IN SAV HEADER
     uint16_t    LOC66;  // # /O SEGMENTS SAVED FOR CONVERSION TO ADDR OF
     //  /V SEGS IN OVERLAY HANLDER TABLE
-    uint16_t    LSTFMT; // CREF LISTING FORMAT (0=80COL, -1=132COL)
+    //uint16_t    LSTFMT; // CREF LISTING FORMAT (0=80COL, -1=132COL)
 
     // I-D SPACE VARIABLES
 
@@ -316,6 +316,7 @@ struct tagGlobals
     // The following globals are defined inside the code
 
     uint16_t    FLGWD;  // INTERNAL FLAG WORD
+    bool        FlagSTB;  // STB FILE REQUESTED
     //uint16_t    ENDOL;  // USE FOR CONTINUE SWITCHES /C OR //
     uint16_t    SEGNUM; // KEEP TRACK OF INPUT SEGMENT #'S
 
@@ -1150,6 +1151,7 @@ void process_pass1_gsd_item(const uint16_t* itemw, const SaveStatusEntry* sscur)
         printf(" %06ho\n", itemw[3]);
         process_pass1_gsd_item_csecnm(itemw, itemtype, itemflags);
         process_pass1_gsd_item_psecnm(itemw, itemflags);
+        break;
     case 5: // 5 - PSECT NAME; see LINK3\PSECNM
         printf(" flags %03o maxlen %06ho\n", itemflags, itemw[3]);
         process_pass1_gsd_item_psecnm(itemw, itemflags);
@@ -1305,10 +1307,23 @@ void process_pass15_lmlorder()
     if (LibraryModuleCount < 2)
         return;  // NOTHING TO ORDER.  RETURN
 
-    for (int k = 1; k < LibraryModuleCount; k++)
+    // Find where to start - first not processed
+    int kbase = 0;
+    for (int k = 0; k < LibraryModuleCount; k++)
     {
-        LibraryModuleEntry* ek = LibraryModuleList + k;
-        for (int j = 0; j < k; j++)
+        const LibraryModuleEntry* ek = LibraryModuleList + k;
+        if (ek->passno == 0)
+        {
+            kbase = k;
+            break;
+        }
+    }
+
+    // Sort from kbase to the end of the array
+    for (int k = kbase + 1; k < LibraryModuleCount; k++)
+    {
+        const LibraryModuleEntry* ek = LibraryModuleList + k;
+        for (int j = kbase; j < k; j++)
         {
             LibraryModuleEntry* ej = LibraryModuleList + j;
             if (ek->libfileno < ej->libfileno ||
@@ -1566,7 +1581,7 @@ void process_pass_map_init()
         pext++; *pext++ = 'S'; *pext++ = 'A'; *pext++ = 'V';
     }
 
-    if (Globals.FLGWD & FG_STB) // IS THERE AN STB FILE?
+    if (Globals.FlagSTB) // IS THERE AN STB FILE?
     {
         // Prepare STB file name
         char stbfilename[64];
@@ -2177,7 +2192,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
                 if (entry->flags() & 0040/*SY$REL*/)  // IS SYMBOL ABSOLUTE ?
                 {
                     if (entry->name != RAD50_ABS)  // ARE WE LOOKING AT THE ASECT?
-                        Globals.MBPTR++;  // SAY NOT TO STORE TXT FOR ABS SECTION
+                        Globals.MBPTR = 1;  // SAY NOT TO STORE TXT FOR ABS SECTION
                 }
                 Globals.BASE = entry->value;  // SET UP NEW SECTION BASE
                 //TODO: ARE WE DOING I-D SPACE?
@@ -2305,6 +2320,7 @@ void process_pass2_dump_txtblk()  // DUMP TEXT SUBROUTINE, see LINK7\TDMP0, LINK
     uint8_t* dest = OutputBuffer + addr;
     uint8_t* src = Globals.TXTBLK + 2;
     memcpy(dest, src, Globals.TXTLEN);
+    //printf("    process_pass2_dump_txtblk() at %04x len %04x data %02x %02x %02x %02x\n", addr, Globals.TXTLEN, src[0], src[1], src[2], src[3]);
 
     mark_bitmap_bits(addr, Globals.TXTLEN);
     //TODO: if ((Globals.SWITCH & SW_X) != 0)
@@ -2312,7 +2328,8 @@ void process_pass2_dump_txtblk()  // DUMP TEXT SUBROUTINE, see LINK7\TDMP0, LINK
     if (addr < 0400 && addr + Globals.TXTLEN > 0360 && (Globals.SWITCH & SW_X) != 0)
         Globals.FLGWD |= 02000/*FG.XX*/;  // YES->SET FLAG NOT TO OUTPUT BITMAP
 
-    Globals.TXTLEN = 0;  // MARK TXT BLOCK EMPTY, see LINK7\CLRTXL
+    if (Globals.MBPTR)  // SHOULD THE TXT BE STORED?
+        Globals.TXTLEN = 0;  // MARK TXT BLOCK EMPTY, see LINK7\CLRTXL
 }
 
 // PROCESS GSD RECORD DURING PASS 2. See LINK7\GSD
@@ -2573,7 +2590,7 @@ void parse_commandline(int argc, char **argv)
             if (*cur != 0)
             {
                 // /EXECUTE:filespec - Specifies the name of the memory image file
-                if (strncmp(cur, "EXECUTE:", 8) == 0)
+                if (strncmp(cur, "EXECUTE:", 8) == 0) //TODO: or /SAV
                 {
                     strcpy_s(savfilename, cur + 8);
                     continue;
@@ -2583,7 +2600,7 @@ void parse_commandline(int argc, char **argv)
                 if (strcmp(cur, "WIDE") == 0 || strcmp(cur, "W") == 0)
                 {
                     Globals.NUMCOL = 6; // 6 COLUMNS
-                    Globals.LSTFMT--; // WIDE CREF
+                    //Globals.LSTFMT--; // WIDE CREF
                     continue;
                 }
 
@@ -2591,6 +2608,13 @@ void parse_commandline(int argc, char **argv)
                 if (strcmp(cur, "NOBITMAP") == 0 || strcmp(cur, "X") == 0)
                 {
                     Globals.SWITCH |= SW_X;
+                    continue;
+                }
+
+                // /SYMBOLTABLE /STB - Generates a symbol table file
+                if (strcmp(cur, "SYMBOLTABLE") == 0 || strcmp(cur, "STB") == 0)
+                {
+                    Globals.FlagSTB = true;
                     continue;
                 }
 
@@ -2793,6 +2817,7 @@ void print_help()
            "  /B:addr       Specifies the lowest address to be used by the linked program\n"
            "  /WIDE     /W  Produces a load map that is 132 columns wide\n"
            "  /NOBITMAP /X  Do not emit bit map\n"
+           "  /SYMBOLTABLE /STB  Generates a symbol table file\n"
            "  /A            Lists global symbols on the link map in alphabetical order\n"
            "\n");
     //TODO
@@ -2828,7 +2853,7 @@ int main(int argc, char *argv[])
     initialize();
 
     parse_commandline(argc, argv);
-    Globals.FLGWD |= FG_STB; //DEBUG: Always generate STB
+    Globals.FlagSTB = true; //DEBUG: Always generate STB
 
     read_files();
 
