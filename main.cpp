@@ -678,12 +678,12 @@ void mst_table_clear()
 void print_mst_table()
 {
     printf("  ModuleSectionTable count = %d.\n", ModuleSectionCount);
-    for (int i = 0; i < ModuleSectionCount; i++)
+    for (int m = 0; m < ModuleSectionCount; m++)
     {
-        const ModuleSectionEntry* mstentry = ModuleSectionTable + i;
+        const ModuleSectionEntry* mstentry = ModuleSectionTable + m;
         const SymbolTableEntry* entry = SymbolTable + mstentry->stindex;
         printf("    #%04d index %06ho '%s' size %06ho\n",
-               (uint16_t)i, mstentry->stindex,
+               (uint16_t)m, mstentry->stindex,
                mstentry->stindex == 0 ? "" : entry->unrad50name(),
                mstentry->size);
     }
@@ -1005,8 +1005,8 @@ void process_pass1_gsd_item_csecnm(const uint16_t* itemw, int& itemtype, int& it
     assert(itemw != nullptr);
 
     uint32_t lkname = MAKEDWORD(itemw[0], itemw[1]);
-    uint16_t lkwd = (uint16_t)SY_SEC;
-    uint16_t lkmsk = (uint16_t)~SY_SEC;
+    //uint16_t lkwd = (uint16_t)SY_SEC;
+    //uint16_t lkmsk = (uint16_t)~SY_SEC;
     if (lkname == 0)  // BLANK .CSECT = .PSECT ,LCL,REL,I,CON,RW
     {
     }
@@ -1347,7 +1347,7 @@ void process_pass15_libpro(const SaveStatusEntry* sscur)
         while (offset < sscur->filesize)
         {
             uint8_t* data = sscur->data + offset;
-            uint16_t* dataw = (uint16_t*)(data);
+            //uint16_t* dataw = (uint16_t*)(data);
             uint16_t blocksize = ((uint16_t*)data)[1];
             uint16_t blocktype = ((uint16_t*)data)[2];
 
@@ -1889,7 +1889,7 @@ void process_pass_map_output()
 
     // OUTPUT TRANSFER ADR & CHECK ITS VALIDITY, see LINK5\DOTADR
     uint16_t lkmsk = (uint16_t) ~(SY_SEC + SY_SEG);  // LOOK AT SECTION & SEGMENT # BITS
-    uint16_t segnum = 0;  // MUST BE IN ROOT SEGMENT
+    //uint16_t segnum = 0;  // MUST BE IN ROOT SEGMENT
     uint16_t lkwd = SY_SEC;  // ASSUME SECTION NAME LOOKUP
     if (Globals.BEGBLK.code == 4)  // IS SYMBOL A GLOBAL?
         lkwd = 0;  // GLOBAL SYM IN SEGMENT 0
@@ -2331,7 +2331,7 @@ void process_pass2_gsd_block(const SaveStatusEntry* sscur, const uint8_t* data)
 
         uint32_t itemnamerad50 = MAKEDWORD(itemw[0], itemw[1]);
         int itemtype = (itemw[2] >> 8) & 0xff;
-        int itemflags = (itemw[2] & 0377);
+        //int itemflags = (itemw[2] & 0377);
 
         printf("      Item '%s' type %d - %s\n", unrad50(itemnamerad50), itemtype, (itemtype > 7) ? "UNKNOWN" : GSDItemTypeNames[itemtype]);
         if (itemtype == 5)
@@ -2379,7 +2379,7 @@ void proccess_pass2_libpa2(const SaveStatusEntry* sscur)
         while (offset < sscur->filesize)
         {
             uint8_t* data = sscur->data + offset;
-            uint16_t* dataw = (uint16_t*)(data);
+            //uint16_t* dataw = (uint16_t*)(data);
             uint16_t blocksize = ((uint16_t*)data)[1];
             uint16_t blocktype = ((uint16_t*)data)[2];
 
@@ -2509,9 +2509,9 @@ void process_pass2()
                 process_pass2_dump_txtblk();
 
                 // AT THE END OF EACH MODULE THE BASE ADR OF EACH SECTION IS UPDATED AS DETERMINED BY THE MST.
-                for (int i = 0; i < ModuleSectionCount; i++)
+                for (int m = 0; m < ModuleSectionCount; m++)
                 {
-                    ModuleSectionEntry* mstentry = ModuleSectionTable + i;
+                    ModuleSectionEntry* mstentry = ModuleSectionTable + m;
                     SymbolTableEntry* entry = SymbolTable + mstentry->stindex;
                     if (entry->name != RAD50_ABS)
                         entry->value += mstentry->size;
@@ -2572,10 +2572,25 @@ void parse_commandline(int argc, char **argv)
             uint16_t param1, param2;
             if (*cur != 0)
             {
-                // EXECUTE:filespec - Specifies the name of the memory image file
+                // /EXECUTE:filespec - Specifies the name of the memory image file
                 if (strncmp(cur, "EXECUTE:", 8) == 0)
                 {
                     strcpy_s(savfilename, cur + 8);
+                    continue;
+                }
+
+                // /WIDE /W - SPECIFY WIDE MAP LISTING
+                if (strcmp(cur, "WIDE") == 0 || strcmp(cur, "W") == 0)
+                {
+                    Globals.NUMCOL = 6; // 6 COLUMNS
+                    Globals.LSTFMT--; // WIDE CREF
+                    continue;
+                }
+
+                // /NOBITMAP /X - DO NOT EMIT BIT MAP
+                if (strcmp(cur, "NOBITMAP") == 0 || strcmp(cur, "X") == 0)
+                {
+                    Globals.SWITCH |= SW_X;
                     continue;
                 }
 
@@ -2682,15 +2697,6 @@ void parse_commandline(int argc, char **argv)
                     //    //TODO
                     //    break;
 
-                case 'W':  // /W - SPECIFY WIDE MAP LISTING
-                    Globals.NUMCOL = 6; // 6 COLUMNS
-                    Globals.LSTFMT--; // WIDE CREF
-                    break;
-
-                case 'X':  // /X - DO NOT EMIT BIT MAP
-                    Globals.SWITCH |= SW_X;
-                    break;
-
                     //case 'I':  // /I - INCLUDE MODULES FROM LIBRARY
                     //    Globals.SWITCH |= SW_I;
                     //    break;
@@ -2726,12 +2732,12 @@ void parse_commandline(int argc, char **argv)
                     //    //TODO
                     //    break;
 
-                case 'J':  // /J - USE SEPARATED I-D SPACE
-                    if (Globals.SWITCH & SW_R)
-                        fatal_error("Invalid option: /R illegal with /J\n"); //TODO: Should be warning only
-                    else
-                        Globals.SWIT1 |= SW_J;
-                    break;
+                    //case 'J':  // /J - USE SEPARATED I-D SPACE
+                    //    if (Globals.SWITCH & SW_R)
+                    //        fatal_error("Invalid option: /R illegal with /J\n"); //TODO: Should be warning only
+                    //    else
+                    //        Globals.SWIT1 |= SW_J;
+                    //    break;
 
                 default:
                     fatal_error("Unknown command line option '%c'\n", option);
@@ -2782,12 +2788,12 @@ void print_help()
            "Usage: pclink11 <input files and options, space-separated>\n"
            "Options:\n"
            "  /EXECUTE:filespec  Specifies the name of the memory image file\n"
-           "  /T:addr  Specifies the starting address of the linked program\n"
-           "  /M:addr  Specifies the stack address for the linked program\n"
-           "  /B:addr  Specifies the lowest address to be used by the linked program\n"
-           "  /W       Produces a load map that is 132 columns wide\n"
-           "  /X       Do not emit bit map\n"
-           "  /A       Lists global symbols on the link map in alphabetical order\n"
+           "  /T:addr       Specifies the starting address of the linked program\n"
+           "  /M:addr       Specifies the stack address for the linked program\n"
+           "  /B:addr       Specifies the lowest address to be used by the linked program\n"
+           "  /WIDE     /W  Produces a load map that is 132 columns wide\n"
+           "  /NOBITMAP /X  Do not emit bit map\n"
+           "  /A            Lists global symbols on the link map in alphabetical order\n"
            "\n");
     //TODO
 }
