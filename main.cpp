@@ -1474,6 +1474,7 @@ void process_pass15_library(const SaveStatusEntry* sscur)
             printf("    Block type 10 - ENDLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
 
             process_pass15_lmlorder();  // ORDER THIS LIBRARY LML
+            //print_lml_table();//DEBUG
 
             Globals.SW_LML &= ~0100000;  // RESET FOR FINAL OBJ. PROCESSING
             Globals.FLGWD &= ~AD_LML;  // CLEAR NEW UNDF FLAG
@@ -2462,9 +2463,21 @@ void process_pass2()
         SaveStatusEntry* sscur = SaveStatusArea + i;
         assert(sscur->data != nullptr);
 
-        printf("  Processing %s\n", sscur->filename);
+        printf("  Processing %s %s\n", sscur->filename, sscur->islibrary ? "library" : "");
         if (sscur->islibrary)
+        {
+            if ((Globals.PAS1_5 & 128) == 0)
+            {
+                Globals.PAS1_5 |= 1;  // LIBRARY PASS REQUIRED
+                continue;  // Skip libraries on non-library pass
+            }
             Globals.LIBNB++;
+        }
+        else
+        {
+            if ((Globals.PAS1_5 & 128) != 0)
+                continue;  // Skip non-library on library pass
+        }
 
         size_t offset = 0;
         while (offset < sscur->filesize)
@@ -2869,9 +2882,14 @@ int main(int argc, char *argv[])
     process_pass_map_done();
 
     process_pass2_init();
-    process_pass2();
+    Globals.PAS1_5 = 0;
+    process_pass2();  // Non-library pass
+    if (Globals.PAS1_5 & 1)  // BIT 0 SET IF TO DO 1.5 (we have library files)
+    {
+        Globals.PAS1_5 |= 128;  // MARK BEGINING OF 2ND HALF OF PASS
+        process_pass2();  // Library pass
+    }
     process_pass2_done();
-    //TODO: Pass 2.5
 
     printf("SUCCESS\n");
     finalize();
