@@ -1,0 +1,11 @@
+RT-11 LINK  V05.45 	Load Map 	Friday 14-Jun-2019 12:49  Page 1
+MYTST3.SAV   	Title:	MYTST3	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	002700 = 736.    words  (RW,I,GBL,ABS,OVR)
+			START 	001000	LEVELS	002000	LEV01 	002000	LEV02 	002100	LEV03 	002200	LEV04 	002300	
+			LEV05 	002400	LEV06 	002500	LEV07 	002600	LEVEND	002700	
+ RELSEC	 002700	000020 = 8.      words  (RW,I,GBL,REL,CON)
+
+Transfer address = 001000, High limit = 002716 = 743.    words

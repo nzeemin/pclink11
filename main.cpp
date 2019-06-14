@@ -463,7 +463,7 @@ void symbol_table_remove_undefined(int index)
     entry->status &= 0170000;
 }
 
-// ANYUND
+// ANY UNDEFINED SYMBOLS IN LIST ? See LINK3\ANYUND
 bool is_any_undefined()
 {
     return (Globals.UNDLST != 0);
@@ -2631,6 +2631,13 @@ void parse_commandline(int argc, char **argv)
                     continue;
                 }
 
+                // /ALPHABETIZE /A - ALPHABETIZE MAP
+                if (strcmp(cur, "ALPHABETIZE") == 0 || strcmp(cur, "A") == 0)
+                {
+                    Globals.SWITCH |= SW_A;
+                    continue;
+                }
+
                 int result;
                 param1 = param2 = 0;  result = 0;
                 int option = toupper(*cur++);
@@ -2742,10 +2749,6 @@ void parse_commandline(int argc, char **argv)
                     //    Globals.SWITCH |= SW_F;
                     //    break;
 
-                case 'A':  // /A - ALPHABETIZE MAP
-                    Globals.SWITCH |= SW_A;
-                    break;
-
                     //case 'S':  // /S - SYMBOL TABLE AS LARGE AS POSSIBLE
                     //    //TODO
                     //    break;
@@ -2828,10 +2831,10 @@ void print_help()
            "  /T:addr       Specifies the starting address of the linked program\n"
            "  /M:addr       Specifies the stack address for the linked program\n"
            "  /B:addr       Specifies the lowest address to be used by the linked program\n"
-           "  /WIDE     /W  Produces a load map that is 132 columns wide\n"
-           "  /NOBITMAP /X  Do not emit bit map\n"
-           "  /SYMBOLTABLE /STB  Generates a symbol table file\n"
-           "  /A            Lists global symbols on the link map in alphabetical order\n"
+           "  /NOBITMAP    /X    Do not emit bit map\n"
+           "  /WIDE        /W    Produces a load map that is 132 columns wide\n"
+           "  /ALPHABETIZE /A    Lists global symbols on the link map in alphabetical order\n"
+           "  /SYMBOLTABLE /STB  Generates a symbol table file (.STB file)\n"
            "\n");
     //TODO
 }
