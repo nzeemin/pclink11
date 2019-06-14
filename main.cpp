@@ -801,7 +801,7 @@ void pass1_force0(const SymbolTableEntry* entry)
     printf("DUPLICATE SYMBOL \"%s\" IS FORCED TO THE ROOT\n", entry->unrad50name());
 }
 
-// LINK3\ORDER, LINK5\ALPHA
+// LINK3\ORDER, LINK3\ALPHA
 void pass1_insert_entry_into_ordered_list(int index, SymbolTableEntry* entry, bool absrel)
 {
     assert(index > 0 && index < SymbolTableSize);
@@ -817,6 +817,7 @@ void pass1_insert_entry_into_ordered_list(int index, SymbolTableEntry* entry, bo
     assert(sectentry != nullptr);
 
     SymbolTableEntry* preventry = sectentry;
+    bool alphabetize = (Globals.SWITCH & SW_A) != 0;
     for (;;)
     {
         int nextindex = preventry->nextindex();
@@ -826,9 +827,18 @@ void pass1_insert_entry_into_ordered_list(int index, SymbolTableEntry* entry, bo
         if (nextentry->flagseg & SY_SEC)  // next entry is a section
             break;
 
-        if (((Globals.SWITCH & SW_A) == 0 && (nextentry->value > entry->value)) ||
-            ((Globals.SWITCH & SW_A) != 0 && (nextentry->name > entry->name)))
-            break;
+        if (alphabetize)  // Compare 6-char RAD50 strings
+        {
+            if (LOWORD(nextentry->name) > LOWORD(entry->name))
+                break;
+            if (LOWORD(nextentry->name) == LOWORD(entry->name) && HIWORD(nextentry->name) > HIWORD(entry->name))
+                break;
+        }
+        else
+        {
+            if (nextentry->value > entry->value)
+                break;
+        }
 
         preventry = nextentry;
     }
