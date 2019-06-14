@@ -324,6 +324,7 @@ void process_test(string& stestdirname)
     stringvec logproblems;
     stringvec fileproblems;
     bool resmylog = true, resmaps = true, ressavs = true, resstbs = true;
+    bool nostb = stestdirname.size() > 6 && stestdirname.compare(stestdirname.size() - 6, 6, "-NOSTB") == 0;
 
     // Start analyzing the files, but no console output before the test name
     if (filenamelogmy.empty())
@@ -339,9 +340,9 @@ void process_test(string& stestdirname)
         filesnotfound.push_back("*-11.SAV");
     if (filenamesavmy.empty())
         filesnotfound.push_back("*-my.SAV");
-    if (filenamestb11.empty())
+    if (!nostb && filenamestb11.empty())
         filesnotfound.push_back("*-11.STB");
-    if (filenamestbmy.empty())
+    if (!nostb && filenamestbmy.empty())
         filesnotfound.push_back("*-my.STB");
 
     bool isfileabsent = filesnotfound.size() > 0;

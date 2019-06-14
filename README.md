@@ -34,16 +34,17 @@ Examples:
 First priority:
  - Fix bugs for the failing test cases
  - Option to NOT produce MAP file, currently we always make the MAP file
- - Option to NOT generate STB file, currently we always do
-
+ 
 Second priority:
  - More tests, currently we have like 70 test cases
  - Compile under Linux/MacOS, configure CI to compile under Linux/MacOS on every commit
+ - Reduce amount of logging, add option for verbosity level
 
 Not implemented now, and not sure we will:
  - LDA output - produce a file in absolute binary loader format
  - Overlays
- - Linkage with Separated instructions/data spaces
+ - Linkage with separated instructions/data spaces
 
 ## Links 🔗
  - [DEC-11-ZLDA-D PDP-11 LINK-11 Linker and LIBR-11 Librarian May71](https://archive.org/details/bitsavers_decpdp11do11LINK11LinkerandLIBR11LibrarianMay71_1259623)
+ - [macro-11 - cross-assembler by Richard Krehbiel](https://github.com/simh/simtools/tree/master/crossassemblers/macro11)

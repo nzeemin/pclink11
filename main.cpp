@@ -1589,7 +1589,7 @@ void process_pass_map_init()
     {
         memcpy(savfilename, SaveStatusArea[0].filename, 64);
         char* pext = strrchr(savfilename, '.');
-        pext++; *pext++ = 'S'; *pext++ = 'A'; *pext++ = 'V';
+        pext++; *pext++ = 'S'; *pext++ = 'A'; *pext = 'V';
     }
 
     if (Globals.FlagSTB) // IS THERE AN STB FILE?
@@ -1598,7 +1598,7 @@ void process_pass_map_init()
         char stbfilename[64];
         memcpy(stbfilename, savfilename, 64);
         char* pext = strrchr(stbfilename, '.');
-        pext++; *pext++ = 'S'; *pext++ = 'T'; *pext++ = 'B';
+        pext++; *pext++ = 'S'; *pext++ = 'T'; *pext = 'B';
 
         // Open STB file
         assert(stbfileobj == nullptr);
@@ -1781,7 +1781,7 @@ void process_pass_map_output()
     char mapfilename[64];
     memcpy(mapfilename, savfilename, 64);
     char* pext = strrchr(mapfilename, '.');
-    pext++; *pext++ = 'M'; *pext++ = 'A'; *pext++ = 'P';
+    pext++; *pext++ = 'M'; *pext++ = 'A'; *pext = 'P';
 
     // Open MAP file
     assert(mapfileobj == nullptr);
@@ -2467,6 +2467,7 @@ void proccess_pass2_libpa2(const SaveStatusEntry* sscur)
 void process_pass2()
 {
     printf("PASS 2\n");
+    Globals.TXTLEN = 0;
     Globals.LIBNB = 0;
     for (int i = 0; i < SaveStatusCount; i++)
     {
@@ -2577,6 +2578,8 @@ void process_pass2()
 void process_pass2_done()
 {
     uint16_t highlim = (Globals.SWIT1 & SW_J) ? Globals.DHGHLM : Globals.HGHLIM;
+
+    Globals.BITMAP[0] |= 128;  // We always use block 1
 
     // Copy the bitmap to block 0
     if ((Globals.FLGWD & 02000) == 0)
@@ -2879,7 +2882,6 @@ int main(int argc, char *argv[])
     initialize();
 
     parse_commandline(argc, argv);
-    Globals.FlagSTB = true; //DEBUG: Always generate STB
 
     read_files();
 
