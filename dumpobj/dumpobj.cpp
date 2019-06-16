@@ -368,7 +368,7 @@ void dumpobj_titlib_block(uint8_t* data, uint16_t eptsize)
 
 void dumpobj()
 {
-    printf("Processing %s size %06o\n", objfilename, objfilesize);
+    printf("Processing %s size %06o\n", objfilename, (unsigned int)objfilesize);
     size_t offset = 0;
     while (offset < objfilesize)
     {

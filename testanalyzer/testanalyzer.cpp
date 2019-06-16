@@ -271,7 +271,7 @@ void showdiff_binary_files(string& filepath11, string& filepathmy, const string&
             if (chunkhasdiffs)
             {
                 char buf[16];
-                sprintf(buf, "%04x", baseaddress + offset);
+                sprintf(buf, "%04x", (unsigned int)(baseaddress + offset));
                 SetConsoleTextAttribute(g_hConsole, TEXTATTRIBUTES_NORMAL);
                 std::cout << "    11." + filekind + "  " + buf + " ";
                 for (int i = 0; i < chunksize; i++)

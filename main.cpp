@@ -1337,7 +1337,7 @@ void process_pass15_lmlorder()
         {
             LibraryModuleEntry* ej = LibraryModuleList + j;
             if (ek->libfileno < ej->libfileno ||
-                ek->libfileno == ej->libfileno && (ek->offset() < ej->offset()))
+                (ek->libfileno == ej->libfileno && ek->offset() < ej->offset()))
             {
                 LibraryModuleEntry etemp = *ek;
                 memmove(ej + 1, ej, sizeof(LibraryModuleEntry) * (k - j));
@@ -1368,7 +1368,7 @@ void process_pass15_libpro(const SaveStatusEntry* sscur)
             continue;  // already passed
 
         offset = lmlentry->offset();
-        printf("      Module #%d offset %06o\n", i, offset);
+        printf("      Module #%d offset %06o\n", i, (unsigned int)offset);
         while (offset < sscur->filesize)
         {
             uint8_t* data = sscur->data + offset;
@@ -1422,7 +1422,7 @@ void process_pass15_library(const SaveStatusEntry* sscur)
         uint16_t blocksize = ((uint16_t*)data)[1];
         uint16_t blocktype = ((uint16_t*)data)[2];
 
-        if (blocktype < 0 || blocktype > 8)
+        if (blocktype == 0 || blocktype > 8)
             fatal_error("Illegal record type %03ho at %06ho in %s\n", blocktype, offset, sscur->filename);
         if (blocktype == 7)  // See LINK3\LIBRA, WE ARE ON PASS 1.5 , SO PROCESS LIBRARIES
         {
@@ -2403,7 +2403,7 @@ void proccess_pass2_libpa2(const SaveStatusEntry* sscur)
 
         offset = lmlentry->offset();
 
-        printf("      proccess_pass2_libpa2() #%04d for offset %06o\n", i, offset);
+        printf("      proccess_pass2_libpa2() #%04d for offset %06o\n", i, (unsigned int)offset);
         while (offset < sscur->filesize)
         {
             uint8_t* data = sscur->data + offset;
@@ -2466,6 +2466,7 @@ void proccess_pass2_libpa2(const SaveStatusEntry* sscur)
 // PRODUCE SAVE IMAGE FILE, see LINK7\PASS2
 void process_pass2()
 {
+    print_symbol_table();//DEBUG
     printf("PASS 2\n");
     Globals.TXTLEN = 0;
     Globals.LIBNB = 0;
@@ -2618,7 +2619,7 @@ void parse_commandline(int argc, char **argv)
                 // /EXECUTE:filespec - Specifies the name of the memory image file
                 if (strncmp(cur, "EXECUTE:", 8) == 0) //TODO: or /SAV
                 {
-                    strcpy_s(savfilename, cur + 8);
+                    strcpy(savfilename, cur + 8);
                     continue;
                 }
 
