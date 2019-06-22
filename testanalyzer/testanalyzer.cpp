@@ -3,7 +3,9 @@
 
 #define _CRT_SECURE_NO_WARNINGS
 
+#ifdef _MSC_VER
 #include <windows.h>
+#endif
 
 #include <stdio.h>
 #include <iostream>
@@ -21,15 +23,20 @@ bool g_all = false;  // Show all mode
 stringvec g_testnames;
 int g_maxchunkstoshow = 6;
 
-HANDLE g_hConsole;
 int g_testcount = 0;
 int g_testskipped = 0;
 int g_testsfailed = 0;
 
+#ifdef _MSC_VER
+HANDLE g_hConsole;
 #define TEXTATTRIBUTES_TITLE (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY)
 #define TEXTATTRIBUTES_NORMAL (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE)
 #define TEXTATTRIBUTES_WARNING (FOREGROUND_RED | FOREGROUND_GREEN)
 #define TEXTATTRIBUTES_DIFF (FOREGROUND_RED | FOREGROUND_GREEN)
+#define SetTextAttribute(ta) SetConsoleTextAttribute(g_hConsole, ta)
+#else
+#define SetTextAttribute(ta) {}
+#endif
 
 
 // Get list of sub-directories for a directory. Win32 specific method
@@ -272,25 +279,25 @@ void showdiff_binary_files(string& filepath11, string& filepathmy, const string&
             {
                 char buf[16];
                 sprintf(buf, "%04x", (unsigned int)(baseaddress + offset));
-                SetConsoleTextAttribute(g_hConsole, TEXTATTRIBUTES_NORMAL);
+                SetTextAttribute(TEXTATTRIBUTES_NORMAL);
                 std::cout << "    11." + filekind + "  " + buf + " ";
                 for (int i = 0; i < chunksize; i++)
                 {
                     bool isdiff = (buffer1[offset + i] != buffer2[offset + i]);
-                    SetConsoleTextAttribute(g_hConsole, isdiff ? TEXTATTRIBUTES_DIFF : TEXTATTRIBUTES_NORMAL);
+                    SetTextAttribute(isdiff ? TEXTATTRIBUTES_DIFF : TEXTATTRIBUTES_NORMAL);
                     sprintf(buf, " %02x", (unsigned char)buffer1[offset + i]);
                     std::cout << buf;
                 }
-                SetConsoleTextAttribute(g_hConsole, TEXTATTRIBUTES_NORMAL);
+                SetTextAttribute(TEXTATTRIBUTES_NORMAL);
                 std::cout << " ";
                 for (int i = 0; i < chunksize; i++)
                 {
                     bool isdiff = (buffer1[offset + i] != buffer2[offset + i]);
-                    SetConsoleTextAttribute(g_hConsole, isdiff ? TEXTATTRIBUTES_DIFF : TEXTATTRIBUTES_NORMAL);
+                    SetTextAttribute(isdiff ? TEXTATTRIBUTES_DIFF : TEXTATTRIBUTES_NORMAL);
                     sprintf(buf, " %02x", (unsigned char)buffer2[offset + i]);
                     std::cout << buf;
                 }
-                SetConsoleTextAttribute(g_hConsole, TEXTATTRIBUTES_NORMAL);
+                SetTextAttribute(TEXTATTRIBUTES_NORMAL);
                 std::cout << "  my." << filekind << std::endl;
 
                 chunkshown++;
@@ -306,7 +313,7 @@ void showdiff_binary_files(string& filepath11, string& filepathmy, const string&
         if (chunkshown >= maxchunkstoshow)
             break;
     }
-    SetConsoleTextAttribute(g_hConsole, TEXTATTRIBUTES_WARNING);
+    SetTextAttribute(TEXTATTRIBUTES_WARNING);
 }
 
 void process_test(string& stestdirname)
@@ -368,12 +375,12 @@ void process_test(string& stestdirname)
     bool passed = !isfileabsent && resmylog && resmaps && ressavs && resstbs;
     if (g_verbose || !passed)
     {
-        SetConsoleTextAttribute(g_hConsole, TEXTATTRIBUTES_NORMAL);
+        SetTextAttribute(TEXTATTRIBUTES_NORMAL);
         std::cout << "Test " << stestdirname;
         if (g_verbose && passed)
             std::cout << " - PASSED";
         std::cout << std::endl;
-        SetConsoleTextAttribute(g_hConsole, TEXTATTRIBUTES_WARNING);
+        SetTextAttribute(TEXTATTRIBUTES_WARNING);
     }
     if (filesnotfound.size() > 0)
     {
@@ -448,9 +455,9 @@ int main(int argc, char *argv[])
 {
     // Show title message
     g_hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-    SetConsoleTextAttribute(g_hConsole, TEXTATTRIBUTES_TITLE);
+    SetTextAttribute(TEXTATTRIBUTES_TITLE);
     std::cout << "TestAnalyzer utility for PCLINK11 project" << std::endl;
-    SetConsoleTextAttribute(g_hConsole, TEXTATTRIBUTES_NORMAL);
+    SetTextAttribute(TEXTATTRIBUTES_NORMAL);
 
     // Parse command line
     parse_commandline(argc, argv);
@@ -479,7 +486,7 @@ int main(int argc, char *argv[])
     }
 
     // Show totals
-    SetConsoleTextAttribute(g_hConsole, TEXTATTRIBUTES_TITLE);
+    SetTextAttribute(TEXTATTRIBUTES_TITLE);
     std::cout << "TOTAL tests: " << g_testcount;
     if (g_verbose)
     {
@@ -488,16 +495,16 @@ int main(int argc, char *argv[])
     }
     if (g_testsfailed > 0)
     {
-        SetConsoleTextAttribute(g_hConsole, TEXTATTRIBUTES_WARNING);
+        SetTextAttribute(TEXTATTRIBUTES_WARNING);
         std::cout << ", failed: " << g_testsfailed << " (" << g_testsfailed * 100.0 / g_testcount << "%)";
     }
     if (g_testskipped > 0)
     {
-        SetConsoleTextAttribute(g_hConsole, TEXTATTRIBUTES_WARNING);
+        SetTextAttribute(TEXTATTRIBUTES_WARNING);
         std::cout << ", skipped: " << g_testskipped;
     }
     std::cout << std::endl;
-    SetConsoleTextAttribute(g_hConsole, TEXTATTRIBUTES_NORMAL);
+    SetTextAttribute(TEXTATTRIBUTES_NORMAL);
 
     if (g_testsfailed > 0)
         return 5;
