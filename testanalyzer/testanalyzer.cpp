@@ -5,6 +5,9 @@
 
 #ifdef _MSC_VER
 #include <windows.h>
+#else
+#include <sys/types.h>
+#include <dirent.h>
 #endif
 
 #include <stdio.h>
@@ -39,6 +42,7 @@ HANDLE g_hConsole;
 #endif
 
 
+#ifdef _MSC_VER
 // Get list of sub-directories for a directory. Win32 specific method
 // See http://www.martinbroadhurst.com/list-the-files-in-a-directory-in-c.html
 void list_directory_subdirs(const string& dirname, stringvec& v)
@@ -58,7 +62,23 @@ void list_directory_subdirs(const string& dirname, stringvec& v)
         FindClose(hFind);
     }
 }
+#else
+// Get list of sub-directories for a directory. POSIX method
+// See http://www.martinbroadhurst.com/list-the-files-in-a-directory-in-c.html
+void list_directory_subdirs(const string& dirname, stringvec& v)
+{
+    DIR* dirp = opendir(name.c_str());
+    struct dirent * dp;
+    while ((dp = readdir(dirp)) != NULL)
+    {
+        //TODO: is it a directory?
+        v.push_back(dp->d_name);
+    }
+    closedir(dirp);
+}
+#endif
 
+#ifdef _MSC_VER
 // Get first file by mask in the directory. Win32 specific method
 string findfile_bymask(const string& dirname, const string& mask)
 {
@@ -81,6 +101,20 @@ string findfile_bymask(const string& dirname, const string& mask)
     }
     return "";
 }
+#else
+// Get first file by mask in the directory. POSIX method
+string findfile_bymask(const string& dirname, const string& mask)
+{
+    DIR* dirp = opendir(name.c_str());
+    struct dirent * dp;
+    while ((dp = readdir(dirp)) != NULL)
+    {
+        //TODO: is it a file? does it match the mask?
+        v.push_back(dp->d_name);
+    }
+    closedir(dirp);
+}
+#endif
 
 
 // Process my log, show NOT IMPLEMENTED lines, make sure it ends with SUCCESS
