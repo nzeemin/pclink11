@@ -5,14 +5,14 @@ SOURCES_DUMPOBJ = dumpobj/dumpobj.cpp
 SOURCES_TESTANALYZER = testanalyzer/testanalyzer.cpp
 SOURCES = main.cpp util.cpp $(SOURCES_DUMPOBJ) $(SOURCES_TESTANALYZER)
 
-OBJECTS = main.o util.o
-OBJECTS_DUMPOBJ = dumpobj.o
-OBJECTS_TESTANALYZER = testanalyzer.o
+OBJECTS_PCLINK11 = main.o util.o
+OBJECTS_DUMPOBJ = dumpobj/dumpobj.o
+OBJECTS_TESTANALYZER = testanalyzer/testanalyzer.o
 
 all: pclink11 dumpobj testanalyzer
 
-pclink11: version.h $(OBJECTS)
-	$(CXX) $(CXXFLAGS) -o pclink11 $(OBJECTS)
+pclink11: version.h $(OBJECTS_PCLINK11)
+	$(CXX) $(CXXFLAGS) -o pclink11 $(OBJECTS_PCLINK11)
 
 version.h:
 	$(eval GIT_REVISION=$(shell git rev-list HEAD --count))
@@ -22,14 +22,16 @@ version.h:
 	@echo "" >> version.h
 	@echo "#define APP_VERSION_STRING \"V0.$(GIT_REVISION)\"" >> version.h
 
-dumpobj:
+dumpobj: $(OBJECTS_DUMPOBJ)
 	$(CXX) $(CXXFLAGS) -o dumpobj $(OBJECTS_DUMPOBJ)
 
-testanalyzer:
+testanalyzer: $(OBJECTS_TESTANALYZER)
 	$(CXX) $(CXXFLAGS) -o testanalyzer $(OBJECTS_TESTANALYZER)
 
 .PHONY: clean
 
 clean:
-	rm -f $(OBJECTS)
+	rm -f $(OBJECTS_PCLINK11)
+	rm -f $(OBJECTS_DUMPOBJ)
+	rm -f $(OBJECTS_TESTANALYZER)
 	rm version.h
