@@ -214,7 +214,6 @@ uint16_t dumpobj_rld_complex(uint8_t* &data, uint16_t &offset, uint16_t blocksiz
     uint16_t cpxresult = 0;
     const int cpxstacksize = 16;
     uint16_t cpxstack[cpxstacksize];  memset(cpxstack, 0, sizeof(cpxstack));
-    uint16_t cpxstacktop = 0;
     while (!cpxbreak && offset < blocksize)
     {
         uint8_t cpxcmd = *data;  data += 1;  offset += 1;
@@ -277,7 +276,7 @@ void dumpobj_rld_block(uint8_t* data)
     while (offset < blocksize)
     {
         uint8_t command = *data;  data++;  offset++;  // CMD BYTE OF RLD
-        uint8_t disbyte = *data;  data++;  offset++;  // DISPLACEMENT BYTE
+        data++;  offset++;  // DISPLACEMENT BYTE
 
         printf("      RLD type %03ho %s",
                (uint16_t)(command & 0177), ((command & 0177) > 017) ? "UNKNOWN" : RLDCommandNames[command & 0177]);

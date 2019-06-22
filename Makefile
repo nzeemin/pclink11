@@ -23,10 +23,10 @@ version.h:
 	@echo "#define APP_VERSION_STRING \"V0.$(GIT_REVISION)\"" >> version.h
 
 dumpobj: $(OBJECTS_DUMPOBJ)
-	$(CXX) $(CXXFLAGS) -o dumpobj $(OBJECTS_DUMPOBJ)
+	$(CXX) $(CXXFLAGS) -o dumpobj/dumpobj $(OBJECTS_DUMPOBJ)
 
 testanalyzer: $(OBJECTS_TESTANALYZER)
-	$(CXX) $(CXXFLAGS) -o testanalyzer $(OBJECTS_TESTANALYZER)
+	$(CXX) $(CXXFLAGS) -o testanalyzer/testanalyzer $(OBJECTS_TESTANALYZER)
 
 .PHONY: clean
 
