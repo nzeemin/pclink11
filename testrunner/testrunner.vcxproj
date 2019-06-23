@@ -76,7 +76,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="testdesc.cpp" />
+    <ClCompile Include="testlist.cpp" />
     <ClCompile Include="testrunner.cpp" />
   </ItemGroup>
   <ItemGroup>

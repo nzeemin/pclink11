@@ -18,6 +18,17 @@
 
 typedef std::string string;
 
+#ifdef _MSC_VER
+HANDLE g_hConsole;
+#define TEXTATTRIBUTES_TITLE (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY)
+#define TEXTATTRIBUTES_NORMAL (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE)
+#define TEXTATTRIBUTES_WARNING (FOREGROUND_RED | FOREGROUND_GREEN)
+#define TEXTATTRIBUTES_DIFF (FOREGROUND_RED | FOREGROUND_GREEN)
+#define SetTextAttribute(ta) SetConsoleTextAttribute(g_hConsole, ta)
+#else
+#define SetTextAttribute(ta) {}
+#endif
+
 
 // Get first file by mask in the directory. Win32 specific method
 string findfile_bymask(const string& dirname, const string& mask)
@@ -50,8 +61,11 @@ void remove_file(string testdirpath, string filename)
 
     //std::cout << "Removing " << filename << std::endl;
     string fullpath = testdirpath + "\\" + filename;
-    remove(fullpath.c_str());
-    //TODO: Check return value
+    if (0 != remove(fullpath.c_str()))
+    {
+        std::cout << "Failed to delete file " << filename << " : errno " << errno << std::endl;
+        return;
+    }
 }
 
 void rename_file(string testdirpath, string filename, string filenamenew)
@@ -94,7 +108,7 @@ void process_test_run(string workingdir, string modulename, string commandline, 
             GENERIC_WRITE, FILE_SHARE_READ, &sa, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
     if (hOutFile == INVALID_HANDLE_VALUE)
     {
-        std::cout << "Failed to open log file: " << ::GetLastError() << std::endl;
+        std::cout << "Failed to open log file: error " << ::GetLastError() << std::endl;
         return;
     }
 
@@ -111,7 +125,7 @@ void process_test_run(string workingdir, string modulename, string commandline, 
             modulename.c_str(), command, NULL, NULL, TRUE,
             CREATE_NO_WINDOW, NULL, workingdir.c_str(), &si, &pi))
     {
-        std::cout << "Failed to run the test: " << ::GetLastError() << std::endl;
+        std::cout << "Failed to run the test: error " << ::GetLastError() << std::endl;
         ::CloseHandle(hOutFile);
         return;
     }
@@ -127,6 +141,10 @@ void process_test_run(string workingdir, string modulename, string commandline, 
 
 void process_test(const TestDescriptor & test)
 {
+    SetTextAttribute(TEXTATTRIBUTES_NORMAL);
+    std::cout << test.directory << " / " << test.name << std::endl;
+    SetTextAttribute(TEXTATTRIBUTES_WARNING);
+
     string testdirpath = string("tests\\") + test.directory;
 
     // Prepare command line
@@ -143,8 +161,6 @@ void process_test(const TestDescriptor & test)
     }
 
     // Run the test
-    //std::cout << test.name << ": " << pclink11path << " : " << commandline << " at " << testdirpath << std::endl;
-    std::cout << test.directory << " / " << test.name << std::endl;
     process_test_run(testdirpath, pclink11path, commandline, outfilename);
 
     // Rename files
@@ -161,7 +177,12 @@ void process_test(const TestDescriptor & test)
 int main(int argc, char *argv[])
 {
     // Show title message
+#ifdef _MSC_VER
+    g_hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+#endif
+    SetTextAttribute(TEXTATTRIBUTES_TITLE);
     std::cout << "TestRunner utility for PCLINK11 project" << std::endl;
+    SetTextAttribute(TEXTATTRIBUTES_NORMAL);
 
     //TODO: Parse command line
 
@@ -177,7 +198,9 @@ int main(int argc, char *argv[])
         process_test(test);
     }
 
+    SetTextAttribute(TEXTATTRIBUTES_TITLE);
     std::cout << "Total tests executed: " << g_TestNumber << std::endl;
+    SetTextAttribute(TEXTATTRIBUTES_NORMAL);
 
     return 0;
 }
