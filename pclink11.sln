@@ -9,6 +9,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "dumpobj", "dumpobj\dumpobj.
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testanalyzer", "testanalyzer\testanalyzer.vcxproj", "{7E5D83AB-2166-41C2-9213-04E2AB1CF56D}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testrunner", "testrunner\testrunner.vcxproj", "{199F4B6D-D57C-4FC8-8E96-B8B8E684C7AB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -27,6 +29,10 @@ Global
 		{7E5D83AB-2166-41C2-9213-04E2AB1CF56D}.Debug|Win32.Build.0 = Debug|Win32
 		{7E5D83AB-2166-41C2-9213-04E2AB1CF56D}.Release|Win32.ActiveCfg = Release|Win32
 		{7E5D83AB-2166-41C2-9213-04E2AB1CF56D}.Release|Win32.Build.0 = Release|Win32
+		{199F4B6D-D57C-4FC8-8E96-B8B8E684C7AB}.Debug|Win32.ActiveCfg = Debug|Win32
+		{199F4B6D-D57C-4FC8-8E96-B8B8E684C7AB}.Debug|Win32.Build.0 = Debug|Win32
+		{199F4B6D-D57C-4FC8-8E96-B8B8E684C7AB}.Release|Win32.ActiveCfg = Release|Win32
+		{199F4B6D-D57C-4FC8-8E96-B8B8E684C7AB}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

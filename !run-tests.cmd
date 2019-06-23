@@ -1,5 +1,3 @@
-cd tests
-call !runtestmy.cmd
-cd ..
-if "%CONFIGURATION%"=="" set CONFIGURATION=Debug
+@if "%CONFIGURATION%"=="" set CONFIGURATION=Debug
+%CONFIGURATION%\testrunner.exe
 %CONFIGURATION%\testanalyzer.exe
