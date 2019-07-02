@@ -626,7 +626,6 @@ void print_symbol_table()
 
     printf("  BEGBLK '%s' %06ho\n", unrad50(Globals.BEGBLK.symbol), Globals.BEGBLK.value);
 
-    printf("  ASECT-started list has ");
     // Enumerate entries starting with ASECT, make sure there's no loops or UNDEF entries
     SymbolTableEntry* preventry = ASECTentry;
     int count = 1;
@@ -642,13 +641,12 @@ void print_symbol_table()
             break;
     }
     if (count > SymbolTableSize)
-        printf("loops.\n");
+        printf("  ASECT-started list has loops.\n");
     else
-        printf("%d entries.\n", count);
+        printf("  ASECT-started list has %d. entries.\n", count);
 
-    printf("  UNDLST = %06ho", (uint16_t)Globals.UNDLST);
     if (Globals.UNDLST == 0)
-        printf("\n");
+        printf("  UNDLST = %06ho\n", (uint16_t)Globals.UNDLST);
     else  // Enumerate entries starting with UNDLST, make sure there's no loops or non-UNDEF entries
     {
         int index = Globals.UNDLST;
@@ -662,9 +660,9 @@ void print_symbol_table()
                 break;
         }
         if (count > SymbolTableSize)
-            printf("; the list has loops.\n");
+            printf("  UNDLST = %06ho; the list has loops.\n", (uint16_t)Globals.UNDLST);
         else
-            printf("; the list has %d entries.\n", count);
+            printf("  UNDLST = %06ho; the list has %d. entries.\n", (uint16_t)Globals.UNDLST, count);
     }
 }
 
@@ -1083,6 +1081,12 @@ void process_pass1_gsd_item_psecnm(const uint16_t* itemw, int& itemflags)
             fatal_error("ERR10: Conflicting section attributes.\n");
     }
 
+    // CHKRT
+    if ((entry->flags() & 0400/*CS$GBL*/) != 0 && entry->seg() != 0)
+    {
+        NOTIMPLEMENTED;
+    }
+
     // PLOOP and CHKRT
     if (lkname == RAD50_ABS)
         ASECTentry = entry;
@@ -1109,16 +1113,17 @@ void process_pass1_gsd_item_psecnm(const uint16_t* itemw, int& itemflags)
     //    sectsize = 0;
     if ((itemflags & 0200/*CS$TYP*/) == 0 || (itemflags & 0004/*CS$ALO*/) != 0)  // INSTRUCTION SECTION? CON SECTION ?
         sectsize = (sectsize + 1) & ~1;  // ROUND SECTION SIZE TO WORD BOUNDARY
-    if (itemflags & 4/*CS$ALO*/)  // OVERLAYED SECTION?
-    {
-        Globals.BASE = 0;  // OVR PSECT, GBL SYM OFFSET IS FROM START OF SECTION
-        //if (itemw[3] > entry->value)
-    }
     if ((itemflags & 0040/*CS$REL*/) == 0)  // ASECT
     {
         if (sectsize > entry->value)  // Size is maximum from all ASECT sections
             entry->value = sectsize;
         Globals.BASE = 0;
+    }
+    else if (itemflags & 4/*CS$ALO*/)  // OVERLAYED SECTION?
+    {
+        Globals.BASE = 0;  // OVR PSECT, GBL SYM OFFSET IS FROM START OF SECTION
+        if (sectsize > entry->value)  // Size is maximum from all such sections
+            entry->value = sectsize;
     }
     else
     {
@@ -2449,7 +2454,7 @@ void proccess_pass2_libpa2(const SaveStatusEntry* sscur)
                 {
                     ModuleSectionEntry* mstentry = ModuleSectionTable + m;
                     SymbolTableEntry* entry = SymbolTable + mstentry->stindex;
-                    if (entry->name != RAD50_ABS)
+                    if (entry->name != RAD50_ABS && (entry->flags() & 4/*CS$ALO*/) == 0)
                         entry->value += mstentry->size;
                 }
                 mst_table_clear();
@@ -2466,7 +2471,6 @@ void proccess_pass2_libpa2(const SaveStatusEntry* sscur)
 // PRODUCE SAVE IMAGE FILE, see LINK7\PASS2
 void process_pass2()
 {
-    print_symbol_table();//DEBUG
     printf("PASS 2\n");
     Globals.TXTLEN = 0;
     Globals.LIBNB = 0;
@@ -2548,7 +2552,7 @@ void process_pass2()
             {
                 printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
 
-                process_pass2_dump_txtblk();
+                process_pass2_dump_txtblk();  // DUMP TXT BLK IF ANY
 
                 // AT THE END OF EACH MODULE THE BASE ADR OF EACH SECTION IS UPDATED AS DETERMINED BY THE MST.
                 for (int m = 0; m < ModuleSectionCount; m++)
