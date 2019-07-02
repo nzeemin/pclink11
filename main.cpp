@@ -863,47 +863,53 @@ void process_pass1_gsd_item_taddr(const uint16_t* itemw, const SaveStatusEntry* 
         fatal_error("ERR31: Transfer address for '%s' undefined or in overlay.\n", unrad50(lkname));
     SymbolTableEntry* entry = SymbolTable + index;
     printf("        Entry '%s' %06ho %06ho %06ho\n", entry->unrad50name(), entry->flagseg, entry->value, entry->status);
-    //TODO
 
-    if (entry->value > 0)  // IF CURRENT SIZE IS 0 THEN OK
+    if ((entry->flags() & 040/*CS$REL*/) == 0 ||
+        (entry->flags() & 4/*CS$ALO*/) != 0 ||
+        entry->value == 0)  // ABS section or OVERLAY SECTION, or CURRENT SIZE IS 0
     {
-        // MUST SCAN CURRENT MODULE TO FIND SIZE CONTRIBUTION TO
-        // TRANSFER ADDR SECTION TO CALCULATE PROPER OFFSET
-        //const SaveStatusEntry* sscurtmp = sscur;
-        size_t offset = 0;
-        while (offset < sscur->filesize)
+        Globals.BEGBLK.symbol = entry->name;  // NAME OF THE SECTION
+        Globals.BEGBLK.flags = entry->flags();
+        Globals.BEGBLK.code = entry->seg();
+        Globals.BEGBLK.value = itemw[3];
+        return;
+    }
+
+    // MUST SCAN CURRENT MODULE TO FIND SIZE CONTRIBUTION TO
+    // TRANSFER ADDR SECTION TO CALCULATE PROPER OFFSET
+    size_t offset = 0;
+    while (offset < sscur->filesize)
+    {
+        const uint8_t* data = sscur->data + offset;
+        uint16_t blocksize = ((uint16_t*)data)[1];
+        uint16_t blocktype = ((uint16_t*)data)[2];
+        if (blocktype == 1)
         {
-            const uint8_t* data = sscur->data + offset;
-            uint16_t blocksize = ((uint16_t*)data)[1];
-            uint16_t blocktype = ((uint16_t*)data)[2];
-            if (blocktype == 1)
+            int itemcounttmp = (blocksize - 6) / 8;
+            for (int itmp = 0; itmp < itemcounttmp; itmp++)
             {
-                int itemcounttmp = (blocksize - 6) / 8;
-                for (int itmp = 0; itmp < itemcounttmp; itmp++)
+                const uint16_t* itemwtmp = (const uint16_t*)(data + 6 + 8 * itmp);
+                int itemtypetmp = (itemwtmp[2] >> 8) & 0xff;
+                if ((itemtypetmp == 1/*CSECT*/ || itemtypetmp == 5/*PSECT*/) &&
+                    itemw[0] == itemwtmp[0] && itemw[1] == itemwtmp[1])  // FOUND THE PROPER SECTION
                 {
-                    const uint16_t* itemwtmp = (const uint16_t*)(data + 6 + 8 * itmp);
-                    int itemtypetmp = (itemwtmp[2] >> 8) & 0xff;
-                    if ((itemtypetmp == 1/*CSECT*/ || itemtypetmp == 5/*PSECT*/) &&
-                        itemw[0] == itemwtmp[0] && itemw[1] == itemwtmp[1])  // FOUND THE PROPER SECTION
-                    {
-                        uint16_t itemvaltmp = itemwtmp[3];
-                        uint16_t sectsize = (itemvaltmp + 1) & ~1;  // ROUND SECTION SIZE TO WORD BOUNDARY
-                        printf("        Item '%s' type %d - CSECT or PSECT size %06ho\n", unrad50(itemwtmp[0], itemwtmp[1]), itemtypetmp, sectsize);
-                        int newvalue = entry->value - sectsize + itemw[3];
-                        //TODO: UPDATE OFFSET VALUE
-                        //TODO
-                        // See LINK3\TADDR\100$
-                        Globals.BEGBLK.symbol = entry->name;  // NAME OF THE SECTION
-                        Globals.BEGBLK.flags = entry->flags();
-                        Globals.BEGBLK.code = entry->seg();
-                        Globals.BEGBLK.value = (uint16_t)newvalue /*entry->value*/;  // RELATIVE OFFSET FROM THE SECTION
-                        break;
-                    }
+                    uint16_t itemvaltmp = itemwtmp[3];
+                    uint16_t sectsize = (itemvaltmp + 1) & ~1;  // ROUND SECTION SIZE TO WORD BOUNDARY
+                    printf("        Item '%s' type %d - CSECT or PSECT size %06ho\n", unrad50(itemwtmp[0], itemwtmp[1]), itemtypetmp, sectsize);
+                    int newvalue = entry->value - sectsize + itemw[3];
+                    //TODO: UPDATE OFFSET VALUE
+                    //TODO
+                    // See LINK3\TADDR\100$
+                    Globals.BEGBLK.symbol = entry->name;  // NAME OF THE SECTION
+                    Globals.BEGBLK.flags = entry->flags();
+                    Globals.BEGBLK.code = entry->seg();
+                    Globals.BEGBLK.value = (uint16_t)newvalue /*entry->value*/;  // RELATIVE OFFSET FROM THE SECTION
+                    break;
                 }
             }
-            data += blocksize; offset += blocksize;
-            data += 1; offset += 1;  // Skip checksum
         }
+        data += blocksize; offset += blocksize;
+        data += 1; offset += 1;  // Skip checksum
     }
 }
 
