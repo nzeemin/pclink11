@@ -8,6 +8,7 @@
 *.LST
 *.DSK
 *.PAS
+*.FOR
 *.FCU
 a
 *.cmd
