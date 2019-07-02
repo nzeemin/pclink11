@@ -317,6 +317,7 @@ struct tagGlobals
 
     uint16_t    FLGWD;  // INTERNAL FLAG WORD
     bool        FlagSTB;  // STB FILE REQUESTED
+    bool        FlagMAP;  // MAP FILE REQUESTED
     //uint16_t    ENDOL;  // USE FOR CONTINUE SWITCHES /C OR //
     uint16_t    SEGNUM; // KEEP TRACK OF INPUT SEGMENT #'S
 
@@ -772,7 +773,7 @@ void read_files()
 
         fseek(file, 0L, SEEK_END);
         size_t filesize = ftell(file);
-        if (filesize > 256 * 1024)
+        if (filesize > 512 * 1024)
             fatal_error("Input file %s too long.\n", sscur->filename);
         sscur->filesize = filesize;
 
@@ -1747,14 +1748,16 @@ void print_undefined_globals()
     if (index == 0)
         return;
     printf("  Undefined globals:\n  ");
-    fprintf(mapfileobj, "\nUndefined globals:\n");
+    if (Globals.FlagMAP)
+        fprintf(mapfileobj, "\nUndefined globals:\n");
     int count = 0;
     while (index != 0)
     {
         if (count > 0 && count % 8 == 0) printf("\n  ");
         SymbolTableEntry* entry = SymbolTable + index;
         printf(" '%s'", entry->unrad50name());
-        fprintf(mapfileobj, "%s\n", entry->unrad50name());
+        if (Globals.FlagMAP)
+            fprintf(mapfileobj, "%s\n", entry->unrad50name());
         index = entry->nextindex();
         count++;
     }
@@ -1775,9 +1778,10 @@ void process_pass_map_output_sectionline(const SymbolTableEntry* entry, uint16_t
     const char* sectsav = ((entryflags & 0100) && (entryflags & 010000)) ? ",SAV" : "";
     const char* sectreloc = (entryflags & 0040) ? "REL" : "ABS";
     const char* sectalloc = (entryflags & 0004) ? "OVR" : "CON";
-    fprintf(mapfileobj, " %s\t %06ho\t%-16s words  (%s,%s,%s%s,%s,%s)\n",
-            (entry->name >= 03100) ? entry->unrad50name() : "",
-            baseaddr, bufsize, sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
+    if (Globals.FlagMAP)
+        fprintf(mapfileobj, " %s\t %06ho\t%-16s words  (%s,%s,%s%s,%s,%s)\n",
+                (entry->name >= 03100) ? entry->unrad50name() : "",
+                baseaddr, bufsize, sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
     printf("  '%s' %06ho %-16s words  (%s,%s,%s%s,%s,%s)\n",
            (entry->name >= 03100) ? entry->unrad50name() : "      ",
            baseaddr, bufsize, sectaccess, secttypedi, sectscope, sectsav, sectreloc, sectalloc);
@@ -1789,59 +1793,63 @@ void process_pass_map_output()
     printf("PASS MAP\n");
 
     // Prepare MAP file name
-    char mapfilename[64];
-    memcpy(mapfilename, savfilename, 64);
-    char* pext = strrchr(mapfilename, '.');
-    pext++; *pext++ = 'M'; *pext++ = 'A'; *pext = 'P';
+    char mapfilename[64] = { 0 };
+    if (Globals.FlagMAP)
+    {
+        memcpy(mapfilename, savfilename, 64);
+        char* pext = strrchr(mapfilename, '.');
+        pext++; *pext++ = 'M'; *pext++ = 'A'; *pext = 'P';
 
-    // Open MAP file
-    assert(mapfileobj == nullptr);
-    mapfileobj = fopen(mapfilename, "wt");
-    if (mapfileobj == nullptr)
-        fatal_error("ERR5: Failed to open file %s, errno %d.\n", mapfilename, errno);
+        // Open MAP file
+        assert(mapfileobj == nullptr);
+        mapfileobj = fopen(mapfilename, "wt");
+        if (mapfileobj == nullptr)
+            fatal_error("ERR5: Failed to open file %s, errno %d.\n", mapfilename, errno);
+    }
 
     Globals.LINLFT = LINPPG;
 
-    // OUTPUT THE HEADERS
-
-    fprintf(mapfileobj, "PCLINK11 %-8s", APP_VERSION_STRING);
-    fprintf(mapfileobj, "\tLoad Map \t");
-
-    time_t curtime;  time(&curtime); // DETERMINE DATE & TIME; see LINK5\MAPHDR
-    struct tm * timeptr = localtime(&curtime);
-    fprintf(mapfileobj, "%s %.2d-%s-%d %.2d:%.2d\n",
-            weekday_names[timeptr->tm_wday],
-            timeptr->tm_mday, month_names[timeptr->tm_mon], 1900 + timeptr->tm_year,
-            timeptr->tm_hour, timeptr->tm_min);
-
-    char savname[64];
-    strcpy(savname, savfilename);
-    char* pdot = strrchr(savname, '.');
-    if (pdot != nullptr) *pdot = 0;
-    fprintf(mapfileobj, "%-6s", savname);
-    if (pdot != nullptr)
+    if (Globals.FlagMAP) // OUTPUT THE HEADERS
     {
-        *pdot = '.';
-        fprintf(mapfileobj, "%-4s   ", pdot);
-    }
+        fprintf(mapfileobj, "PCLINK11 %-8s", APP_VERSION_STRING);
+        fprintf(mapfileobj, "\tLoad Map \t");
 
-    fprintf(mapfileobj, "\tTitle:\t");
-    if (Globals.MODNAM != 0)
-    {
-        fprintf(mapfileobj, "%s", unrad50(Globals.MODNAM));
+        time_t curtime;  time(&curtime); // DETERMINE DATE & TIME; see LINK5\MAPHDR
+        struct tm * timeptr = localtime(&curtime);
+        fprintf(mapfileobj, "%s %.2d-%s-%d %.2d:%.2d\n",
+                weekday_names[timeptr->tm_wday],
+                timeptr->tm_mday, month_names[timeptr->tm_mon], 1900 + timeptr->tm_year,
+                timeptr->tm_hour, timeptr->tm_min);
+
+        char savname[64];
+        strcpy(savname, savfilename);
+        char* pdot = strrchr(savname, '.');
+        if (pdot != nullptr) *pdot = 0;
+        fprintf(mapfileobj, "%-6s", savname);
+        if (pdot != nullptr)
+        {
+            *pdot = '.';
+            fprintf(mapfileobj, "%-4s   ", pdot);
+        }
+
+        fprintf(mapfileobj, "\tTitle:\t");
+        if (Globals.MODNAM != 0)
+        {
+            fprintf(mapfileobj, "%s", unrad50(Globals.MODNAM));
+        }
+        fprintf(mapfileobj, "\tIdent:\t");
+        fprintf(mapfileobj, "%s", unrad50(Globals.IDENT));
+        fprintf(mapfileobj, "\t\n\n");
+        fprintf(mapfileobj, "Section  Addr\tSize");
+        //printf("  Section  Addr   Size ");
+        for (uint8_t i = 0; i < Globals.NUMCOL; i++)
+        {
+            fprintf(mapfileobj, "\tGlobal\tValue");
+            printf("   Global  Value");
+        }
+        fprintf(mapfileobj, "\n\n");
+        printf("\n");
     }
-    fprintf(mapfileobj, "\tIdent:\t");
-    fprintf(mapfileobj, "%s", unrad50(Globals.IDENT));
-    fprintf(mapfileobj, "\t\n\n");
-    fprintf(mapfileobj, "Section  Addr\tSize");
-    //printf("  Section  Addr   Size ");
-    for (uint8_t i = 0; i < Globals.NUMCOL; i++)
-    {
-        fprintf(mapfileobj, "\tGlobal\tValue");
-        printf("   Global  Value");
-    }
-    fprintf(mapfileobj, "\n\n");
-    printf("\n");
 
     // RESOLV  SECTION STARTS & GLOBAL SYMBOL VALUES; see LINK5\RESOLV
     uint16_t baseaddr = 0; // ASECT BASE ADDRESS IS 0
@@ -1855,7 +1863,8 @@ void process_pass_map_output()
         {
             if (tabcount > 0)
             {
-                fprintf(mapfileobj, "\n");
+                if (Globals.FlagMAP)
+                    fprintf(mapfileobj, "\n");
                 printf("\n");
                 tabcount = 0;
             }
@@ -1880,15 +1889,18 @@ void process_pass_map_output()
 
             if (tabcount == 0)
             {
-                fprintf(mapfileobj, "\t\t\t");
+                if (Globals.FlagMAP)
+                    fprintf(mapfileobj, "\t\t\t");
                 printf("                        ");
             }
-            fprintf(mapfileobj, "%s\t%06ho\t", entry->unrad50name(), entry->value);
+            if (Globals.FlagMAP)
+                fprintf(mapfileobj, "%s\t%06ho\t", entry->unrad50name(), entry->value);
             printf("  %s  %06ho", entry->unrad50name(), entry->value);
             tabcount++;
             if (tabcount >= Globals.NUMCOL)
             {
-                fprintf(mapfileobj, "\n");
+                if (Globals.FlagMAP)
+                    fprintf(mapfileobj, "\n");
                 printf("\n");
                 tabcount = 0;
             }
@@ -1901,7 +1913,8 @@ void process_pass_map_output()
             entry = nullptr;
             if (tabcount > 0)
             {
-                fprintf(mapfileobj, "\n");
+                if (Globals.FlagMAP)
+                    fprintf(mapfileobj, "\n");
                 printf("\n");
             }
             break;
@@ -1944,7 +1957,8 @@ void process_pass_map_output()
 
     char bufhlim[20];
     sprintf(bufhlim, "%06ho = %d.", highlim, highlim / 2);
-    fprintf(mapfileobj, "\nTransfer address = %06ho, High limit = %-16s words\n", taddr, bufhlim);
+    if (Globals.FlagMAP)
+        fprintf(mapfileobj, "\nTransfer address = %06ho, High limit = %-16s words\n", taddr, bufhlim);
     printf("  Transfer address = %06ho, High limit = %-16s words\n", taddr, bufhlim);
 }
 
@@ -2655,6 +2669,13 @@ void parse_commandline(int argc, char **argv)
                     continue;
                 }
 
+                // /MAP - Generates map file
+                if (strcmp(cur, "MAP") == 0)
+                {
+                    Globals.FlagMAP = true;
+                    continue;
+                }
+
                 // /ALPHABETIZE /A - ALPHABETIZE MAP
                 if (strcmp(cur, "ALPHABETIZE") == 0 || strcmp(cur, "A") == 0)
                 {
@@ -2859,6 +2880,7 @@ void print_help()
            "  /WIDE        /W    Produces a load map that is 132 columns wide\n"
            "  /ALPHABETIZE /A    Lists global symbols on the link map in alphabetical order\n"
            "  /SYMBOLTABLE /STB  Generates a symbol table file (.STB file)\n"
+           "  /MAP               Generates map file\n"
            "\n");
     //TODO
 }
@@ -2906,6 +2928,8 @@ int main(int argc, char *argv[])
     process_pass_map_init();
     process_pass_map_output();
     process_pass_map_done();
+    assert(mapfileobj == nullptr);
+    assert(stbfileobj == nullptr);
 
     process_pass2_init();
     Globals.PAS1_5 = 0;

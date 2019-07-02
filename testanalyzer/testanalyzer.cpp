@@ -365,6 +365,7 @@ void process_test(string& stestdirname)
     stringvec logproblems;
     stringvec fileproblems;
     bool resmylog = true, resmaps = true, ressavs = true, resstbs = true;
+    bool nomap = stestdirname.size() > 6 && stestdirname.compare(stestdirname.size() - 6, 6, "-NOMAP") == 0;
     bool nostb = stestdirname.size() > 6 && stestdirname.compare(stestdirname.size() - 6, 6, "-NOSTB") == 0;
 
     // Start analyzing the files, but no console output before the test name
@@ -373,9 +374,9 @@ void process_test(string& stestdirname)
     else
         resmylog = process_mylog(stestdirpath + "\\" + filenamelogmy, logproblems);
 
-    if (filenamemap11.empty())
+    if (!nomap && filenamemap11.empty())
         filesnotfound.push_back("*-11.MAP");
-    if (filenamemapmy.empty())
+    if (!nomap && filenamemapmy.empty())
         filesnotfound.push_back("*-my.MAP");
     if (filenamesav11.empty())
         filesnotfound.push_back("*-11.SAV");
