@@ -1,0 +1,36 @@
+RT-11 LINK  V05.45 	Load Map 	Wednesday 03-Jul-2019 02:37  Page 1
+PLOT  .SAV   	Title:	PLOT  	Ident:	FORV02	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
+ OTS$I 	 001000	000260 = 88.     words  (RW,I,LCL,REL,CON)
+			$CVTDB	001000	$CVTDI	001000	$CVTCB	001014	
+			$CVTCI	001014	CIC$  	001026	CLC$  	001026	
+			$DI   	001036	CID$  	001036	CLD$  	001036	
+			$CVTFB	001042	$CVTFI	001042	CLF$  	001054	
+			CIF$  	001054	$RI   	001054	CIL$  	001066	
+			CLI$  	001072	$CVTIC	001074	$CVTID	001074	
+			$IC   	001106	$ID   	001106	CCI$  	001106	
+			CDI$  	001106	$CVTIF	001112	$IR   	001124	
+			CFI$  	001124	$OTIS 	001136	$$OTIS	001140	
+ OTS$P 	 001260	000000 = 0.      words  (RW,D,GBL,REL,OVR)
+ SYS$I 	 001260	000000 = 0.      words  (RW,I,LCL,REL,CON)
+ USER$I	 001260	000000 = 0.      words  (RW,I,LCL,REL,CON)
+ $CODE 	 001260	001070 = 284.    words  (RW,I,LCL,REL,CON)
+			PLOT  	001260	
+ OTS$O 	 002350	000000 = 0.      words  (RW,I,LCL,REL,CON)
+ SYS$O 	 002350	000000 = 0.      words  (RW,I,LCL,REL,CON)
+ $DATAP	 002350	000032 = 13.     words  (RW,D,LCL,REL,CON)
+ OTS$D 	 002402	000000 = 0.      words  (RW,D,LCL,REL,CON)
+ OTS$S 	 002402	000002 = 1.      words  (RW,D,LCL,REL,CON)
+			$AOTS 	002402	
+ SYS$S 	 002404	000000 = 0.      words  (RW,D,LCL,REL,CON)
+ $DATA 	 002404	000050 = 20.     words  (RW,D,LCL,REL,CON)
+ USER$D	 002454	000000 = 0.      words  (RW,D,LCL,REL,CON)
+ .$$$$.	 002454	000000 = 0.      words  (RW,D,GBL,REL,OVR)
+ GRMC  	 002454	000010 = 4.      words  (RW,D,GBL,REL,OVR)
+ PIX   	 002464	000174 = 62.     words  (RW,I,LCL,REL,CON)
+			PIX   	002526	
+
+Transfer address = 000001, High limit = 002656 = 727.    words

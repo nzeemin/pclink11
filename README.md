@@ -6,7 +6,7 @@ Attempt to port PDP-11 LINKer to PC C/C++ — learning how the linker works, a h
 The code (partially) ported from MACRO-11 sources to C/C++.
 Port source: RT-11 LINK V05.45.
 
-## Status: work in progress 🚧
+## Status: Work in Progress 🚧
 
 Currently the PCLINK11 links most of test OBJ files properly, but we have some troubles linking tests with libraries.
 
@@ -44,7 +44,6 @@ Log files are absolutely different, we're not comparing them.
 
 First priority:
  - Fix bugs for the failing test cases
- - Option to NOT produce MAP file, currently we always make the MAP file
  
 Second priority:
  - More tests, currently we have more than 70 test cases

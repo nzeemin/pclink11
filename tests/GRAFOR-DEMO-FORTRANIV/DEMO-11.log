@@ -1,0 +1,17 @@
+
+?LINK-W-Undefined globals:
+$ENC  
+$DEC  
+INT   
+ALOG10
+AINT  
+AMOD  
+$XFI  
+ABS   
+AMIN1 
+AMAX1 
+$CMPF 
+$SUBF 
+$ADDF 
+$MULF 
+$DIVF 
