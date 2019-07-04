@@ -46,7 +46,7 @@ First priority:
  - Fix bugs for the failing test cases
  
 Second priority:
- - More tests, currently we have more than 70 test cases
+ - More tests, currently we have 80 test cases
  - Compile under Linux/MacOS, configure CI to compile under Linux/MacOS on every commit
  - Reduce amount of logging, add option for verbosity level
 
