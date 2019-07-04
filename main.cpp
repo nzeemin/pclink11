@@ -1489,7 +1489,8 @@ void process_pass15_library(const SaveStatusEntry* sscur)
                 }
             }
 
-            data += eptsize; offset += eptsize;
+            data += L_HEPT + eptsize; offset += L_HEPT + eptsize;
+            continue;
         }
         else if (blocktype == 8)  // LINK3\ENDLIB
         {

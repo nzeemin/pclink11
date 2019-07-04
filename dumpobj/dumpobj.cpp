@@ -429,7 +429,8 @@ void dumpobj()
             printf("      EPT size %06ho bytes, %d. records\n", eptsize, (int)(eptsize / 8));
             //data += 32/*L_HEPT*/; offset += 32/*L_HEPT*/;  // Move to 1ST EPT ENTRY
             dumpobj_titlib_block(data + 32, eptsize);
-            data += eptsize; offset += eptsize;
+            data += 32 + eptsize; offset += 32 + eptsize;
+            continue;
         }
         else if (blocktype == 8)
         {
