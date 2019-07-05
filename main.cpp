@@ -682,10 +682,11 @@ void print_mst_table()
     {
         const ModuleSectionEntry* mstentry = ModuleSectionTable + m;
         const SymbolTableEntry* entry = SymbolTable + mstentry->stindex;
-        printf("    #%04d index %06ho '%s' size %06ho\n",
+        printf("    #%04d index %06ho '%s' size %06ho flagseg %06ho value %06ho\n",
                (uint16_t)m, mstentry->stindex,
                mstentry->stindex == 0 ? "" : entry->unrad50name(),
-               mstentry->size);
+               mstentry->size,
+               entry->flagseg, entry->value);
     }
 }
 
@@ -2474,6 +2475,8 @@ void proccess_pass2_libpa2(const SaveStatusEntry* sscur)
                 for (int m = 0; m < ModuleSectionCount; m++)
                 {
                     ModuleSectionEntry* mstentry = ModuleSectionTable + m;
+                    if (mstentry->size == 0)
+                        continue;
                     SymbolTableEntry* entry = SymbolTable + mstentry->stindex;
                     if (entry->name != RAD50_ABS && (entry->flags() & 4/*CS$ALO*/) == 0)
                         entry->value += mstentry->size;
@@ -2579,8 +2582,10 @@ void process_pass2()
                 for (int m = 0; m < ModuleSectionCount; m++)
                 {
                     ModuleSectionEntry* mstentry = ModuleSectionTable + m;
+                    if (mstentry->size == 0)
+                        continue;
                     SymbolTableEntry* entry = SymbolTable + mstentry->stindex;
-                    if (entry->name != RAD50_ABS)
+                    if (entry->name != RAD50_ABS && (entry->flags() & 4/*CS$ALO*/) == 0)
                         entry->value += mstentry->size;
                 }
                 mst_table_clear();
