@@ -21,6 +21,7 @@ Options:
  - `/WIDE` `/W` — Produces a load map that is 132-columns wide
  - `/ALPHABETIZE` `/A` — Lists global symbols on the link map in alphabetical order
  - `/SYMBOLTABLE` `/STB` — Generates a symbol table file (.STB file)
+ - `/MAP` — Generates map file
 
 Input files and options are space-separated.
 
