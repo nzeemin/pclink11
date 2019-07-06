@@ -80,6 +80,7 @@ const TestDescriptor g_Tests[] =
     { "T404-1801BM1",     "T404",     "/SYMBOLTABLE /MAP T404.OBJ" },
     { "TEST-PASCAL",      "TEST",     "/SYMBOLTABLE /MAP TEST.OBJ PASCAL.OBJ" },
     { "TPF-FORTRANIV",    "TPF",      "/SYMBOLTABLE /MAP TPF.OBJ GRAFOR.OBJ FORLIB.OBJ" },
+    { "TPK-FORTRANIV",    "TPK",      "/SYMBOLTABLE /MAP TPK.OBJ FORLIB.OBJ" },
     { "TSPAL-01B",        "TSPAL",    "/SYMBOLTABLE /MAP TSPAL.OBJ" },
     { "TSTVM1-01A",       "TSTVM1",   "/SYMBOLTABLE /MAP TSTVM1.OBJ" },
     { "TSTVM2-03A",       "TSTVM2",   "/SYMBOLTABLE /MAP TSTVM2.OBJ" },
