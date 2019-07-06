@@ -770,7 +770,7 @@ void read_files()
 
         FILE* file = fopen(sscur->filename, "rb");
         if (file == nullptr)
-            fatal_error("ERR2: Failed to open input file: %s, errno %d.\n", sscur->filename, errno);
+            fatal_error("ERR2: Failed to open input file: %s, error %d: %s.\n", sscur->filename, errno, strerror(errno));
 
         fseek(file, 0L, SEEK_END);
         size_t filesize = ftell(file);
@@ -1002,6 +1002,9 @@ void process_pass1_gsd_item_symnam(const uint16_t* itemw)
         if (!found)
         {
             symbol_table_add_undefined(index);
+
+            SymbolTableEntry* entry = SymbolTable + index;
+            if ((itemw[2] & 1/*SY$WK*/) != 0) entry->flagseg |= 010000/*SY.WK*/;  // SET WEAK BIT
         }
         else // Symbol is found
         {
@@ -1154,7 +1157,6 @@ void process_pass1_gsd_item(const uint16_t* itemw, const SaveStatusEntry* sscur)
     switch (itemtype)
     {
     case 0: // 0 - MODULE NAME FROM .TITLE, see LINK3\MODNME
-        //printf("\n");
         printf(", base %06o\n", Globals.BASE);
         if (Globals.MODNAM == 0)
             Globals.MODNAM = itemnamerad50;
@@ -1459,19 +1461,19 @@ void process_pass15_library(const SaveStatusEntry* sscur)
                 Globals.SEGBAS++; // /X LIBRARY ->SEGBAS=1
                 //TODO: WILL  /X EPT FIT IN BUFFER?
             }
-            //data += L_HEPT; offset += L_HEPT;  // Move to 1ST EPT ENTRY
+            data += L_HEPT; offset += L_HEPT;  // Move to 1ST EPT ENTRY
 
             // Resolve undefined symbols using EPT
             if (is_any_undefined())  // IF NO UNDEFS, THEN END LIBRARY
             {
-                int index = Globals.UNDLST;  // GET A WEAK SYMBOL FROM THE UNDEFINED SYMBOL TABLE LIST
+                int index = Globals.UNDLST;
                 while (index > 0)
                 {
                     SymbolTableEntry* entry = SymbolTable + index;
                     if ((entry->status & SY_WK) == 0)  // IS THIS A WEAK SYMBOL? SKIP WEAK SYMBOL
                     {
                         //TODO: IS SYMBOL A DUP SYMBOL?
-                        uint16_t* itemw = process_pass15_eptsearch(data + L_HEPT, eptsize, entry->name);
+                        uint16_t* itemw = process_pass15_eptsearch(data, eptsize, entry->name);
                         if (itemw == nullptr)  // CONTINUE THRU UNDEF LIST
                         {
                             index = entry->nextindex();
@@ -1486,11 +1488,11 @@ void process_pass15_library(const SaveStatusEntry* sscur)
                         //TODO: IS THIS A /I SYMBOL
                         //TODO: Find module name
                     }
-                    index = entry->nextindex();
+                    index = entry->nextindex();  // CONTINUE THRU UNDEF LIST
                 }
             }
 
-            data += L_HEPT + eptsize; offset += L_HEPT + eptsize;
+            data += eptsize; offset += eptsize;
             continue;
         }
         else if (blocktype == 8)  // LINK3\ENDLIB
@@ -1540,6 +1542,29 @@ void process_pass15()
 
             if ((Globals.FLGWD & AD_LML) == 0)  // NEW UNDEF'S ADDED WHILE PROCESSING LIBR ?
                 break;
+        }
+    }
+
+    // Process weak symbols, see LINK3\PASS1\30$
+    if (is_any_undefined())
+    {
+        int index = Globals.UNDLST;
+        while (index > 0)
+        {
+            SymbolTableEntry* entry = SymbolTable + index;
+            uint16_t nextindex = entry->nextindex();
+            if ((entry->status & SY_WK) == 0)  // GET A WEAK SYMBOL FROM THE UNDEFINED SYMBOL TABLE LIST
+            {
+                // WE HAVE A WEAK SYMBOL. NOW DEFINE IT WITH ABS VALUE OF 0
+                symbol_table_remove_undefined(index);  // REMOVE ENTRY FROM UNDEFINED LIST
+                entry->status &= ~(0117777);  // CLR SY.UDF+SY.WK+^CSY.ENB
+                //TODO: IF INPUT SEG # .NE. SYM SEG # THEN SET EXTERNAL REFERENCE BIT
+                //TODO: CLEAR SEGMENT # BITS & SET SEGMENT # WHERE DEFINED
+                entry->value = 0;
+
+                pass1_insert_entry_into_ordered_list(index, entry, true);
+            }
+            index = nextindex;  // GO DO NEXT SYMBOL
         }
     }
 }
@@ -1618,7 +1643,7 @@ void process_pass_map_init()
         assert(stbfileobj == nullptr);
         stbfileobj = fopen(stbfilename, "wb");
         if (stbfileobj == nullptr)
-            fatal_error("ERR5: Failed to open %s file, errno %d.\n", stbfilename, errno);
+            fatal_error("ERR5: Failed to open %s file, error %d: %s.\n", stbfilename, errno, strerror(errno));
         // Prepare STB buffer
         memset(Globals.TXTBLK, 0, sizeof(Globals.TXTBLK));
         Globals.TXTLEN = 0;
@@ -1806,7 +1831,7 @@ void process_pass_map_output()
         assert(mapfileobj == nullptr);
         mapfileobj = fopen(mapfilename, "wt");
         if (mapfileobj == nullptr)
-            fatal_error("ERR5: Failed to open file %s, errno %d.\n", mapfilename, errno);
+            fatal_error("ERR5: Failed to open file %s, error %d: %s.\n", mapfilename, errno, strerror(errno));
     }
 
     Globals.LINLFT = LINPPG;
@@ -2323,7 +2348,7 @@ void process_pass2_init()
     assert(outfileobj == nullptr);
     outfileobj = fopen(savfilename, "wb");
     if (outfileobj == nullptr)
-        fatal_error("ERR6: Failed to open %s file, errno %d.\n", savfilename, errno);
+        fatal_error("ERR6: Failed to open %s file, error %d: %s.\n", savfilename, errno, strerror(errno));
 
     // See LINK6\INITP2
     //TODO: Some code for REL
