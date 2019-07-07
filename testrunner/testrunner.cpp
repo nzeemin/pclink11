@@ -18,6 +18,8 @@
 
 typedef std::string string;
 
+bool g_verbose = false;  // Verbose mode
+
 #ifdef _MSC_VER
 HANDLE g_hConsole;
 #define TEXTATTRIBUTES_TITLE (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY)
@@ -153,12 +155,12 @@ void process_test(const TestDescriptor & test)
     string outfilename = testdirpath + "\\" + test.name + "-my.log";
 
     // Make sure we have some .OBJ files in the test folder
-    string filenameobj = findfile_bymask(testdirpath, string(test.name) + ".OBJ");
-    if (filenameobj.empty())
-    {
-        std::cout << "Failed to run the test: no .OBJ files found in " << testdirpath << std::endl;
-        return;
-    }
+    //string filenameobj = findfile_bymask(testdirpath, string(test.name) + ".OBJ");
+    //if (filenameobj.empty())
+    //{
+    //    std::cout << "Failed to run the test: no .OBJ files found in " << testdirpath << std::endl;
+    //    return;
+    //}
 
     // Run the test
     process_test_run(testdirpath, pclink11path, commandline, outfilename);
@@ -174,6 +176,24 @@ void process_test(const TestDescriptor & test)
     rename_file(testdirpath, filenamestb, string(test.name) + "-my.STB");
 }
 
+void parse_commandline(int argc, char *argv[])
+{
+    for (int argi = 1; argi < argc; argi++)
+    {
+        const char* arg = argv[argi];
+        if (arg[0] == '\\' || arg[0] == '-')
+        {
+            string option = arg + 1;
+            if (option == "v" || option == "verbose")
+                g_verbose = true;
+            else
+            {
+                std::cout << "Unknown option: " << option << std::endl;
+            }
+        }
+    }
+}
+
 int main(int argc, char *argv[])
 {
     // Show title message
@@ -184,7 +204,8 @@ int main(int argc, char *argv[])
     std::cout << "TestRunner utility for PCLINK11 project" << std::endl;
     SetTextAttribute(TEXTATTRIBUTES_NORMAL);
 
-    //TODO: Parse command line
+    // Parse command line
+    parse_commandline(argc, argv);
 
     // Run all tests
     for (int testno = 0; testno < g_TestNumber; testno++)

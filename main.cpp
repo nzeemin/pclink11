@@ -1546,7 +1546,7 @@ void process_pass15()
     }
 
     // Process weak symbols, see LINK3\PASS1\30$
-    if (is_any_undefined())
+    if (is_any_undefined())  // ARE THERE ANY UNDEFINED GLOBALS LEFT? IF NO then NO WEAK SYMBOLS LEFT
     {
         int index = Globals.UNDLST;
         while (index > 0)
@@ -2185,6 +2185,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             // DIRECT POINTER TO AN ADDRESS WITHIN A MODULE. THE CURRENT SECTION BASE ADDRESS IS ADDED
             // TO A SPECIFIED CONSTANT ANT THE RESULT STORED IN THE IMAGE FILE AT THE CALCULATED ADDRESS
             // (I.E., DISPLACEMENT BYTE ADDED TO VALUE CALCULATED FROM THE LOAD ADDRESS OF THE PREVIOUS TEXT BLOCK).
+            //curlocation = Globals.BASE;  // ADD SECTION BASE
             constdata = *((uint16_t*)data);
             printf(" %06ho\n", constdata);
             *((uint16_t*)dest) = constdata + Globals.BASE;
@@ -2195,6 +2196,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             // RELOCATES A DIRECT POINTER TO A GLOBAL SYMBOL. THE VALUE OF THE GLOBAL SYMBOL IS OBTAINED & STORED.
             printf(" '%s'\n", unrad50(*((uint32_t*)data)));
             {
+                //curlocation = 0;  // FORCE 0 AS CONSTANT
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, (command & 010) == 0);
                 //printf("        Entry '%s' value = %06ho %04X dest = %06ho\n", entry->unrad50name(), entry->value, entry->value, *((uint16_t*)dest));
                 *((uint16_t*)dest) = entry->value;
@@ -2223,6 +2225,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
         case 015:  // PSECT ADDITIVE
             // RELOCATED A DIRECT POINTER TO A GLOBAL SYMBOL WITH AN ADDITIVE CONSTANT
             // THE SYMBOL VALUE IS ADDED TO THE SPECIFIED CONSTANT & STORED.
+            //curlocation = 0;  // ADD 0 AS CONSTANT
             constdata = ((uint16_t*)data)[2];
             printf(" '%s' %06ho\n", unrad50(*((uint32_t*)data)), constdata);
             {
@@ -2252,14 +2255,14 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             {
                 Globals.MBPTR = 0;  // 0 SAYS TO STORE TXT INFO
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, false);
-                if (entry->flags() & 0040/*SY$REL*/)  // IS SYMBOL ABSOLUTE ?
+                if ((entry->flags() & 0040/*SY$REL*/) == 0)  // IS SYMBOL ABSOLUTE ?
                 {
                     if (entry->name != RAD50_ABS)  // ARE WE LOOKING AT THE ASECT?
                         Globals.MBPTR = 1;  // SAY NOT TO STORE TXT FOR ABS SECTION
                 }
                 Globals.BASE = entry->value;  // SET UP NEW SECTION BASE
                 //TODO: ARE WE DOING I-D SPACE?
-                *((uint16_t*)dest) = constdata + Globals.BASE;  // BASE OF SECTION + OFFSET = CURRENT LOCATION COUNTER
+                //curlocation = constdata + Globals.BASE;  // BASE OF SECTION + OFFSET = CURRENT LOCATION COUNTER
             }
             data += 6;  offset += 6;
             break;
@@ -2267,7 +2270,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             // THE CURRENT SECTION BASE IS ADDED TO THE SPECIFIED CONSTANT & RESULT IS STORED AS THE CURRENT LOCATION CTR.
             constdata = ((uint16_t*)data)[0];
             printf(" %06ho\n", constdata);
-            *((uint16_t*)dest) = constdata + Globals.BASE;  // BASE OF SECTION + OFFSET = CURRENT LOCATION COUNTER
+            //curlocation = constdata + Globals.BASE;  // BASE OF SECTION + OFFSET = CURRENT LOCATION COUNTER
             data += 2;  offset += 2;
             break;
         case 011:  // SET PROGRAM LIMITS, see LINK7\RLDSPL
@@ -2477,8 +2480,8 @@ void proccess_pass2_libpa2(const SaveStatusEntry* sscur)
                 uint16_t addr = ((uint16_t*)data)[3];
                 uint16_t destaddr = addr + Globals.BASE;
                 uint16_t datasize = blocksize - 8;
-                printf("    Block type 3 - TXT at %06ho size %06ho addr %06ho dest %06ho len %06ho\n",
-                       (uint16_t)offset, blocksize, addr, destaddr, datasize);
+                printf("    Block type 3 - TXT at %06ho size %06ho addr %06ho base %06ho dest %06ho len %06ho\n",
+                       (uint16_t)offset, blocksize, addr, Globals.BASE, destaddr, datasize);
                 Globals.TXTLEN = datasize;
                 assert(datasize <= sizeof(Globals.TXTBLK));
                 memcpy(Globals.TXTBLK, data + 6, blocksize - 6);
