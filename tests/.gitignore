@@ -10,7 +10,7 @@
 *.PAS
 *.FOR
 *.FCU
-a
+*.dumpobj
 *.cmd
 *.zip
 *.7z
