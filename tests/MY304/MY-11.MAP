@@ -1,0 +1,17 @@
+RT-11 LINK  V05.45 	Load Map 	Tuesday 09-Jul-2019 21:25  Page 1
+MY    .SYS   	Title:	MY    	Ident:	V 3.04	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
+			.MY   	000003	MY$VEC	000170	.AUDIT	107123	
+			MY$CSR	172140	
+ MYDVR 	 001000	000672 = 221.    words  (RW,I,LCL,REL,CON)
+			MYSTRT	001000	MYSYS 	001006	MYLQE 	001006	
+			MYCQE 	001010	MYINT 	001460	MY$END	001664	
+			$TIMIT	001664	$INPTR	001666	$FKPTR	001670	
+			MYEND 	001672	
+ MYBOOT	 001672	001000 = 256.    words  (RW,I,LCL,REL,CON)
+			MYBOOT	001672	MYBEND	002672	
+
+Transfer address = 000001, High limit = 002670 = 732.    words

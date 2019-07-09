@@ -46,6 +46,7 @@ const TestDescriptor g_Tests[] =
     { "LP-DISK09",        "LP",       "/SYMBOLTABLE /MAP /EXECUTE:LP.SYS LP.OBJ /X" },
     { "MAIN-50",          "MAIN",     "/SYMBOLTABLE /MAP MAIN.OBJ LEVELS.OBJ" },
     { "MUL",              "MUL",      "/SYMBOLTABLE /MAP MUL.OBJ" },
+    { "MY304",            "MY",       "/EXECUTE:MY.SYS MY.OBJ /SYMBOLTABLE /MAP /X" },
     { "MYTEST1",          "MYTST1",   "/SYMBOLTABLE /MAP MYTST1.OBJ OTHER.OBJ" },
     { "MYTEST2",          "MYTST2",   "/SYMBOLTABLE /MAP MYTST2.OBJ OTHER.OBJ" },
     { "MYTEST3",          "MYTST3",   "/SYMBOLTABLE /MAP MYTST3.OBJ OTHER.OBJ" },
