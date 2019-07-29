@@ -92,6 +92,7 @@ const TestDescriptor g_Tests[] =
     { "TVE1-1801BM1",     "TVE1",     "/SYMBOLTABLE /MAP TVE1.OBJ" },
     { "UCL-HOBOT",        "UCL",      "/SYMBOLTABLE /MAP UCL.OBJ" },
     { "UKFONT",           "UKFONT",   "/SYMBOLTABLE /MAP UKFONT.OBJ" },
+    { "UKROM",            "UKROM",    "/SYMBOLTABLE /MAP UKROM.OBJ" },
     { "VM-FD6W",          "VM",       "/SYMBOLTABLE /MAP /EXECUTE:VM.SYS VM.OBJ /X" },
 };
 const int g_TestNumber = sizeof(g_Tests) / sizeof(g_Tests[0]);
