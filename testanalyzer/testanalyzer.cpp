@@ -71,7 +71,9 @@ void list_directory_subdirs(const string& dirname, stringvec& v)
     struct dirent * dp;
     while ((dp = readdir(dirp)) != NULL)
     {
-        //TODO: is it a directory?
+        if ((dp->d_type & DT_DIR) == 0 || dp->d_name[0] == '.')
+            continue;
+
         v.push_back(dp->d_name);
     }
     closedir(dirp);
@@ -83,7 +85,7 @@ void list_directory_subdirs(const string& dirname, stringvec& v)
 string findfile_bymask(const string& dirname, const string& mask)
 {
     string pattern(dirname);
-    pattern.append("\\").append(mask);
+    pattern.append("\\*").append(mask);
     WIN32_FIND_DATA data;
     HANDLE hFind;
     if ((hFind = FindFirstFile(pattern.c_str(), &data)) != INVALID_HANDLE_VALUE)
@@ -109,10 +111,19 @@ string findfile_bymask(const string& dirname, const string& mask)
     struct dirent * dp;
     while ((dp = readdir(dirp)) != NULL)
     {
-        //TODO: is it a file? does it match the mask?
-        v.push_back(dp->d_name);
+        if (dp->d_type & DT_DIR)
+            continue;
+
+        string filename(dp->d_name);
+        if (filename.size() < mask.size() ||
+            0 != str.compare(filename.size() - mask.size(), mask.size(), mask))
+            continue;
+
+        closedir(dirp);
+        return filename;
     }
     closedir(dirp);
+    return "";
 }
 #endif
 
@@ -353,13 +364,13 @@ void showdiff_binary_files(string& filepath11, string& filepathmy, const string&
 void process_test(string& stestdirname)
 {
     string stestdirpath = "tests\\" + stestdirname;
-    string filenamelogmy = findfile_bymask(stestdirpath, "*-my.log");
-    string filenamemap11 = findfile_bymask(stestdirpath, "*-11.map");
-    string filenamemapmy = findfile_bymask(stestdirpath, "*-my.map");
-    string filenamesav11 = findfile_bymask(stestdirpath, "*-11.sav");
-    string filenamesavmy = findfile_bymask(stestdirpath, "*-my.sav");
-    string filenamestb11 = findfile_bymask(stestdirpath, "*-11.stb");
-    string filenamestbmy = findfile_bymask(stestdirpath, "*-my.stb");
+    string filenamelogmy = findfile_bymask(stestdirpath, "-my.log");
+    string filenamemap11 = findfile_bymask(stestdirpath, "-11.map");
+    string filenamemapmy = findfile_bymask(stestdirpath, "-my.map");
+    string filenamesav11 = findfile_bymask(stestdirpath, "-11.sav");
+    string filenamesavmy = findfile_bymask(stestdirpath, "-my.sav");
+    string filenamestb11 = findfile_bymask(stestdirpath, "-11.stb");
+    string filenamestbmy = findfile_bymask(stestdirpath, "-my.stb");
 
     stringvec filesnotfound;
     stringvec logproblems;
@@ -489,7 +500,9 @@ void parse_commandline(int argc, char *argv[])
 int main(int argc, char *argv[])
 {
     // Show title message
+#ifdef _MSC_VER
     g_hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+#endif
     SetTextAttribute(TEXTATTRIBUTES_TITLE);
     std::cout << "TestAnalyzer utility for PCLINK11 project" << std::endl;
     SetTextAttribute(TEXTATTRIBUTES_NORMAL);
