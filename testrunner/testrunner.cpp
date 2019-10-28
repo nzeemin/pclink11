@@ -7,6 +7,7 @@
 #else
 #include <sys/types.h>
 #include <dirent.h>
+#include <unistd.h>
 #endif
 
 #include <stdio.h>
@@ -31,6 +32,15 @@ HANDLE g_hConsole;
 #define SetTextAttribute(ta) {}
 #endif
 
+#ifdef _MSC_VER
+const char * TESTS_SUB_DIR = "tests\\";
+const char * PCLINK11_PATH = "Debug\\pclink11.exe";
+const char * PATH_SEPARATOR = "\\";
+#else
+const char * TESTS_SUB_DIR = "tests/";
+const char * PCLINK11_PATH = "../../pclink11";
+const char * PATH_SEPARATOR = "/";
+#endif
 
 #ifdef _MSC_VER
 // Get first file by mask in the directory. Win32 specific method
@@ -85,7 +95,7 @@ void remove_file(const string & testdirpath, const string & filename)
         return;
 
     //std::cout << "Removing " << filename << std::endl;
-    string fullpath = testdirpath + "\\" + filename;
+    string fullpath = testdirpath + PATH_SEPARATOR + filename;
     if (0 != remove(fullpath.c_str()))
     {
         std::cout << "Failed to delete file " << filename << " : errno " << errno << std::endl;
@@ -99,8 +109,8 @@ void rename_file(const string & testdirpath, const string & filename, const stri
         return;
 
     //std::cout << "Renaming " << filename << " to " << filenamenew << std::endl;
-    string fullpath = testdirpath + "\\" + filename;
-    string fullpathnew = testdirpath + "\\" + filenamenew;
+    string fullpath = testdirpath + PATH_SEPARATOR + filename;
+    string fullpathnew = testdirpath + PATH_SEPARATOR + filenamenew;
     if (0 != rename(fullpath.c_str(), fullpathnew.c_str()))
     {
         std::cout << "Failed to rename file " << filename << " to " << filenamenew << " : errno " << errno << std::endl;
@@ -110,7 +120,7 @@ void rename_file(const string & testdirpath, const string & filename, const stri
 
 void remove_test_artifacts(const TestDescriptor & test)
 {
-    string testdirpath = string("tests\\") + test.directory;
+    string testdirpath = string(TESTS_SUB_DIR) + test.directory;
 
     // Remove *-my.log *-my.SAV *-my.MAP *-my.STB
     string filenamelogmy = findfile_bymask(testdirpath, "-my.log");
@@ -123,13 +133,15 @@ void remove_test_artifacts(const TestDescriptor & test)
     remove_file(testdirpath, filenamestbmy);
 }
 
+#ifdef _MSC_VER
 void process_test_run(const string & workingdir, const string & modulename, const string & commandline, const string & outfilename)
 {
+    string outfilenamewithdir = workingdir + PATH_SEPARATOR + outfilename;
     SECURITY_ATTRIBUTES sa;  memset(&sa, 0, sizeof(sa));
     sa.nLength = sizeof(sa);
     sa.bInheritHandle = TRUE;
     HANDLE hOutFile = ::CreateFile(
-            outfilename.c_str(),
+            outfilenamewithdir.c_str(),
             GENERIC_WRITE, FILE_SHARE_READ, &sa, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
     if (hOutFile == INVALID_HANDLE_VALUE)
     {
@@ -163,6 +175,24 @@ void process_test_run(const string & workingdir, const string & modulename, cons
     ::CloseHandle(pi.hThread);
     ::CloseHandle(hOutFile);
 }
+#else
+void process_test_run(const string & workingdir, const string & modulename, const string & commandline, const string & outfilename)
+{
+    char bufcwd[PATH_MAX];
+    getwd(bufcwd);
+    chdir(workingdir.c_str());
+
+    string fullcommand = modulename + " " + commandline + ">" + outfilename;
+    //std::cout << "Running the test: " << fullcommand << std::endl;
+    int result = std::system(fullcommand.c_str());
+    if (result != 0)
+    {
+        std::cout << "Failed to run the test: result " << result << std::endl;
+    }
+
+    chdir(bufcwd);
+}
+#endif
 
 void process_test(const TestDescriptor & test)
 {
@@ -170,12 +200,12 @@ void process_test(const TestDescriptor & test)
     std::cout << test.directory << " / " << test.name << std::endl;
     SetTextAttribute(TEXTATTRIBUTES_WARNING);
 
-    string testdirpath = string("tests\\") + test.directory;
+    string testdirpath = string(TESTS_SUB_DIR) + test.directory;
 
     // Prepare command line
-    string pclink11path = "Debug\\pclink11.exe";
+    string pclink11path = PCLINK11_PATH;
     string commandline = string(test.commandline);
-    string outfilename = testdirpath + "\\" + test.name + "-my.log";
+    string outfilename = string(test.name) + "-my.log";
 
     // Make sure we have some .OBJ files in the test folder
     //string filenameobj = findfile_bymask(testdirpath, string(test.name) + ".OBJ");
@@ -234,6 +264,7 @@ int main(int argc, char *argv[])
     for (int testno = 0; testno < g_TestNumber; testno++)
     {
         const TestDescriptor & test = g_Tests[testno];
+        //std::cout << "Test #" << testno << " " << test.name << std::endl;
 
         // Remove files from previous test runs
         remove_test_artifacts(test);

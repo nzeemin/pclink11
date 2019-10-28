@@ -41,6 +41,13 @@ HANDLE g_hConsole;
 #define SetTextAttribute(ta) {}
 #endif
 
+#ifdef _MSC_VER
+const char * TESTS_SUB_DIR = "tests\\";
+const char * PATH_SEPARATOR = "\\";
+#else
+const char * TESTS_SUB_DIR = "tests/";
+const char * PATH_SEPARATOR = "/";
+#endif
 
 #ifdef _MSC_VER
 // Get list of sub-directories for a directory. Win32 specific method
@@ -363,14 +370,14 @@ void showdiff_binary_files(string& filepath11, string& filepathmy, const string&
 
 void process_test(string& stestdirname)
 {
-    string stestdirpath = "tests\\" + stestdirname;
+    string stestdirpath = TESTS_SUB_DIR + stestdirname;
     string filenamelogmy = findfile_bymask(stestdirpath, "-my.log");
-    string filenamemap11 = findfile_bymask(stestdirpath, "-11.map");
-    string filenamemapmy = findfile_bymask(stestdirpath, "-my.map");
-    string filenamesav11 = findfile_bymask(stestdirpath, "-11.sav");
-    string filenamesavmy = findfile_bymask(stestdirpath, "-my.sav");
-    string filenamestb11 = findfile_bymask(stestdirpath, "-11.stb");
-    string filenamestbmy = findfile_bymask(stestdirpath, "-my.stb");
+    string filenamemap11 = findfile_bymask(stestdirpath, "-11.MAP");
+    string filenamemapmy = findfile_bymask(stestdirpath, "-my.MAP");
+    string filenamesav11 = findfile_bymask(stestdirpath, "-11.SAV");
+    string filenamesavmy = findfile_bymask(stestdirpath, "-my.SAV");
+    string filenamestb11 = findfile_bymask(stestdirpath, "-11.STB");
+    string filenamestbmy = findfile_bymask(stestdirpath, "-my.STB");
 
     stringvec filesnotfound;
     stringvec logproblems;
@@ -383,7 +390,7 @@ void process_test(string& stestdirname)
     if (filenamelogmy.empty())
         filesnotfound.push_back("*-my.log");
     else
-        resmylog = process_mylog(stestdirpath + "\\" + filenamelogmy, logproblems);
+        resmylog = process_mylog(stestdirpath + PATH_SEPARATOR + filenamelogmy, logproblems);
 
     if (!nomap && filenamemap11.empty())
         filesnotfound.push_back("*-11.MAP");
@@ -402,16 +409,16 @@ void process_test(string& stestdirname)
 
     if (!filenamemap11.empty() && !filenamemapmy.empty())
     {
-        resmaps = process_map_files(stestdirpath + "\\" + filenamemap11, stestdirpath + "\\" + filenamemapmy, fileproblems);
+        resmaps = process_map_files(stestdirpath + PATH_SEPARATOR + filenamemap11, stestdirpath + PATH_SEPARATOR + filenamemapmy, fileproblems);
     }
-    string filepathsav11 = stestdirpath + "\\" + filenamesav11;
-    string filepathsavmy = stestdirpath + "\\" + filenamesavmy;
+    string filepathsav11 = stestdirpath + PATH_SEPARATOR + filenamesav11;
+    string filepathsavmy = stestdirpath + PATH_SEPARATOR + filenamesavmy;
     if (!filenamesav11.empty() && !filenamesavmy.empty())
     {
         ressavs = countdiff_binary_files(filepathsav11, filepathsavmy, "SAV", fileproblems);
     }
-    string filepathstb11 = stestdirpath + "\\" + filenamestb11;
-    string filepathstbmy = stestdirpath + "\\" + filenamestbmy;
+    string filepathstb11 = stestdirpath + PATH_SEPARATOR + filenamestb11;
+    string filepathstbmy = stestdirpath + PATH_SEPARATOR + filenamestbmy;
     if (!filenamestb11.empty() && !filenamestbmy.empty())
     {
         resstbs = countdiff_binary_files(filepathstb11, filepathstbmy, "STB", fileproblems);
@@ -530,6 +537,7 @@ int main(int argc, char *argv[])
         g_testcount++;
         string stestdirname = *it;
 
+        //std::cout << "Test #" << g_testcount << " " << stestdirname << std::endl;
         process_test(stestdirname);
     }
 
