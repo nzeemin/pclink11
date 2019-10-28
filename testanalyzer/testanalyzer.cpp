@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <dirent.h>
 #include <limits.h>
+#include <string.h>
 #endif
 
 #include <stdio.h>
