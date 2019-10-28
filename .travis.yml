@@ -11,3 +11,5 @@ matrix:
 
 script:
   - make
+  - testrunner/testrunner
+  - testanalyzer/testanalyzer
