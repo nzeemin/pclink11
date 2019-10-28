@@ -1819,10 +1819,10 @@ void process_pass_map_output()
 {
     printf("PASS MAP\n");
 
-    // Prepare MAP file name
-    char mapfilename[64] = { 0 };
     if (Globals.FlagMAP)
     {
+        // Prepare MAP file name
+        char mapfilename[64] = { 0 };
         memcpy(mapfilename, savfilename, 64);
         char* pext = strrchr(mapfilename, '.');
         pext++; *pext++ = 'M'; *pext++ = 'A'; *pext = 'P';
@@ -2921,7 +2921,6 @@ void print_help()
 
 int main(int argc, char *argv[])
 {
-
 #if defined(_DEBUG) && defined(_MSC_VER)
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF);
     int n = 0;
@@ -2965,6 +2964,7 @@ int main(int argc, char *argv[])
     assert(mapfileobj == nullptr);
     assert(stbfileobj == nullptr);
 
+    //print_symbol_table();//DEBUG
     process_pass2_init();
     Globals.PAS1_5 = 0;
     process_pass2();  // Non-library pass

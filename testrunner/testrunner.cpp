@@ -33,7 +33,7 @@ HANDLE g_hConsole;
 
 
 // Get first file by mask in the directory. Win32 specific method
-string findfile_bymask(const string& dirname, const string& mask)
+string findfile_bymask(const string & dirname, const string & mask)
 {
     string pattern(dirname);
     pattern.append("\\").append(mask);
@@ -56,7 +56,7 @@ string findfile_bymask(const string& dirname, const string& mask)
 }
 
 
-void remove_file(string testdirpath, string filename)
+void remove_file(const string & testdirpath, const string & filename)
 {
     if (filename.empty())
         return;
@@ -70,7 +70,7 @@ void remove_file(string testdirpath, string filename)
     }
 }
 
-void rename_file(string testdirpath, string filename, string filenamenew)
+void rename_file(const string & testdirpath, const string & filename, const string & filenamenew)
 {
     if (filename.empty())
         return;
@@ -100,7 +100,7 @@ void remove_test_artifacts(const TestDescriptor & test)
     remove_file(testdirpath, filenamestbmy);
 }
 
-void process_test_run(string workingdir, string modulename, string commandline, string outfilename)
+void process_test_run(const string & workingdir, const string & modulename, const string & commandline, const string & outfilename)
 {
     SECURITY_ATTRIBUTES sa;  memset(&sa, 0, sizeof(sa));
     sa.nLength = sizeof(sa);
