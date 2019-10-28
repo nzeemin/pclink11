@@ -67,7 +67,7 @@ void list_directory_subdirs(const string& dirname, stringvec& v)
 // See http://www.martinbroadhurst.com/list-the-files-in-a-directory-in-c.html
 void list_directory_subdirs(const string& dirname, stringvec& v)
 {
-    DIR* dirp = opendir(name.c_str());
+    DIR* dirp = opendir(dirname.c_str());
     struct dirent * dp;
     while ((dp = readdir(dirp)) != NULL)
     {
@@ -107,7 +107,7 @@ string findfile_bymask(const string& dirname, const string& mask)
 // Get first file by mask in the directory. POSIX method
 string findfile_bymask(const string& dirname, const string& mask)
 {
-    DIR* dirp = opendir(name.c_str());
+    DIR* dirp = opendir(dirname.c_str());
     struct dirent * dp;
     while ((dp = readdir(dirp)) != NULL)
     {
@@ -116,7 +116,7 @@ string findfile_bymask(const string& dirname, const string& mask)
 
         string filename(dp->d_name);
         if (filename.size() < mask.size() ||
-            0 != str.compare(filename.size() - mask.size(), mask.size(), mask))
+            0 != filename.compare(filename.size() - mask.size(), mask.size(), mask))
             continue;
 
         closedir(dirp);
@@ -129,7 +129,7 @@ string findfile_bymask(const string& dirname, const string& mask)
 
 
 // Process my log, show NOT IMPLEMENTED lines, make sure it ends with SUCCESS
-bool process_mylog(string& mylogfilepath, stringvec& problems)
+bool process_mylog(string mylogfilepath, stringvec& problems)
 {
     std::ifstream file(mylogfilepath, std::ifstream::in);
     if (file.fail())
@@ -177,7 +177,7 @@ bool process_mylog(string& mylogfilepath, stringvec& problems)
 }
 
 // Compare MAP files as text, ignore page header lines
-bool process_map_files(string& filepathmap11, string& filepathmapmy, stringvec& problems)
+bool process_map_files(string filepathmap11, string filepathmapmy, stringvec& problems)
 {
     std::ifstream file1(filepathmap11, std::ifstream::in);
     if (file1.fail())

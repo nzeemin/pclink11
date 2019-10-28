@@ -32,11 +32,12 @@ HANDLE g_hConsole;
 #endif
 
 
+#ifdef _MSC_VER
 // Get first file by mask in the directory. Win32 specific method
 string findfile_bymask(const string & dirname, const string & mask)
 {
     string pattern(dirname);
-    pattern.append("\\").append(mask);
+    pattern.append("\\*").append(mask);
     WIN32_FIND_DATA data;
     HANDLE hFind;
     if ((hFind = FindFirstFile(pattern.c_str(), &data)) != INVALID_HANDLE_VALUE)
@@ -54,7 +55,29 @@ string findfile_bymask(const string & dirname, const string & mask)
     }
     return "";
 }
+#else
+// Get first file by mask in the directory. POSIX method
+string findfile_bymask(const string& dirname, const string& mask)
+{
+    DIR* dirp = opendir(dirname.c_str());
+    struct dirent * dp;
+    while ((dp = readdir(dirp)) != NULL)
+    {
+        if (dp->d_type & DT_DIR)
+            continue;
 
+        string filename(dp->d_name);
+        if (filename.size() < mask.size() ||
+            0 != filename.compare(filename.size() - mask.size(), mask.size(), mask))
+            continue;
+
+        closedir(dirp);
+        return filename;
+    }
+    closedir(dirp);
+    return "";
+}
+#endif
 
 void remove_file(const string & testdirpath, const string & filename)
 {
@@ -90,13 +113,13 @@ void remove_test_artifacts(const TestDescriptor & test)
     string testdirpath = string("tests\\") + test.directory;
 
     // Remove *-my.log *-my.SAV *-my.MAP *-my.STB
-    string filenamelogmy = findfile_bymask(testdirpath, "*-my.log");
+    string filenamelogmy = findfile_bymask(testdirpath, "-my.log");
     remove_file(testdirpath, filenamelogmy);
-    string filenamesavmy = findfile_bymask(testdirpath, "*-my.SAV");
+    string filenamesavmy = findfile_bymask(testdirpath, "-my.SAV");
     remove_file(testdirpath, filenamesavmy);
-    string filenamemapmy = findfile_bymask(testdirpath, "*-my.MAP");
+    string filenamemapmy = findfile_bymask(testdirpath, "-my.MAP");
     remove_file(testdirpath, filenamemapmy);
-    string filenamestbmy = findfile_bymask(testdirpath, "*-my.STB");
+    string filenamestbmy = findfile_bymask(testdirpath, "-my.STB");
     remove_file(testdirpath, filenamestbmy);
 }
 
