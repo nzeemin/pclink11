@@ -1215,6 +1215,67 @@ void process_pass1_gsd_block(const SaveStatusEntry* sscur, const uint8_t* data)
     }
 }
 
+void process_pass1_file(SaveStatusEntry* sscur)
+{
+    assert(sscur != nullptr);
+    assert(sscur->data != nullptr);
+
+    printf("  Processing %s\n", sscur->filename);
+    size_t offset = 0;
+    while (offset < sscur->filesize)
+    {
+        uint8_t* data = sscur->data + offset;
+        uint16_t* dataw = (uint16_t*)(data);
+        if (*dataw != 1)
+        {
+            if (*dataw == 0)  // Possibly that is filler at the end of the block
+            {
+                size_t offsetnext = (offset + 511) & ~511;
+                while (*data == 0 && offset < sscur->filesize && offset < offsetnext)
+                {
+                    data++; offset++;
+                }
+                if (offset == sscur->filesize)
+                    break;  // End of file
+            }
+            dataw = (uint16_t*)(data);
+            if (*dataw != 1)
+                fatal_error("Unexpected word %06ho at %06ho in %s\n", *dataw, offset, sscur->filename);
+        }
+
+        uint16_t blocksize = ((uint16_t*)data)[1];
+        uint16_t blocktype = ((uint16_t*)data)[2];
+
+        if (blocktype == 0 || blocktype > 8)
+            fatal_error("Illegal record type at %06ho in %s\n", offset, sscur->filename);
+        else if (blocktype == 1)  // 1 - START GSD RECORD, see LINK3\GSD
+        {
+            printf("    Block type 1 - GSD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+            process_pass1_gsd_block(sscur, data);
+        }
+        else if (blocktype == 6)  // 6 - MODULE END, see LINK3\MODND
+        {
+            //printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+            if (Globals.HGHLIM < Globals.LRUNUM)
+                Globals.HGHLIM = Globals.LRUNUM;
+            Globals.LRUNUM = 0;
+            //TODO
+        }
+        else if (blocktype == 7)  // See LINK3\LIBRA
+        {
+            uint16_t libver = ((uint16_t*)data)[3];
+            if (libver < L_HVER)
+                fatal_error("ERR23: Old library format (%03ho) in %s\n", libver, sscur->filename);
+            sscur->islibrary = true;
+            Globals.PAS1_5 |= 1;  // ALSO SAY LIBRARY FILE PROCESSING REQUIRED
+            break;  // Skipping library files on Pass 1
+        }
+
+        data += blocksize; offset += blocksize;
+        data += 1; offset += 1;  // Skip checksum
+    }
+}
+
 // PASS1: GSD PROCESSING, see LINK3\PASS1
 void process_pass1()
 {
@@ -1224,62 +1285,8 @@ void process_pass1()
     for (int i = 0; i < SaveStatusCount; i++)
     {
         SaveStatusEntry* sscur = SaveStatusArea + i;
-        assert(sscur->data != nullptr);
 
-        printf("  Processing %s\n", sscur->filename);
-        size_t offset = 0;
-        while (offset < sscur->filesize)
-        {
-            uint8_t* data = sscur->data + offset;
-            uint16_t* dataw = (uint16_t*)(data);
-            if (*dataw != 1)
-            {
-                if (*dataw == 0)  // Possibly that is filler at the end of the block
-                {
-                    size_t offsetnext = (offset + 511) & ~511;
-                    while (*data == 0 && offset < sscur->filesize && offset < offsetnext)
-                    {
-                        data++; offset++;
-                    }
-                    if (offset == sscur->filesize)
-                        break;  // End of file
-                }
-                dataw = (uint16_t*)(data);
-                if (*dataw != 1)
-                    fatal_error("Unexpected word %06ho at %06ho in %s\n", *dataw, offset, sscur->filename);
-            }
-
-            uint16_t blocksize = ((uint16_t*)data)[1];
-            uint16_t blocktype = ((uint16_t*)data)[2];
-
-            if (blocktype == 0 || blocktype > 8)
-                fatal_error("Illegal record type at %06ho in %s\n", offset, sscur->filename);
-            else if (blocktype == 1)  // 1 - START GSD RECORD, see LINK3\GSD
-            {
-                printf("    Block type 1 - GSD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
-                process_pass1_gsd_block(sscur, data);
-            }
-            else if (blocktype == 6)  // 6 - MODULE END, see LINK3\MODND
-            {
-                //printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
-                if (Globals.HGHLIM < Globals.LRUNUM)
-                    Globals.HGHLIM = Globals.LRUNUM;
-                Globals.LRUNUM = 0;
-                //TODO
-            }
-            else if (blocktype == 7)  // See LINK3\LIBRA
-            {
-                uint16_t libver = ((uint16_t*)data)[3];
-                if (libver < L_HVER)
-                    fatal_error("ERR23: Old library format (%03ho) in %s\n", libver, sscur->filename);
-                sscur->islibrary = true;
-                Globals.PAS1_5 |= 1;  // ALSO SAY LIBRARY FILE PROCESSING REQUIRED
-                break;  // Skipping library files on Pass 1
-            }
-
-            data += blocksize; offset += blocksize;
-            data += 1; offset += 1;  // Skip checksum
-        }
+        process_pass1_file(sscur);
     }
 }
 
@@ -2145,7 +2152,6 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
                 fatal_error("ERR35: Invalid complex relocation section number in %s\n", sscur->filename);
             mstentry = ModuleSectionTable + (size_t)cpxsect;
             cpxentry = SymbolTable + mstentry->stindex;
-            //print_mst_table();//DEBUG
             cpxstacktop++;
             if (cpxstacktop >= cpxstacksize)
                 fatal_error("ERR35: Complex relocation stack overflow in %s\n", sscur->filename);
@@ -2667,13 +2673,207 @@ void process_pass2_done()
         fatal_error("ERR6: Failed to write output file.\n");
 }
 
+void parse_commandline_option(const char* cur)
+{
+    assert(cur != nullptr);
+
+    uint16_t param1, param2;
+
+    // /EXECUTE:filespec - Specifies the name of the memory image file
+    if (strncmp(cur, "EXECUTE:", 8) == 0) //TODO: or /SAV
+    {
+        strcpy(savfilename, cur + 8);
+        return;
+    }
+
+    // /WIDE /W - SPECIFY WIDE MAP LISTING
+    if (strcmp(cur, "WIDE") == 0 || strcmp(cur, "W") == 0)
+    {
+        Globals.NUMCOL = 6; // 6 COLUMNS
+        //Globals.LSTFMT--; // WIDE CREF
+        return;
+    }
+
+    // /NOBITMAP /X - DO NOT EMIT BIT MAP
+    if (strcmp(cur, "NOBITMAP") == 0 || strcmp(cur, "X") == 0)
+    {
+        Globals.SWITCH |= SW_X;
+        return;
+    }
+    // /SYMBOLTABLE /STB - Generates a symbol table file
+    if (strcmp(cur, "SYMBOLTABLE") == 0 || strcmp(cur, "STB") == 0)
+    {
+        Globals.FlagSTB = true;
+        return;
+    }
+
+    // /MAP - Generates map file
+    if (strcmp(cur, "MAP") == 0)
+    {
+        Globals.FlagMAP = true;
+        return;
+    }
+
+    // /ALPHABETIZE /A - ALPHABETIZE MAP
+    if (strcmp(cur, "ALPHABETIZE") == 0 || strcmp(cur, "A") == 0)
+    {
+        Globals.SWITCH |= SW_A;
+        return;
+    }
+
+    int result;
+    param1 = param2 = 0;  result = 0;
+    int option = toupper(*cur++);
+    switch (option)
+    {
+    case 'T': // /T:addr - SPECIFY TRANSFER ADR
+        result = sscanf(cur, ":%ho", &param1);
+        if (result < 1)
+            fatal_error("Invalid /T option, use /T:addr\n");
+        Globals.SWITCH |= SW_T;
+        Globals.BEGBLK.value = param1;
+        break;
+
+    case 'M':  // /M - MODIFY INITIAL STACK
+        result = sscanf(cur, ":%ho", &param1);
+        if (result < 1)
+            fatal_error("Invalid /M option, use /M:addr\n");
+        if (param1 & 1)
+            fatal_error("Invalid /M option value, use even address\n");
+        Globals.SWITCH |= SW_M;
+        Globals.STKBLK[2] = param1;
+        break;
+
+    case 'B':  // /B:addr - SPECIFY BOTTOM ADR FOR LINK
+        result = sscanf(cur, ":%ho", &param1);
+        if (result < 1)
+            fatal_error("Invalid /B option, use /B:addr\n");
+        Globals.SWITCH |= SW_B;
+        //TMPIDD = 0;
+        //TMPIDI = 0;
+        //TODO
+        break;
+
+        //case 'U':  // /U - ROUND SECTION
+        //    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
+        //    Globals.SWITCH |= SW_U;
+        //    //TMPIDD = D.SWU;
+        //    //TMPIDI = I.SWU;
+        //    //TODO
+        //    break;
+
+        //case 'E':  // /E - EXTEND SECTION
+        //    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
+        //    Globals.SWITCH |= SW_E;
+        //    //TMPIDD = D.SWE;
+        //    //TMPIDI = I.SWE;
+        //    //TODO
+        //    break;
+
+        //case 'Y':  // /Y - START SECTION ON MULTIPLE OF VALUE
+        //    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
+        //    Globals.SWITCH |= SW_Y;
+        //    //TMPIDD = D.SWY;
+        //    //TMPIDI = I.SWY;
+        //    //TODO
+        //    break;
+
+        //case 'H':  // /H - SPECIFY TOP ADR FOR LINK
+        //    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
+        //    Globals.SWITCH |= SW_H;
+        //    //TMPIDD = D.SWH;
+        //    //TMPIDI = I.SWH;
+        //    //TODO
+        //    break;
+
+        //case 'K':  // /K - SPECIFY MINIMUM SIZE
+        //    result = sscanf(cur, ":%ho", &param1);
+        //    if (result < 1)
+        //        fatal_error("Invalid /K option, use /K:value\n");
+        //    if (param1 < 2 || param1 > 28)
+        //        fatal_error("Invalid /K option value, should be: 2 < value < 28\n");
+        //    Globals.SWITCH |= SW_K;
+        //    //TODO: if (Globals.SWITCH & SW_R)
+        //    Globals.KSWVAL = param1;
+        //    break;
+
+        //case 'P':  // /P:N  SIZE OF LML TABLE
+        //    result = sscanf(cur, ":%ho", &param1);
+        //    //TODO
+        //    break;
+
+        //case 'Z':  // /Z - ZERO UNFILLED LOCATIONS
+        //    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
+        //    //TMPIDD = D.SWZ;
+        //    //TMPIDI = I.SWZ;
+        //    //TODO
+        //    break;
+
+        //case 'R':  // /R[:stacksize] - INDICATE FOREGROUND LINK
+        //    result = sscanf(cur, ":%ho", &param1);
+        //    Globals.SWITCH |= SW_R;
+        //    //TODO
+        //    break;
+
+        //case 'V':  // /XM, OR /V ON 1ST LINE
+        //    result = sscanf(cur, ":%ho", &param1);
+        //    //TODO
+        //    break;
+
+        //case 'L':  // /L - INDICATE LDA OUTPUT
+        //    //TODO
+        //    break;
+
+        //case 'I':  // /I - INCLUDE MODULES FROM LIBRARY
+        //    Globals.SWITCH |= SW_I;
+        //    break;
+
+        //case 'F':  // /F - INCLUDE FORLIB.OBJ IN LINK
+        //    Globals.SWITCH |= SW_F;
+        //    break;
+
+        //case 'S':  // /S - SYMBOL TABLE AS LARGE AS POSSIBLE
+        //    //TODO
+        //    break;
+
+        //case 'D':  // /D - ALLOW DUPLICATE SYMBOLS
+        //    Globals.SWIT1 |= SW_D;
+        //    break;
+
+        //case 'N':  // /N - GENERATE CROSS REFERENCE
+        //    result = sscanf(cur, ":%ho", &param1);
+        //    //TODO
+        //    break;
+
+        //case 'G':  // /G - CALC. EPT SIZE ON RT-11
+        //    result = sscanf(cur, ":%ho", &param1);
+        //    //TODO
+        //    break;
+
+        //case 'Q':  // /Q:addr - SET PSECTS TO ABSOLUTE ADDRESSES
+        //    result = sscanf(cur, ":%ho", &param1);
+        //    //TODO
+        //    break;
+
+        //case 'J':  // /J - USE SEPARATED I-D SPACE
+        //    if (Globals.SWITCH & SW_R)
+        //        fatal_error("Invalid option: /R illegal with /J\n"); //TODO: Should be warning only
+        //    else
+        //        Globals.SWIT1 |= SW_J;
+        //    break;
+
+    default:
+        fatal_error("Unknown command line option '%c'\n", option);
+    }
+}
+
 // PROCESS COMMAND STRING SWITCHES, see LINK1\SWLOOP
 void parse_commandline(int argc, char **argv)
 {
     assert(argv != nullptr);
 
-    uint16_t TMPIDD = 0;  // D BIT TO TEST FOR /J PROCESSING
-    uint16_t TMPIDI = 0;  // I BIT TO TEST FOR /J PROCESSING
+    //uint16_t TMPIDD = 0;  // D BIT TO TEST FOR /J PROCESSING
+    //uint16_t TMPIDI = 0;  // I BIT TO TEST FOR /J PROCESSING
 
     for (int arg = 1; arg < argc; arg++)
     {
@@ -2683,196 +2883,9 @@ void parse_commandline(int argc, char **argv)
         {
             //TODO: Parse arguments like Command String Interpreter
             const char* cur = argvcur + 1;
-            uint16_t param1, param2;
             if (*cur != 0)
             {
-                // /EXECUTE:filespec - Specifies the name of the memory image file
-                if (strncmp(cur, "EXECUTE:", 8) == 0) //TODO: or /SAV
-                {
-                    strcpy(savfilename, cur + 8);
-                    continue;
-                }
-
-                // /WIDE /W - SPECIFY WIDE MAP LISTING
-                if (strcmp(cur, "WIDE") == 0 || strcmp(cur, "W") == 0)
-                {
-                    Globals.NUMCOL = 6; // 6 COLUMNS
-                    //Globals.LSTFMT--; // WIDE CREF
-                    continue;
-                }
-
-                // /NOBITMAP /X - DO NOT EMIT BIT MAP
-                if (strcmp(cur, "NOBITMAP") == 0 || strcmp(cur, "X") == 0)
-                {
-                    Globals.SWITCH |= SW_X;
-                    continue;
-                }
-
-                // /SYMBOLTABLE /STB - Generates a symbol table file
-                if (strcmp(cur, "SYMBOLTABLE") == 0 || strcmp(cur, "STB") == 0)
-                {
-                    Globals.FlagSTB = true;
-                    continue;
-                }
-
-                // /MAP - Generates map file
-                if (strcmp(cur, "MAP") == 0)
-                {
-                    Globals.FlagMAP = true;
-                    continue;
-                }
-
-                // /ALPHABETIZE /A - ALPHABETIZE MAP
-                if (strcmp(cur, "ALPHABETIZE") == 0 || strcmp(cur, "A") == 0)
-                {
-                    Globals.SWITCH |= SW_A;
-                    continue;
-                }
-
-                int result;
-                param1 = param2 = 0;  result = 0;
-                int option = toupper(*cur++);
-                switch (option)
-                {
-                case 'T': // /T:addr - SPECIFY TRANSFER ADR
-                    result = sscanf(cur, ":%ho", &param1);
-                    if (result < 1)
-                        fatal_error("Invalid /T option, use /T:addr\n");
-                    Globals.SWITCH |= SW_T;
-                    Globals.BEGBLK.value = param1;
-                    break;
-
-                case 'M':  // /M - MODIFY INITIAL STACK
-                    result = sscanf(cur, ":%ho", &param1);
-                    if (result < 1)
-                        fatal_error("Invalid /M option, use /M:addr\n");
-                    if (param1 & 1)
-                        fatal_error("Invalid /M option value, use even address\n");
-                    Globals.SWITCH |= SW_M;
-                    Globals.STKBLK[2] = param1;
-                    break;
-
-                case 'B':  // /B:addr - SPECIFY BOTTOM ADR FOR LINK
-                    result = sscanf(cur, ":%ho", &param1);
-                    if (result < 1)
-                        fatal_error("Invalid /B option, use /B:addr\n");
-                    Globals.SWITCH |= SW_B;
-                    TMPIDD = 0;
-                    TMPIDI = 0;
-                    //TODO
-                    break;
-
-                    //case 'U':  // /U - ROUND SECTION
-                    //    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
-                    //    Globals.SWITCH |= SW_U;
-                    //    //TMPIDD = D.SWU;
-                    //    //TMPIDI = I.SWU;
-                    //    //TODO
-                    //    break;
-
-                    //case 'E':  // /E - EXTEND SECTION
-                    //    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
-                    //    Globals.SWITCH |= SW_E;
-                    //    //TMPIDD = D.SWE;
-                    //    //TMPIDI = I.SWE;
-                    //    //TODO
-                    //    break;
-
-                    //case 'Y':  // /Y - START SECTION ON MULTIPLE OF VALUE
-                    //    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
-                    //    Globals.SWITCH |= SW_Y;
-                    //    //TMPIDD = D.SWY;
-                    //    //TMPIDI = I.SWY;
-                    //    //TODO
-                    //    break;
-
-                    //case 'H':  // /H - SPECIFY TOP ADR FOR LINK
-                    //    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
-                    //    Globals.SWITCH |= SW_H;
-                    //    //TMPIDD = D.SWH;
-                    //    //TMPIDI = I.SWH;
-                    //    //TODO
-                    //    break;
-
-                    //case 'K':  // /K - SPECIFY MINIMUM SIZE
-                    //    result = sscanf(cur, ":%ho", &param1);
-                    //    if (result < 1)
-                    //        fatal_error("Invalid /K option, use /K:value\n");
-                    //    if (param1 < 2 || param1 > 28)
-                    //        fatal_error("Invalid /K option value, should be: 2 < value < 28\n");
-                    //    Globals.SWITCH |= SW_K;
-                    //    //TODO: if (Globals.SWITCH & SW_R)
-                    //    Globals.KSWVAL = param1;
-                    //    break;
-
-                    //case 'P':  // /P:N  SIZE OF LML TABLE
-                    //    result = sscanf(cur, ":%ho", &param1);
-                    //    //TODO
-                    //    break;
-
-                    //case 'Z':  // /Z - ZERO UNFILLED LOCATIONS
-                    //    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
-                    //    //TMPIDD = D.SWZ;
-                    //    //TMPIDI = I.SWZ;
-                    //    //TODO
-                    //    break;
-
-                    //case 'R':  // /R[:stacksize] - INDICATE FOREGROUND LINK
-                    //    result = sscanf(cur, ":%ho", &param1);
-                    //    Globals.SWITCH |= SW_R;
-                    //    //TODO
-                    //    break;
-
-                    //case 'V':  // /XM, OR /V ON 1ST LINE
-                    //    result = sscanf(cur, ":%ho", &param1);
-                    //    //TODO
-                    //    break;
-
-                    //case 'L':  // /L - INDICATE LDA OUTPUT
-                    //    //TODO
-                    //    break;
-
-                    //case 'I':  // /I - INCLUDE MODULES FROM LIBRARY
-                    //    Globals.SWITCH |= SW_I;
-                    //    break;
-
-                    //case 'F':  // /F - INCLUDE FORLIB.OBJ IN LINK
-                    //    Globals.SWITCH |= SW_F;
-                    //    break;
-
-                    //case 'S':  // /S - SYMBOL TABLE AS LARGE AS POSSIBLE
-                    //    //TODO
-                    //    break;
-
-                    //case 'D':  // /D - ALLOW DUPLICATE SYMBOLS
-                    //    Globals.SWIT1 |= SW_D;
-                    //    break;
-
-                    //case 'N':  // /N - GENERATE CROSS REFERENCE
-                    //    result = sscanf(cur, ":%ho", &param1);
-                    //    //TODO
-                    //    break;
-
-                    //case 'G':  // /G - CALC. EPT SIZE ON RT-11
-                    //    result = sscanf(cur, ":%ho", &param1);
-                    //    //TODO
-                    //    break;
-
-                    //case 'Q':  // /Q:addr - SET PSECTS TO ABSOLUTE ADDRESSES
-                    //    result = sscanf(cur, ":%ho", &param1);
-                    //    //TODO
-                    //    break;
-
-                    //case 'J':  // /J - USE SEPARATED I-D SPACE
-                    //    if (Globals.SWITCH & SW_R)
-                    //        fatal_error("Invalid option: /R illegal with /J\n"); //TODO: Should be warning only
-                    //    else
-                    //        Globals.SWIT1 |= SW_J;
-                    //    break;
-
-                default:
-                    fatal_error("Unknown command line option '%c'\n", option);
-                }
+                parse_commandline_option(cur);
             }
         }
         else  // Parse filename and arguments
