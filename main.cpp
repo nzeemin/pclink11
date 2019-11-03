@@ -175,7 +175,7 @@ FILE* stbfileobj = nullptr;
 
 struct tagGlobals
 {
-    uint16_t    ODBLK[15]; // BLOCK TO HOLD BINOUT SPEC
+    //uint16_t    ODBLK[15]; // BLOCK TO HOLD BINOUT SPEC
     // LNKOV1->STORE TIME TO ROLL OVER DATE
     //uint16_t    TEMP; // TEMPORARY STORAGE
     uint8_t     TXTBLK[RECSIZ];  // SPACE FOR A FORMATTED BINARY RECORD
@@ -192,8 +192,8 @@ struct tagGlobals
     //uint16_t    ENDLML; // END OF LIB MOD LIST
     //uint16_t    ESZRBA; // SIZE OF CURRENT LIBRARY EPT
     // RELOCATION INFO OUTPUT BUFR ADR
-    uint16_t    OVCOUN; // NO. OF OVERLAY ENTRY PTS.
-    uint16_t    OVSPTR; // PTR TO OVERLAY SEGMENT BLK
+    //uint16_t    OVCOUN; // NO. OF OVERLAY ENTRY PTS.
+    //uint16_t    OVSPTR; // PTR TO OVERLAY SEGMENT BLK
     uint8_t     PAS1_5; // PASS 1.5 SWITCH(0 ON PASS1, 1 IF TO DO LIBRARY,
     // BIT 7 SET IF DOING LIBRARIES
     uint8_t     DUPMOD; // 1 IF LIB MOD IS DUP
@@ -218,73 +218,73 @@ struct tagGlobals
     uint16_t    STKBLK[3]; // USER STACK ADDRESS BLOCK(SYMBOL & VALUE)
     // LNKSAV->TEMP 4 WORD STORAGE FOR GSD RECORD
 
-    uint16_t    HSWVAL; // /H SWITCH VALUE - I-SPACE
-    uint16_t    DHSWVL; // /H SWITCH VALUE - D-SPACE
+    //uint16_t    HSWVAL; // /H SWITCH VALUE - I-SPACE
+    //uint16_t    DHSWVL; // /H SWITCH VALUE - D-SPACE
 
-    uint16_t    ESWVAL; // /E SWITCH VALUE - I-SPACE
-    uint32_t    ESWNAM; // /E SWITCH NAME - I-SPACE
-    uint16_t    DESWVL; // /E SWITCH VALUE - D-SPACE
-    uint32_t    DESWNM; // /E SWITCH NAME - D-SPACE
+    //uint16_t    ESWVAL; // /E SWITCH VALUE - I-SPACE
+    //uint32_t    ESWNAM; // /E SWITCH NAME - I-SPACE
+    //uint16_t    DESWVL; // /E SWITCH VALUE - D-SPACE
+    //uint32_t    DESWNM; // /E SWITCH NAME - D-SPACE
     uint16_t    KSWVAL; // /K SWITCH VALUE OR STACK SIZE FOR REL FILE
-    uint16_t    YSWNAM[25]; // /Y SECTION NAME ARRAY(TEMP OVERLAY # IN OV1 & SAV)
+    //uint16_t    YSWNAM[25]; // /Y SECTION NAME ARRAY(TEMP OVERLAY # IN OV1 & SAV)
     // +2 NEXT ASSIGNABLE OUTPUT BLK(LNKMAP)
     //    RELOCATION INFO BLOCK #(LNKSAV) - I-SPACE
     // YSWVAL==YSWNAM+4
-    uint16_t    DYSWNM[25];
+    //uint16_t    DYSWNM[25];
     // DYSWVL==DYSWNM+4
-    uint8_t     YSWT;   // SAY WE ARE USING /Y
-    uint8_t     YCNT;   // NUMBER OF TIMES TO PROMPT FOR /Y (SET IN LINK2)
+    //uint8_t     YSWT;   // SAY WE ARE USING /Y
+    //uint8_t     YCNT;   // NUMBER OF TIMES TO PROMPT FOR /Y (SET IN LINK2)
     uint16_t    DEFALT; // DEFAULT BOUNDARY VALUE FOR /Y (SET IN LINK2)
-    uint16_t    USWVAL; // /U SWITCH VALUE - I-SPACE
-    uint32_t    USWNAM; // /U SWITCH NAME - I-SPACE
-    uint16_t    DUSWVL; // /U SWITCH VALUE - D-SPACE
-    uint32_t    DUSWNM; // /U SWITCH NAME - D-SPACE
-    uint16_t    QSWVAL; // /Q BUFFER POINTER
-    uint16_t    ZSWVAL; // /Z SWITCH VALUE - I-SPACE
-    uint16_t    DZSWVL; // /Z SWITCH VALUE - D-SPACE
+    //uint16_t    USWVAL; // /U SWITCH VALUE - I-SPACE
+    //uint32_t    USWNAM; // /U SWITCH NAME - I-SPACE
+    //uint16_t    DUSWVL; // /U SWITCH VALUE - D-SPACE
+    //uint32_t    DUSWNM; // /U SWITCH NAME - D-SPACE
+    //uint16_t    QSWVAL; // /Q BUFFER POINTER
+    //uint16_t    ZSWVAL; // /Z SWITCH VALUE - I-SPACE
+    //uint16_t    DZSWVL; // /Z SWITCH VALUE - D-SPACE
     uint16_t    LRUNUM; // USED TO COUNT MAX # OF SECTIONS AND AS
     //  TIME STAMP FOR SAV FILE CACHING
-    uint16_t    BITBAD; // -> START OF BITMAP TABLE (D-SPACE IF /J USED)
-    uint16_t    IBITBD; // -> START OF I-SPACE BITMAP TABLE
+    //uint16_t    BITBAD; // -> START OF BITMAP TABLE (D-SPACE IF /J USED)
+    //uint16_t    IBITBD; // -> START OF I-SPACE BITMAP TABLE
     uint8_t     BITMAP[16]; // CONTAINS BITMAP OR IBITBD (IF /J USED)
-    uint16_t    CACHER; // -> CACHE CONTROL BLOCKS
+    //uint16_t    CACHER; // -> CACHE CONTROL BLOCKS
     uint16_t    NUMBUF; // NUMBER OF AVAILABLE CACHING BLOCKS (DEF=3)
     uint16_t    BASE;   // BASE OF CURRENT SECTION
     uint16_t    CKSUM;  // CHECKSUM FOR STB & LDA OUTPUT
     // LNKOV1->TEMP LINK POINTER TO NEW REGION BLK
     // CURRENT REL BLK OVERLAY NUM
-    uint16_t    ENDRT;  // END OF ROOT SYMBOL TBL LIST
+    //uint16_t    ENDRT;  // END OF ROOT SYMBOL TBL LIST
     uint16_t    VIRSIZ; // LARGEST REGION IN A PARTITION
-    uint16_t    REGION; // XM REGION NUMBER
-    uint16_t    WDBCNT; // WDB TABLE SIZE ( 14. * NUMBER OF PARTITIONS)
+    //uint16_t    REGION; // XM REGION NUMBER
+    //uint16_t    WDBCNT; // WDB TABLE SIZE ( 14. * NUMBER OF PARTITIONS)
     uint16_t    HIPHYS; // HIGH LIMIT FOR EXTENDED MEMORY (96K MAX)
     uint16_t    SVLML;  // START OF LML LIST FOR WHOLE LIBRARY
     uint16_t    SW_LML; // LML INTO OVERLAY SWITCH, AND PASS INDICATOR
-    uint16_t    LOC0;   // USED FOR CONTENTS OF LOC 0 IN SAV HEADER
-    uint16_t    LOC66;  // # /O SEGMENTS SAVED FOR CONVERSION TO ADDR OF
+    //uint16_t    LOC0;   // USED FOR CONTENTS OF LOC 0 IN SAV HEADER
+    //uint16_t    LOC66;  // # /O SEGMENTS SAVED FOR CONVERSION TO ADDR OF
     //  /V SEGS IN OVERLAY HANLDER TABLE
     //uint16_t    LSTFMT; // CREF LISTING FORMAT (0=80COL, -1=132COL)
 
     // I-D SPACE VARIABLES
 
-    uint16_t    IDSWIT; // BITMASK WORD FOR WHICH SWITCHES USE SEPARATED
+    //uint16_t    IDSWIT; // BITMASK WORD FOR WHICH SWITCHES USE SEPARATED
     // I-D SPACE
     // D-SPACE, LOW BYTE, I-SPACE, HI BYTE
-    uint16_t    ILEN;   // TOTAL LENGTH OF I-SPACE PSECTS IN WORDS
-    uint16_t    DLEN;   // TOTAL LENGTH OF D-SPACE PSECTS IN WORDS
-    uint16_t    IBLK;   // TOTAL LENGTH OF I-SPACE PSECTS IN BLOCKS
-    uint16_t    DBLK;   // TOTAL LENGTH OF D-SPACE PSECTS IN BLOCKS
-    uint16_t    IROOT;  // SIZE OF THE I-SPACE ROOT IN WORDS
-    uint16_t    DROOT;  // SIZE OF THE D-SPACE ROOT IN WORDS
-    uint16_t    IBASE;  // START OF THE I BASE (BLOCKS)
-    uint16_t    DBASE;  // START OF THE D BASE (BLOCKS)
-    uint16_t    ILOC40; // CONTENTS OF LOC 40 FOR I-SPACE CCB
-    uint16_t    IFLG;   // NON-ZERO MEANS WRITING I-SPACE BITMAP
-    uint16_t    IDSTRT; // I-D SPACE ENTRY POINT ($OVRHZ)
-    uint16_t    ZTAB;   // I-D SPACE START ADDRESS OF PSECT $ZTABL
-    uint16_t    OVRCNT; // # OF OVERLAY SEGMENTS, USED FOR COMPUTING $OVDF6
-    uint16_t    DSGBAS; // PASS 2 BASE ADR OF D-SPACE OVERLAY SEGMENT
-    uint16_t    DSGBLK; // PASS 2 BASE BLK OF D-SPACE OVERLAY SEGMENT
+    //uint16_t    ILEN;   // TOTAL LENGTH OF I-SPACE PSECTS IN WORDS
+    //uint16_t    DLEN;   // TOTAL LENGTH OF D-SPACE PSECTS IN WORDS
+    //uint16_t    IBLK;   // TOTAL LENGTH OF I-SPACE PSECTS IN BLOCKS
+    //uint16_t    DBLK;   // TOTAL LENGTH OF D-SPACE PSECTS IN BLOCKS
+    //uint16_t    IROOT;  // SIZE OF THE I-SPACE ROOT IN WORDS
+    //uint16_t    DROOT;  // SIZE OF THE D-SPACE ROOT IN WORDS
+    //uint16_t    IBASE;  // START OF THE I BASE (BLOCKS)
+    //uint16_t    DBASE;  // START OF THE D BASE (BLOCKS)
+    //uint16_t    ILOC40; // CONTENTS OF LOC 40 FOR I-SPACE CCB
+    //uint16_t    IFLG;   // NON-ZERO MEANS WRITING I-SPACE BITMAP
+    //uint16_t    IDSTRT; // I-D SPACE ENTRY POINT ($OVRHZ)
+    //uint16_t    ZTAB;   // I-D SPACE START ADDRESS OF PSECT $ZTABL
+    //uint16_t    OVRCNT; // # OF OVERLAY SEGMENTS, USED FOR COMPUTING $OVDF6
+    //uint16_t    DSGBAS; // PASS 2 BASE ADR OF D-SPACE OVERLAY SEGMENT
+    //uint16_t    DSGBLK; // PASS 2 BASE BLK OF D-SPACE OVERLAY SEGMENT
 
     uint32_t    MODNAM; // MODULE NAME, RAD50
     // LDA OUTPUT BUFR PTR OR REL INFO BUFR PTR
@@ -294,18 +294,18 @@ struct tagGlobals
 
     //uint16_t    ASECT[8];
 
-    uint16_t    DHLRT;  // D-SPACE HIGH ADDR LIMIT OF REGION (R.GHLD)
+    //uint16_t    DHLRT;  // D-SPACE HIGH ADDR LIMIT OF REGION (R.GHLD)
     uint16_t    DBOTTM; // ST ADDR OF REGION AREA - D-SPACE (R.GSAD)
-    uint16_t    DBOTTM_2; // REGION NUMBER (R.GNB)
-    uint16_t    OVRG1;  // -> NEXT ORDB (R.GNXP)
-    uint16_t    OVRG1_2; // -> OSDB THIS REGION (R.GSGP)
-    uint16_t    HLRT;   // HIGH LIMIT OF AREA (R.GHL)
+    //uint16_t    DBOTTM_2; // REGION NUMBER (R.GNB)
+    //uint16_t    OVRG1;  // -> NEXT ORDB (R.GNXP)
+    //uint16_t    OVRG1_2; // -> OSDB THIS REGION (R.GSGP)
+    //uint16_t    HLRT;   // HIGH LIMIT OF AREA (R.GHL)
     uint16_t    BOTTOM; // ST ADDR OF REGION AREA - (I-SPACE IF /J USED)
 
     //uint16_t    CBUF;   // START OF CREF BUFFER
     //uint16_t    CBEND;  // CBUF + 512. BYTES FOR A 1 BLOCK CREF BUFFER
-    uint16_t    QAREA[10]; // EXTRA QUEUE ELEMENT
-    uint16_t    PRAREA[5]; // AREA FOR PROGRAMMED REQUESTS
+    //uint16_t    QAREA[10]; // EXTRA QUEUE ELEMENT
+    //uint16_t    PRAREA[5]; // AREA FOR PROGRAMMED REQUESTS
 
     //uint16_t    EIB512; // IBUF + 512. BYTES FOR A 1 BLOCK MAP BUFR
     uint16_t    SEGBAS; // BASE OF OVERLAY SEGMENT
@@ -2520,6 +2520,97 @@ void proccess_pass2_libpa2(const SaveStatusEntry* sscur)
     }
 }
 
+void process_pass2_file(SaveStatusEntry* sscur)
+{
+    assert(sscur != nullptr);
+    assert(sscur->data != nullptr);
+
+    size_t offset = 0;
+    while (offset < sscur->filesize)
+    {
+        uint8_t* data = sscur->data + offset;
+        uint16_t* dataw = (uint16_t*)(data);
+        if (*dataw != 1)
+        {
+            if (*dataw == 0)  // Possibly that is filler at the end of the block
+            {
+                size_t offsetnext = (offset + 511) & ~511;
+                while (*data == 0 && offset < sscur->filesize && offset < offsetnext)
+                {
+                    data++; offset++;
+                }
+                if (offset == sscur->filesize)
+                    break;  // End of file
+            }
+            dataw = (uint16_t*)(data);
+            if (*dataw != 1)
+                fatal_error("Unexpected word %06ho at %06ho in %s\n", *dataw, offset, sscur->filename);
+        }
+
+        uint16_t blocksize = ((uint16_t*)data)[1];
+        uint16_t blocktype = ((uint16_t*)data)[2];
+
+        if (blocktype == 0 || blocktype > 8)
+            fatal_error("ERR4: Illegal record type at %06ho in %s\n", offset, sscur->filename);
+        else if (blocktype == 1)  // START GSD RECORD, see LINK7\GSD
+        {
+            printf("    Block type 1 - GSD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+            process_pass2_gsd_block(sscur, data);
+        }
+        else if (blocktype == 3)  // See LINK7\DMPTXT
+        {
+            process_pass2_dump_txtblk();
+
+            uint16_t addr = ((uint16_t*)data)[3];
+            uint16_t destaddr = addr + Globals.BASE;
+            uint16_t datasize = blocksize - 8;
+            printf("    Block type 3 - TXT at %06ho size %06ho addr %06ho dest %06ho len %06ho\n",
+                   (uint16_t)offset, blocksize, addr, destaddr, datasize);
+            Globals.TXTLEN = datasize;
+            assert(datasize <= sizeof(Globals.TXTBLK));
+            memcpy(Globals.TXTBLK, data + 6, blocksize - 6);
+
+            *((uint16_t*)Globals.TXTBLK) = destaddr;  // ADD BASE TO GIVE ABS LOAD ADDR
+        }
+        else if (blocktype == 4)  // See LINK7\RLD
+        {
+            uint16_t base = *((uint16_t*)Globals.TXTBLK);
+            printf("    Block type 4 - RLD at %06ho size %06ho base %06ho\n", (uint16_t)offset, blocksize, base);
+            process_pass2_rld(sscur, data);
+        }
+        else if (blocktype == 6)  // MODULE END RECORD, See LINK7\MODND
+        {
+            printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+
+            process_pass2_dump_txtblk();  // DUMP TXT BLK IF ANY
+
+            // AT THE END OF EACH MODULE THE BASE ADR OF EACH SECTION IS UPDATED AS DETERMINED BY THE MST.
+            for (int m = 0; m < ModuleSectionCount; m++)
+            {
+                ModuleSectionEntry* mstentry = ModuleSectionTable + m;
+                if (mstentry->size == 0)
+                    continue;
+                SymbolTableEntry* entry = SymbolTable + mstentry->stindex;
+                if (entry->name != RAD50_ABS && (entry->flags() & 4/*CS$ALO*/) == 0)
+                    entry->value += mstentry->size;
+            }
+            mst_table_clear();
+        }
+        else if (blocktype == 7)  // See LINK7\LIBPA2
+        {
+            printf("    Block type 7 - TITLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+            //uint16_t eptsize = *(uint16_t*)(data + 24/*L_HEAB*/);  // EPT SIZE IN LIBRARY HEADER
+            //TODO
+            proccess_pass2_libpa2(sscur);
+            break;
+            //data += eptsize; offset += eptsize;
+        }
+
+        data += blocksize; offset += blocksize;
+        data += 1; offset += 1;  // Skip checksum
+    }
+}
+
 // PRODUCE SAVE IMAGE FILE, see LINK7\PASS2
 void process_pass2()
 {
@@ -2529,9 +2620,8 @@ void process_pass2()
     for (int i = 0; i < SaveStatusCount; i++)
     {
         SaveStatusEntry* sscur = SaveStatusArea + i;
-        assert(sscur->data != nullptr);
+        assert(sscur != nullptr);
 
-        printf("  Processing %s %s\n", sscur->filename, sscur->islibrary ? "library" : "");
         if (sscur->islibrary)
         {
             if ((Globals.PAS1_5 & 128) == 0)
@@ -2547,90 +2637,8 @@ void process_pass2()
                 continue;  // Skip non-library on library pass
         }
 
-        size_t offset = 0;
-        while (offset < sscur->filesize)
-        {
-            uint8_t* data = sscur->data + offset;
-            uint16_t* dataw = (uint16_t*)(data);
-            if (*dataw != 1)
-            {
-                if (*dataw == 0)  // Possibly that is filler at the end of the block
-                {
-                    size_t offsetnext = (offset + 511) & ~511;
-                    while (*data == 0 && offset < sscur->filesize && offset < offsetnext)
-                    {
-                        data++; offset++;
-                    }
-                    if (offset == sscur->filesize)
-                        break;  // End of file
-                }
-                dataw = (uint16_t*)(data);
-                if (*dataw != 1)
-                    fatal_error("Unexpected word %06ho at %06ho in %s\n", *dataw, offset, sscur->filename);
-            }
-
-            uint16_t blocksize = ((uint16_t*)data)[1];
-            uint16_t blocktype = ((uint16_t*)data)[2];
-
-            if (blocktype == 0 || blocktype > 8)
-                fatal_error("ERR4: Illegal record type at %06ho in %s\n", offset, sscur->filename);
-            else if (blocktype == 1)  // START GSD RECORD, see LINK7\GSD
-            {
-                printf("    Block type 1 - GSD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
-                process_pass2_gsd_block(sscur, data);
-            }
-            else if (blocktype == 3)  // See LINK7\DMPTXT
-            {
-                process_pass2_dump_txtblk();
-
-                uint16_t addr = ((uint16_t*)data)[3];
-                uint16_t destaddr = addr + Globals.BASE;
-                uint16_t datasize = blocksize - 8;
-                printf("    Block type 3 - TXT at %06ho size %06ho addr %06ho dest %06ho len %06ho\n",
-                       (uint16_t)offset, blocksize, addr, destaddr, datasize);
-                Globals.TXTLEN = datasize;
-                assert(datasize <= sizeof(Globals.TXTBLK));
-                memcpy(Globals.TXTBLK, data + 6, blocksize - 6);
-
-                *((uint16_t*)Globals.TXTBLK) = destaddr;  // ADD BASE TO GIVE ABS LOAD ADDR
-            }
-            else if (blocktype == 4)  // See LINK7\RLD
-            {
-                uint16_t base = *((uint16_t*)Globals.TXTBLK);
-                printf("    Block type 4 - RLD at %06ho size %06ho base %06ho\n", (uint16_t)offset, blocksize, base);
-                process_pass2_rld(sscur, data);
-            }
-            else if (blocktype == 6)  // MODULE END RECORD, See LINK7\MODND
-            {
-                printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
-
-                process_pass2_dump_txtblk();  // DUMP TXT BLK IF ANY
-
-                // AT THE END OF EACH MODULE THE BASE ADR OF EACH SECTION IS UPDATED AS DETERMINED BY THE MST.
-                for (int m = 0; m < ModuleSectionCount; m++)
-                {
-                    ModuleSectionEntry* mstentry = ModuleSectionTable + m;
-                    if (mstentry->size == 0)
-                        continue;
-                    SymbolTableEntry* entry = SymbolTable + mstentry->stindex;
-                    if (entry->name != RAD50_ABS && (entry->flags() & 4/*CS$ALO*/) == 0)
-                        entry->value += mstentry->size;
-                }
-                mst_table_clear();
-            }
-            else if (blocktype == 7)  // See LINK7\LIBPA2
-            {
-                printf("    Block type 7 - TITLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
-                //uint16_t eptsize = *(uint16_t*)(data + 24/*L_HEAB*/);  // EPT SIZE IN LIBRARY HEADER
-                //TODO
-                proccess_pass2_libpa2(sscur);
-                break;
-                //data += eptsize; offset += eptsize;
-            }
-
-            data += blocksize; offset += blocksize;
-            data += 1; offset += 1;  // Skip checksum
-        }
+        printf("  Processing %s %s\n", sscur->filename, sscur->islibrary ? "library" : "");
+        process_pass2_file(sscur);
     }
 }
 
