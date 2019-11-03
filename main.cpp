@@ -1766,8 +1766,50 @@ void process_pass_map_endstb()
     fclose(stbfileobj);  stbfileobj = nullptr;
 }
 
+void process_pass_map_output_headers()
+{
+    fprintf(mapfileobj, "PCLINK11 %-8s", APP_VERSION_STRING);
+    fprintf(mapfileobj, "\tLoad Map \t");
+
+    time_t curtime;  time(&curtime); // DETERMINE DATE & TIME; see LINK5\MAPHDR
+    struct tm * timeptr = localtime(&curtime);
+    fprintf(mapfileobj, "%s %.2d-%s-%d %.2d:%.2d\n",
+            weekday_names[timeptr->tm_wday],
+            timeptr->tm_mday, month_names[timeptr->tm_mon], 1900 + timeptr->tm_year,
+            timeptr->tm_hour, timeptr->tm_min);
+
+    char savname[64];
+    strcpy(savname, savfilename);
+    char* pdot = strrchr(savname, '.');
+    if (pdot != nullptr) *pdot = 0;
+    fprintf(mapfileobj, "%-6s", savname);
+    if (pdot != nullptr)
+    {
+        *pdot = '.';
+        fprintf(mapfileobj, "%-4s   ", pdot);
+    }
+
+    fprintf(mapfileobj, "\tTitle:\t");
+    if (Globals.MODNAM != 0)
+    {
+        fprintf(mapfileobj, "%s", unrad50(Globals.MODNAM));
+    }
+    fprintf(mapfileobj, "\tIdent:\t");
+    fprintf(mapfileobj, "%s", unrad50(Globals.IDENT));
+    fprintf(mapfileobj, "\t\n\n");
+    fprintf(mapfileobj, "Section  Addr\tSize");
+    //printf("  Section  Addr   Size ");
+    for (uint8_t i = 0; i < Globals.NUMCOL; i++)
+    {
+        fprintf(mapfileobj, "\tGlobal\tValue");
+        printf("   Global  Value");
+    }
+    fprintf(mapfileobj, "\n\n");
+    printf("\n");
+}
+
 // PRINT UNDEFINED GLOBALS IF ANY, see LINK5\DOUDFS
-void print_undefined_globals()
+void process_pass_map_output_print_undefined_globals()
 {
     process_pass_map_endstb();  // CLOSE OUT THE STB FILE
 
@@ -1838,44 +1880,7 @@ void process_pass_map_output()
 
     if (Globals.FlagMAP) // OUTPUT THE HEADERS
     {
-        fprintf(mapfileobj, "PCLINK11 %-8s", APP_VERSION_STRING);
-        fprintf(mapfileobj, "\tLoad Map \t");
-
-        time_t curtime;  time(&curtime); // DETERMINE DATE & TIME; see LINK5\MAPHDR
-        struct tm * timeptr = localtime(&curtime);
-        fprintf(mapfileobj, "%s %.2d-%s-%d %.2d:%.2d\n",
-                weekday_names[timeptr->tm_wday],
-                timeptr->tm_mday, month_names[timeptr->tm_mon], 1900 + timeptr->tm_year,
-                timeptr->tm_hour, timeptr->tm_min);
-
-        char savname[64];
-        strcpy(savname, savfilename);
-        char* pdot = strrchr(savname, '.');
-        if (pdot != nullptr) *pdot = 0;
-        fprintf(mapfileobj, "%-6s", savname);
-        if (pdot != nullptr)
-        {
-            *pdot = '.';
-            fprintf(mapfileobj, "%-4s   ", pdot);
-        }
-
-        fprintf(mapfileobj, "\tTitle:\t");
-        if (Globals.MODNAM != 0)
-        {
-            fprintf(mapfileobj, "%s", unrad50(Globals.MODNAM));
-        }
-        fprintf(mapfileobj, "\tIdent:\t");
-        fprintf(mapfileobj, "%s", unrad50(Globals.IDENT));
-        fprintf(mapfileobj, "\t\n\n");
-        fprintf(mapfileobj, "Section  Addr\tSize");
-        //printf("  Section  Addr   Size ");
-        for (uint8_t i = 0; i < Globals.NUMCOL; i++)
-        {
-            fprintf(mapfileobj, "\tGlobal\tValue");
-            printf("   Global  Value");
-        }
-        fprintf(mapfileobj, "\n\n");
-        printf("\n");
+        process_pass_map_output_headers();
     }
 
     // RESOLV  SECTION STARTS & GLOBAL SYMBOL VALUES; see LINK5\RESOLV
@@ -1962,7 +1967,8 @@ void process_pass_map_output()
     printf("  Total size %06ho = %u. bytes, %u. blocks\n", totalsize, totalsize, blockcount);
     OutputBlockCount = blockcount;  //HACK for now
 
-    print_undefined_globals();
+    // Print undefined globals, see LINK5\DOUDFS
+    process_pass_map_output_print_undefined_globals();
 
     // OUTPUT TRANSFER ADR & CHECK ITS VALIDITY, see LINK5\DOTADR
     uint16_t lkmsk = (uint16_t) ~(SY_SEC + SY_SEG);  // LOOK AT SECTION & SEGMENT # BITS
@@ -2291,8 +2297,6 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
 // Prapare SYSCOM area, pass 2 initialization; see LINK6
 void process_pass2_init()
 {
-    //printf("PASS 2 init\n");
-
     mst_table_clear();
 
     // Allocate space for .SAV file image
