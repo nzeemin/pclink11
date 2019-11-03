@@ -95,10 +95,10 @@ const uint32_t RAD50_GVHNDL = rad50x2("$OVRHV");  // /V OVERLAY HANDLER GBL ENTR
 const uint32_t RAD50_GZHNDL = rad50x2("$OVRHZ");  // I-D SPACE OVERLAY HANDLER GBL ENTRY
 const uint32_t RAD50_ZTABL  = rad50x2("$ZTABL");  // I-D SPACE OVERLAY HANDLER PSECT
 
-const char* FORLIB = "FORLIB.OBJ";  // FORTRAN LIBRARY FILENAME
-const char* SYSLIB = "SYSLIB.OBJ";  // DEFAULT SYSTEM LIBRARY FILENAME
+static const char* FORLIB = "FORLIB.OBJ";  // FORTRAN LIBRARY FILENAME
+static const char* SYSLIB = "SYSLIB.OBJ";  // DEFAULT SYSTEM LIBRARY FILENAME
 
-const char* GSDItemTypeNames[] =
+static const char* GSDItemTypeNames[] =
 {
     /*0*/ "MODULE NAME",
     /*1*/ "CSECT NAME",
@@ -110,7 +110,7 @@ const char* GSDItemTypeNames[] =
     /*7*/ "VIRTUAL SECTION"
 };
 
-const char* RLDCommandNames[] =
+static const char* RLDCommandNames[] =
 {
     /*000*/ "NOT USED",
     /*001*/ "INTERNAL RELOCATION",
@@ -130,7 +130,7 @@ const char* RLDCommandNames[] =
     /*017*/ "COMPLEX",
 };
 
-const char* CPXCommandNames[] =
+static const char* CPXCommandNames[] =
 {
     /*000*/ "NOP",
     /*001*/ "ADD",
@@ -378,6 +378,7 @@ void warning_message(const char* message, ...)
 void symbol_table_enter(int* pindex, uint32_t lkname, uint16_t lkwd)
 {
     assert(pindex != nullptr);
+    assert(SymbolTable != nullptr);
 
     // Find empty entry
     if (SymbolTableCount >= SymbolTableSize)
@@ -412,6 +413,7 @@ void symbol_table_delete(int index)
 {
     assert(index > 0);
     assert(index < SymbolTableSize);
+    assert(SymbolTable != nullptr);
 
     //TODO
     NOTIMPLEMENTED
@@ -422,6 +424,7 @@ void symbol_table_add_undefined(int index)
 {
     assert(index > 0);
     assert(index < SymbolTableSize);
+    assert(SymbolTable != nullptr);
 
     if (Globals.UNDLST != 0)
     {
@@ -444,6 +447,7 @@ void symbol_table_remove_undefined(int index)
 {
     assert(index > 0);
     assert(index < SymbolTableSize);
+    assert(SymbolTable != nullptr);
 
     SymbolTableEntry* entry = SymbolTable + index;
     uint16_t previndex = entry->value;
@@ -697,8 +701,6 @@ void print_mst_table()
 // Initialize arrays and variables
 void initialize()
 {
-    //printf("Initialization\n");
-
     memset(&Globals, 0, sizeof(Globals));
 
     memset(SaveStatusArea, 0, sizeof(SaveStatusArea));
@@ -761,8 +763,10 @@ void finalize()
 }
 
 // Read all input files into memory
-void read_files()
+void prepare_read_files()
 {
+    const size_t MAX_INPUTFILE_SIZE = 512 * 1024;  // 512 KB max
+
     for (int i = 0; i < SaveStatusCount; i++)
     {
         SaveStatusEntry* sscur = SaveStatusArea + i;
@@ -774,7 +778,7 @@ void read_files()
 
         fseek(file, 0L, SEEK_END);
         size_t filesize = ftell(file);
-        if (filesize > 512 * 1024)
+        if (filesize > MAX_INPUTFILE_SIZE)
             fatal_error("Input file %s too long.\n", sscur->filename);
         sscur->filesize = filesize;
 
@@ -930,7 +934,7 @@ void process_pass1_gsd_item_symnam(const uint16_t* itemw)
         if (Globals.SW_LML & 0100000)  // LIBRARY PREPROCESS PASS?
             return;  // IGNORE PREPROCESS PASS DEFS
 
-        if ((Globals.PAS1_5 & 0200) != 0 && Globals.SEGNUM == 0) // ROOT DEF?
+        if ((Globals.PAS1_5 & 128) != 0 && Globals.SEGNUM == 0) // ROOT DEF?
         {
             found = symbol_table_dlooke(lkname, lkwd, lkmsk, &index);
             SymbolTableEntry* entry = SymbolTable + index;
@@ -1280,7 +1284,6 @@ void process_pass1_file(SaveStatusEntry* sscur)
 void process_pass1()
 {
     printf("PASS 1\n");
-    Globals.PAS1_5 = 0;  // PASS 1 PHASE INDICATOR
     // PROCESS FORMATTED BINARY RECORDS, see LINK3\PA1
     for (int i = 0; i < SaveStatusCount; i++)
     {
@@ -1291,11 +1294,13 @@ void process_pass1()
 }
 
 // SEARCH THE ENTRY POINT TABLE FOR A MATCH OF THE INDICATED SYMBOL. See LINK3\EPTSER
-uint16_t* process_pass15_eptsearch(uint8_t* data, uint16_t eptsize, uint32_t symbol)
+const uint16_t* process_pass15_eptsearch(const uint8_t* data, uint16_t eptsize, uint32_t symbol)
 {
+    assert(data != nullptr);
+
     for (uint16_t eptno = 0; eptno < eptsize; eptno++)
     {
-        uint16_t* itemw = (uint16_t*)(data + 8 * eptno);
+        const uint16_t* itemw = (uint16_t*)(data + 8 * eptno);
         if (itemw[0] == 0)
             break;  // IF 0 AT END OF TBL
         if (itemw[2] == 0)
@@ -1480,7 +1485,7 @@ void process_pass15_library(const SaveStatusEntry* sscur)
                     if ((entry->status & SY_WK) == 0)  // IS THIS A WEAK SYMBOL? SKIP WEAK SYMBOL
                     {
                         //TODO: IS SYMBOL A DUP SYMBOL?
-                        uint16_t* itemw = process_pass15_eptsearch(data, eptsize, entry->name);
+                        const uint16_t* itemw = process_pass15_eptsearch(data, eptsize, entry->name);
                         if (itemw == nullptr)  // CONTINUE THRU UNDEF LIST
                         {
                             index = entry->nextindex();
@@ -1525,7 +1530,6 @@ void process_pass15_library(const SaveStatusEntry* sscur)
 void process_pass15()
 {
     printf("PASS 1.5\n");
-    Globals.PAS1_5 = 0200;
     Globals.LIBNB = 0;  // RESET LIBRARY FILE #
 
     for (int i = 0; i < SaveStatusCount; i++)
@@ -2530,7 +2534,7 @@ void proccess_pass2_libpa2(const SaveStatusEntry* sscur)
     }
 }
 
-void process_pass2_file(SaveStatusEntry* sscur)
+void process_pass2_file(const SaveStatusEntry* sscur)
 {
     assert(sscur != nullptr);
     assert(sscur->data != nullptr);
@@ -2671,6 +2675,9 @@ void process_pass2_done()
     size_t byteswrit = fwrite(OutputBuffer, 1, bytestowrite, outfileobj);
     if (byteswrit != bytestowrite)
         fatal_error("ERR6: Failed to write output file.\n");
+
+    // Done with the SAV file, closing
+    fclose(outfileobj);  outfileobj = nullptr;
 }
 
 void parse_commandline_option(const char* cur)
@@ -2904,24 +2911,16 @@ void parse_commandline(int argc, char **argv)
                 *filenamecur = *cur;
                 filenamecur++;  cur++;
                 filenamelen++;
-                if (filenamelen >= sizeof(sscur->filename))
+                if (filenamelen >= sizeof(sscur->filename) - 1)
                     fatal_error("Too long filename: %s\n", argvcur);
             }
             SaveStatusCount++;
 
             //TODO: Parse options associated with the file
-            //while (*cur == '/')
-            //{
-            //  cur++;
-            //  switch (*cur)
-            //  {
-            //  default:
-            //      fatal_error("Bad switch: %s\n", argvcur);
-            //  }
-            //}
         }
     }
 
+    // Validate command line params
     if (SaveStatusCount == 0)
         fatal_error("Input file not specified.\n");
 }
@@ -2974,11 +2973,13 @@ int main(int argc, char *argv[])
 
     parse_commandline(argc, argv);
 
-    read_files();
+    prepare_read_files();
 
+    Globals.PAS1_5 = 0;  // PASS 1 PHASE INDICATOR
     process_pass1();
     if (Globals.PAS1_5 & 1)  // BIT 0 SET IF TO DO 1.5 (we have library files)
     {
+        Globals.PAS1_5 = 128;
         process_pass15();  // SCANS ONLY LIBRARIES
     }
     process_pass1_endp1();
@@ -2988,9 +2989,11 @@ int main(int argc, char *argv[])
     process_pass_map_done();
     assert(mapfileobj == nullptr);
     assert(stbfileobj == nullptr);
+    assert(outfileobj == nullptr);
 
     //print_symbol_table();//DEBUG
     process_pass2_init();
+    assert(outfileobj != nullptr);
     Globals.PAS1_5 = 0;
     process_pass2();  // Non-library pass
     if (Globals.PAS1_5 & 1)  // BIT 0 SET IF TO DO 1.5 (we have library files)
@@ -2999,12 +3002,14 @@ int main(int argc, char *argv[])
         process_pass2();  // Library pass
     }
     process_pass2_done();
+    assert(outfileobj == nullptr);
 
     printf("SUCCESS\n");
     finalize();
 
 #if defined(_DEBUG) && defined(_MSC_VER)
-    _CrtDumpMemoryLeaks();
+    if (_CrtDumpMemoryLeaks())
+        printf("ERROR: Memory leak detected\n");
 #endif
 
     return EXIT_SUCCESS;
