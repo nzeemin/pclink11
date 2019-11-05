@@ -422,14 +422,13 @@ void symbol_table_delete(int index)
 // ADD A REFERENCED SYMBOL TO THE UNDEFINED LIST, see LINK3\ADDUDF
 void symbol_table_add_undefined(int index)
 {
-    assert(index > 0);
-    assert(index < SymbolTableSize);
+    assert(index > 0 && index < SymbolTableSize);
     assert(SymbolTable != nullptr);
 
     if (Globals.UNDLST != 0)
     {
         SymbolTableEntry* oldentry = SymbolTable + Globals.UNDLST;
-        oldentry->value = (uint16_t)(oldentry->value | index);  // set back reference
+        oldentry->value = (uint16_t)index;  // set back reference
     }
 
     SymbolTableEntry* entry = SymbolTable + index;
@@ -445,8 +444,7 @@ void symbol_table_add_undefined(int index)
 // REMOVE A ENTRY FROM THE UNDEFINED LIST, see LINK3\REMOVE
 void symbol_table_remove_undefined(int index)
 {
-    assert(index > 0);
-    assert(index < SymbolTableSize);
+    assert(index > 0 && index < SymbolTableSize);
     assert(SymbolTable != nullptr);
 
     SymbolTableEntry* entry = SymbolTable + index;
@@ -457,7 +455,7 @@ void symbol_table_remove_undefined(int index)
     else
     {
         SymbolTableEntry* preventry = SymbolTable + previndex;
-        preventry->status = entry->status;
+        preventry->status = (preventry->status & 0170000) | (entry->status & 07777);
     }
     if (nextindex != 0)
     {
@@ -961,7 +959,7 @@ void process_pass1_gsd_item_symnam(const uint16_t* itemw)
         else  // OLD SYMBOL, see LINK3\DEFREF
         {
             SymbolTableEntry* entry = SymbolTable + index;
-            if ((entry->status & 0100000/*SY.UDF*/) == 0)  // DEFINED BEFORE?
+            if ((entry->status & SY_UDF) == 0)  // DEFINED BEFORE?
             {
                 // SYMBOL WAS DEFINED BEFORE, ABSOLUTE SYMBOLS WITH SAME VALUE NOT MULTIPLY DEFINED
                 if ((itemw[2] & 040/*SY$REL*/) != 0 || entry->value != itemw[3])
@@ -970,7 +968,7 @@ void process_pass1_gsd_item_symnam(const uint16_t* itemw)
             else  // DEFINES A REFERENCED SYMBOL, see LINK3\DEFREF\130$
             {
                 symbol_table_remove_undefined(index);  // REMOVE ENTRY FROM UNDEFINED LIST
-                entry->status &= ~(0117777);  // CLR SY.UDF+SY.WK+^CSY.ENB
+                entry->status &= ~(SY_UDF | SY_WK | 07777);  // CLR SY.UDF+SY.WK+^CSY.ENB
                 //TODO: IF INPUT SEG # .NE. SYM SEG # THEN SET EXTERNAL REFERENCE BIT
                 //TODO: CLEAR SEGMENT # BITS & SET SEGMENT # WHERE DEFINED
                 entry->value = itemw[3] + Globals.BASE;
@@ -1008,14 +1006,16 @@ void process_pass1_gsd_item_symnam(const uint16_t* itemw)
             symbol_table_add_undefined(index);
 
             SymbolTableEntry* entry = SymbolTable + index;
-            if ((itemw[2] & 1/*SY$WK*/) != 0) entry->flagseg |= 010000/*SY.WK*/;  // SET WEAK BIT
+            if ((itemw[2] & 1/*SY$WK*/) != 0)  // IS REFERENCE WEAK?
+                entry->status |= SY_WK;  // SET WEAK BIT
         }
         else // Symbol is found
         {
             SymbolTableEntry* entry = SymbolTable + index;
-            if ((itemw[2] & 001/*SY$WK*/) != 0)  // IS THIS A STRONG REFERENCE?
+            if ((itemw[2] & 1/*SY$WK*/) == 0)  // IS THIS A STRONG REFERENCE?
                 entry->status &= ~SY_WK;  // YES, SO MAKE SURE WEAK BIT IS CLEARED
-            //TODO
+            //TODO: GET SYMBOL FLAG WD & ISOLATE SEGMENT #
+            //TODO: IF INPUT SEG # .NE. SYM SEG # THEN SET EXTERNAL REFERENCE BIT
             if (Globals.SW_LML & 0100000)  // ARE WE ON LIB. PREPROCESS PASS?
                 Globals.FLGWD |= 020/*AD.LML*/;  // IND TO ADD TO LML LATER IF LIBRARY CAUSED A NEW UNDEF SYM
         }
@@ -1073,7 +1073,7 @@ void process_pass1_gsd_item_psecnm(const uint16_t* itemw, int& itemflags)
     SymbolTableEntry* entry = SymbolTable + index;
 
     if (itemflags & 1/*CS$SAV*/) // DOES PSECT HAVE SAV ATTRIBUTE?
-        entry->status |= 1/*CS$SAV*/; // INDICATE SAV ATTRIBUTE IN PSECT ENTRY
+        entry->status |= SY_SAV; // INDICATE SAV ATTRIBUTE IN PSECT ENTRY
     itemflags &= ~(010/*CS$NU*/ | 2/*CS$LIB*/ | 1/*CS$SAV*/); // ALL UNSUPPORTED FLAG BITS
     Globals.CSECT = index;  // PTR TO SYM TBL ENTRY
     if (isnewentry)
@@ -1547,7 +1547,6 @@ void process_pass15()
         {
             Globals.FLGWD &= ~AD_LML;  // CLEAR NEW UNDF FLAG
 
-            //printf("  Processing %s (%d)\n", sscur->filename, j);
             printf("  Processing %s (%d), %06o\n", sscur->filename, j, Globals.BASE);
             process_pass15_library(sscur);
 
@@ -1564,11 +1563,13 @@ void process_pass15()
         {
             SymbolTableEntry* entry = SymbolTable + index;
             uint16_t nextindex = entry->nextindex();
-            if ((entry->status & SY_WK) == 0)  // GET A WEAK SYMBOL FROM THE UNDEFINED SYMBOL TABLE LIST
+            if ((entry->status & SY_WK) != 0)  // GET A WEAK SYMBOL FROM THE UNDEFINED SYMBOL TABLE LIST
             {
                 // WE HAVE A WEAK SYMBOL. NOW DEFINE IT WITH ABS VALUE OF 0
+                // CSECT = ASECT
+                Globals.BASE = 0;  // CLEAR BASE SINCE WE ARE IN .ABS PSECT
                 symbol_table_remove_undefined(index);  // REMOVE ENTRY FROM UNDEFINED LIST
-                entry->status &= ~(0117777);  // CLR SY.UDF+SY.WK+^CSY.ENB
+                entry->status &= ~(SY_UDF | SY_WK | 07777);  // CLR SY.UDF+SY.WK+^CSY.ENB
                 //TODO: IF INPUT SEG # .NE. SYM SEG # THEN SET EXTERNAL REFERENCE BIT
                 //TODO: CLEAR SEGMENT # BITS & SET SEGMENT # WHERE DEFINED
                 entry->value = 0;
@@ -2742,6 +2743,7 @@ void parse_commandline_option(const char* cur)
         break;
 
     case 'M':  // /M - MODIFY INITIAL STACK
+        //TODO: Ability to assign a symbol like /M:SYMBOL
         result = sscanf(cur, ":%ho", &param1);
         if (result < 1)
             fatal_error("Invalid /M option, use /M:addr\n");
