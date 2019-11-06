@@ -1566,15 +1566,17 @@ void process_pass15()
             if ((entry->status & SY_WK) != 0)  // GET A WEAK SYMBOL FROM THE UNDEFINED SYMBOL TABLE LIST
             {
                 // WE HAVE A WEAK SYMBOL. NOW DEFINE IT WITH ABS VALUE OF 0
-                // CSECT = ASECT
+                Globals.CSECT = 0;  // ALL WEAK SYMBOLS GO IN . ABS. PSECT
                 Globals.BASE = 0;  // CLEAR BASE SINCE WE ARE IN .ABS PSECT
                 symbol_table_remove_undefined(index);  // REMOVE ENTRY FROM UNDEFINED LIST
                 entry->status &= ~(SY_UDF | SY_WK | 07777);  // CLR SY.UDF+SY.WK+^CSY.ENB
+                entry->flagseg = 4 * 0400 | 010/*SY$DEF*/;  // PUT ENTRY TYPE AND FLAG BYTES IN ENTRY
                 //TODO: IF INPUT SEG # .NE. SYM SEG # THEN SET EXTERNAL REFERENCE BIT
                 //TODO: CLEAR SEGMENT # BITS & SET SEGMENT # WHERE DEFINED
-                entry->value = 0;
+                entry->value = 0;  // VALUE WORD IS 0
 
                 pass1_insert_entry_into_ordered_list(index, entry, true);
+                print_symbol_table();//DEBUG
             }
             index = nextindex;  // GO DO NEXT SYMBOL
         }
@@ -2818,11 +2820,11 @@ void parse_commandline_option(const char* cur)
         //    //TODO
         //    break;
 
-        //case 'R':  // /R[:stacksize] - INDICATE FOREGROUND LINK
-        //    result = sscanf(cur, ":%ho", &param1);
-        //    Globals.SWITCH |= SW_R;
-        //    //TODO
-        //    break;
+    case 'R':  // /R[:stacksize] - INDICATE FOREGROUND LINK
+        //result = sscanf(cur, ":%ho", &param1);
+        Globals.SWITCH |= SW_R;
+        //TODO
+        break;
 
         //case 'V':  // /XM, OR /V ON 1ST LINE
         //    result = sscanf(cur, ":%ho", &param1);
