@@ -41,9 +41,6 @@ void fatal_error(const char* message, ...);
 void warning_message(const char* message, ...);
 
 
-void print_symbol_table();
-
-
 /////////////////////////////////////////////////////////////////////////////
 
 const uint16_t LINPPG = 60; // NUMBER OF LINES PER PAGE FOR MAP
@@ -186,6 +183,9 @@ struct SaveStatusEntry
     bool     islibrary;
     uint8_t* data;
 };
+const int SaveStatusAreaSize = 31;
+extern SaveStatusEntry SaveStatusArea[];
+extern int SaveStatusCount;
 
 // **** SYMBOL TABLE STRUCTURE
 struct SymbolTableEntry
@@ -200,6 +200,10 @@ struct SymbolTableEntry
     uint8_t seg() const { return flagseg & 0xff; }
     uint16_t nextindex() const { return status & 07777; }
 };
+const int SymbolTableSize = 4095;  // STSIZE
+extern SymbolTableEntry* SymbolTable;
+extern SymbolTableEntry* ASECTentry;
+extern int SymbolTableCount;  // STCNT -- SYMBOL TBL ENTRIES COUNTER
 
 struct LibraryModuleEntry
 {
@@ -211,12 +215,18 @@ struct LibraryModuleEntry
 
     size_t offset() const { return relblockno * 512 + byteoffset; }
 };
+const int LibraryModuleListSize = 512; // NUMBER OF LIBRARY MOD LIST ENTRIES (0252 DEFAULT, 0525 FOR RSTS)
+extern LibraryModuleEntry LibraryModuleList[];
+extern int LibraryModuleCount;  // Count of records in LibraryModuleList, see LMLPTR
 
 struct ModuleSectionEntry
 {
     uint16_t stindex;        // SymbolTable index
     uint16_t size;           // Section size
 };
+const int ModuleSectionTableSize = 256;
+extern ModuleSectionEntry ModuleSectionTable[];
+extern int ModuleSectionCount;
 
 
 struct tagGlobals
@@ -384,6 +394,65 @@ struct tagGlobals
     //uint16_t    CBPTR;  // DEFAULT IS NO CREF
 };
 extern struct tagGlobals Globals;
+
+extern uint8_t* OutputBuffer;
+extern size_t OutputBufferSize;
+extern int OutputBlockCount;
+
+extern FILE* outfileobj;
+extern FILE* mapfileobj;
+extern FILE* stbfileobj;
+
+extern char savfilename[];
+
+
+/////////////////////////////////////////////////////////////////////////////
+
+
+void symbol_table_enter(int* pindex, uint32_t lkname, uint16_t lkwd);
+
+void symbol_table_delete(int index);
+
+void symbol_table_add_undefined(int index);
+
+void symbol_table_remove_undefined(int index);
+
+bool is_any_undefined();
+
+bool symbol_table_dlooke(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk, int* pindex);
+
+bool symbol_table_lookup(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk, int* pindex);
+
+bool symbol_table_looke(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk, int* pindex);
+
+bool symbol_table_search(uint32_t lkname, uint16_t lkwd, uint16_t lkmsk, int* pindex);
+
+void print_lml_table();
+
+void print_symbol_table();
+
+void mst_table_clear();
+
+void print_mst_table();
+
+
+void process_pass1();
+
+void process_pass15();
+
+void process_pass1_endp1();
+
+void process_pass_map_init();
+
+void process_pass_map_done();
+
+void process_pass_map_output();
+
+void process_pass2_init();
+
+void process_pass2();
+
+void process_pass2_done();
 
 
 /////////////////////////////////////////////////////////////////////////////
