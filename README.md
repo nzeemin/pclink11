@@ -54,6 +54,7 @@ Second priority:
  - Reduce amount of logging, add option for verbosity level
 
 Not implemented now, and not sure we will:
+ - Link for foreground execution
  - LDA output - produce a file in absolute binary loader format
  - Overlays
  - Linkage with separated instructions/data spaces

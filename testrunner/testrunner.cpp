@@ -223,6 +223,8 @@ void process_test(const TestDescriptor & test)
     rename_file(testdirpath, filenamesav, string(test.name) + "-my.SAV");
     string filenamesys = findfile_bymask(testdirpath, string(test.name) + ".SYS");
     rename_file(testdirpath, filenamesys, string(test.name) + "-my.SAV");
+    string filenamerel = findfile_bymask(testdirpath, string(test.name) + ".REL");
+    rename_file(testdirpath, filenamerel, string(test.name) + "-my.SAV");
     string filenamemap = findfile_bymask(testdirpath, string(test.name) + ".MAP");
     rename_file(testdirpath, filenamemap, string(test.name) + "-my.MAP");
     string filenamestb = findfile_bymask(testdirpath, string(test.name) + ".STB");

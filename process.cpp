@@ -940,7 +940,15 @@ void process_pass_map_init()
     {
         memcpy(savfilename, SaveStatusArea[0].filename, 64);
         char* pext = strrchr(savfilename, '.');
-        pext++; *pext++ = 'S'; *pext++ = 'A'; *pext = 'V';
+        pext++;
+        if (Globals.SWITCH & SW_R)
+        {
+            *pext++ = 'R'; *pext++ = 'E'; *pext = 'L';
+        }
+        else
+        {
+            *pext++ = 'S'; *pext++ = 'A'; *pext = 'V';
+        }
     }
 
     if (Globals.FlagSTB) // IS THERE AN STB FILE?
@@ -1658,7 +1666,15 @@ void process_pass2_init()
     if (Globals.SWITCH & SW_K)  // For /K switch STORE IT AT LOC. 56 IN SYSCOM AREA
         *((uint16_t*)(OutputBuffer + SysCom_HIGH + 6)) = Globals.KSWVAL;
 
-    //TODO: SYSCOM AREA FOR REL FILE
+    // SYSCOM AREA FOR REL FILE
+    if (Globals.SWITCH & SW_R)
+    {
+        *((uint16_t*)(OutputBuffer + 052)) = Globals.BOTTOM;  // LESS BASE TO GET ACTUAL CODE SIZE
+        *((uint16_t*)(OutputBuffer + 054)) = Globals.KSWVAL;  // SIZE OF STACK IN BYTES
+        //TODO: SIZE OF /O OVERLAY REGIONS IN BYTES, 0 IF NO OVERLAYS
+        *((uint16_t*)(OutputBuffer + 060)) = rad50("REL", nullptr);  // REL FILE ID
+        //TODO: RELATIVE BLOCK NUMBER OF START OF RELOCATION INFORMATION
+    }
 
     //TODO: BINOUT REQUESTED?
 

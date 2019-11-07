@@ -63,9 +63,9 @@ void initialize()
     Globals.BEGBLK.flags = 0100/*CS$GBL*/ | 04/*CS$ALO*/;
     Globals.BEGBLK.value = 000001;  // INITIAL TRANSFER ADR TO 1
     //TODO
-    Globals.DBOTTM = 01000;
-    Globals.BOTTOM = 01000;
-    Globals.KSWVAL = 128/*RELSTK*/;
+    Globals.DBOTTM = 01000;  // INITIAL BOTTOM ADR
+    Globals.BOTTOM = 01000;  // INITIAL D-SPACE BOTTOM ADR
+    Globals.KSWVAL = 128/*RELSTK*/;  // DEFAULT REL FILE STACK SIZE
 }
 
 // Free all memory, close all files
@@ -150,6 +150,7 @@ void parse_commandline_option(const char* cur)
     if (strncmp(cur, "EXECUTE:", 8) == 0) //TODO: or /SAV
     {
         strcpy(savfilename, cur + 8);
+        //TODO: Validate the name as a proper filename
         return;
     }
 
@@ -167,6 +168,7 @@ void parse_commandline_option(const char* cur)
         Globals.SWITCH |= SW_X;
         return;
     }
+
     // /SYMBOLTABLE /STB - Generates a symbol table file
     if (strcmp(cur, "SYMBOLTABLE") == 0 || strcmp(cur, "STB") == 0)
     {
@@ -185,6 +187,15 @@ void parse_commandline_option(const char* cur)
     if (strcmp(cur, "ALPHABETIZE") == 0 || strcmp(cur, "A") == 0)
     {
         Globals.SWITCH |= SW_A;
+        return;
+    }
+
+    // /FOREGROUND /R[:stacksize] - INDICATE FOREGROUND LINK
+    if (strcmp(cur, "FOREGROUND") == 0 || strcmp(cur, "R") == 0)
+    {
+        //result = sscanf(cur, ":%ho", &param1);
+        Globals.SWITCH |= SW_R;
+        //TODO: stacksize
         return;
     }
 
@@ -276,12 +287,6 @@ void parse_commandline_option(const char* cur)
         //    //TMPIDI = I.SWZ;
         //    //TODO
         //    break;
-
-    case 'R':  // /R[:stacksize] - INDICATE FOREGROUND LINK
-        //result = sscanf(cur, ":%ho", &param1);
-        Globals.SWITCH |= SW_R;
-        //TODO
-        break;
 
         //case 'V':  // /XM, OR /V ON 1ST LINE
         //    result = sscanf(cur, ":%ho", &param1);
