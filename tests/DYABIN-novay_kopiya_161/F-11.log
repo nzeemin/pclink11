@@ -1,0 +1,20 @@
+
+
+.COPY L.COM F.SAV
+
+.R LINK
+*F,F.MAP,F.STB/M:100000/Q=TEKLIB.LIB,FK,FP/C
+*DPSP,PMAG,TEKDAT/C
+*FKP/C
+*F100/C
+*FKL,FDKL,FD,FD1,FDM,FDD/C
+*FKFO/C
+*PSDISK,MAG,TEKCOD/C
+*F160/C
+*FPM,FPM1,FLT,TSTHLT,FPM2/C
+*FSM,FDP,TESTUK,FNK
+Load section:address? PSP:2000
+Load section:address? PS100:100000
+Load section:address? PS160:160000
+Load section:address? 
+*^C

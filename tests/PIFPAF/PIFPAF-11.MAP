@@ -1,0 +1,10 @@
+RT-11 LINK  V05.45 	Load Map 	Thursday 07-Nov-2019 15:49  Page 1
+PIFPAF.SAV   	Title:	PIFPAF	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
+ $$GAME	 001000	035562 = 7609.   words  (RW,I,LCL,REL,CON)
+			START 	001000	
+
+Transfer address = 001000, High limit = 036560 = 7864.   words

@@ -35,8 +35,8 @@ Examples:
 ## Testing Strategy
 Folder `tests` contains several dozens sub-folders with .OBJ files.
 
-First, we use [RT-11 simulator](http://emulator.pdp-11.org.ru/RT-11/distr/) written by Dmitry Patronov to produce "etalon"/"original" SAV/SYS, MAP, STB and log files, they renamed with `-11` suffix — see `!runtest11.cmd` command file.
-Then, we run the `pclink11` with to produce "our" SAV/SYS, MAP, STB and log files, they renamed with `-my` suffix — see `!runtestmy.cmd` command file and `testrunner` utility.
+First, we use [RT-11 simulator](http://emulator.pdp-11.org.ru/RT-11/distr/) written by Dmitry Patronov to produce "etalon"/"original" output files, they renamed with `-11` suffix — see `!runtest11.cmd` command file.
+Then, we run the `pclink11` with to produce "our" output files, they renamed with `-my` suffix — see `!runtestmy.cmd` command file and `testrunner` utility.
 And finally, we compare "original" files with "our" files, line-to-line or byte-to-byte, using `testanalyzer` utility.
 
 "Our" MAP files differs in the first line (program name, date/time, no page number), and there's no paging, so no page header lines.
@@ -49,7 +49,7 @@ First priority:
  - Fix bugs for the failing test cases
  
 Second priority:
- - More tests, currently we have 88 test cases
+ - More tests, currently we have 94 test cases
  - Compile under Linux/MacOS, configure CI to compile under Linux/MacOS on every commit
  - Reduce amount of logging, add option for verbosity level
 
