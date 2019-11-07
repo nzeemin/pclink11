@@ -340,10 +340,10 @@ void print_mst_table()
         const ModuleSectionEntry* mstentry = ModuleSectionTable + m;
         const SymbolTableEntry* entry = SymbolTable + mstentry->stindex;
         printf("    #%04d index %06ho '%s' size %06ho flagseg %06ho value %06ho\n",
-            (uint16_t)m, mstentry->stindex,
-            mstentry->stindex == 0 ? "" : entry->unrad50name(),
-            mstentry->size,
-            entry->flagseg, entry->value);
+               (uint16_t)m, mstentry->stindex,
+               mstentry->stindex == 0 ? "" : entry->unrad50name(),
+               mstentry->size,
+               entry->flagseg, entry->value);
     }
 }
 

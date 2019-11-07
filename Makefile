@@ -4,9 +4,9 @@ CXXFLAGS = -std=c++11 -O3 -Wall
 SOURCES_DUMPOBJ = dumpobj/dumpobj.cpp
 SOURCES_TESTRUNNER = testrunner/testrunner.cpp testrunner/testlist.cpp
 SOURCES_TESTANALYZER = testanalyzer/testanalyzer.cpp
-SOURCES = main.cpp util.cpp $(SOURCES_DUMPOBJ) $(SOURCES_TESTANALYZER) $(SOURCES_TESTRUNNER)
+SOURCES = main.cpp util.cpp tables.cpp process.cpp $(SOURCES_DUMPOBJ) $(SOURCES_TESTANALYZER) $(SOURCES_TESTRUNNER)
 
-OBJECTS_PCLINK11 = main.o util.o
+OBJECTS_PCLINK11 = main.o util.o tables.o process.o
 OBJECTS_DUMPOBJ = dumpobj/dumpobj.o
 OBJECTS_TESTRUNNER = testrunner/testrunner.o testrunner/testlist.o
 OBJECTS_TESTANALYZER = testanalyzer/testanalyzer.o
