@@ -3,8 +3,42 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <assert.h>
+#include <stdarg.h>
 
 #include "main.h"
+
+
+/////////////////////////////////////////////////////////////////////////////
+
+
+void fatal_error(const char* message, ...)
+{
+    assert(message != nullptr);
+
+    printf("ERROR: ");
+    {
+        va_list ptr;
+        va_start(ptr, message);
+        vprintf(message, ptr);
+        va_end(ptr);
+    }
+
+    exit(EXIT_FAILURE);
+}
+
+void warning_message(const char* message, ...)
+{
+    assert(message != nullptr);
+
+    printf("WARNING: ");
+    {
+        va_list ptr;
+        va_start(ptr, message);
+        vprintf(message, ptr);
+        va_end(ptr);
+    }
+}
 
 
 /////////////////////////////////////////////////////////////////////////////

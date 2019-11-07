@@ -19,66 +19,22 @@
 
 /////////////////////////////////////////////////////////////////////////////
 
-struct SaveStatusEntry
-{
-    char     filename[64];
-    size_t   filesize;
-    bool     islibrary;
-    uint8_t* data;
-};
+
 const int SaveStatusAreaSize = 31;
 SaveStatusEntry SaveStatusArea[SaveStatusAreaSize];
 int SaveStatusCount = 0;
 
 char savfilename[64] = { 0 };
 
-// **** GSD ENTRY STRUCTURE
-struct GSDentry
-{
-    uint32_t    symbol;     // SYMBOL CHARS 1-6(RAD50)
-    uint8_t     flags;      // FLAGS
-    uint8_t     code;       // CODE BYTE
-    uint16_t    value;      // SIZE OR OFFSET
-};
-
-// **** SYMBOL TABLE STRUCTURE
-struct SymbolTableEntry
-{
-    uint32_t    name;       // 2 WD RAD50 NAME
-    uint16_t    flagseg;    // PSECT FLAGS !  SEG #
-    uint16_t    value;      // VALUE WORD
-    uint16_t    status;     // A!B!C!D!  ENTRY # PTR
-
-    const char* unrad50name() const { return unrad50(name); }
-    uint8_t flags() const { return (flagseg >> 8); }
-    uint8_t seg() const { return flagseg & 0xff; }
-    uint16_t nextindex() const { return status & 07777; }
-};
-
 SymbolTableEntry* SymbolTable = nullptr;
 SymbolTableEntry* ASECTentry = nullptr;
 const int SymbolTableSize = 4095;  // STSIZE
 int SymbolTableCount = 0;  // STCNT -- SYMBOL TBL ENTRIES COUNTER
 
-struct LibraryModuleEntry
-{
-    uint8_t  libfileno;     // LIBRARY FILE # (8 BITS) 1-255
-    uint16_t relblockno;    // REL BLK # (15 BITS)
-    uint16_t byteoffset;    // BYTE OFFSET (9 BITS)
-    uint8_t  passno;        // Pass 0 - not passed yet
-    uint16_t segmentno;     // SEGMENT NUMBER FOR THIS MODULE
-
-    size_t offset() const { return relblockno * 512 + byteoffset; }
-};
 const int LibraryModuleListSize = 512; // NUMBER OF LIBRARY MOD LIST ENTRIES (0252 DEFAULT, 0525 FOR RSTS)
 LibraryModuleEntry LibraryModuleList[LibraryModuleListSize];
 int LibraryModuleCount = 0;  // Count of records in LibraryModuleList, see LMLPTR
 
-struct ModuleSectionEntry
-{
-    uint16_t stindex;        // SymbolTable index
-    uint16_t size;           // Section size
-};
 const int ModuleSectionTableSize = 256;
 ModuleSectionEntry ModuleSectionTable[ModuleSectionTableSize];
 int ModuleSectionCount = 0;
@@ -165,211 +121,7 @@ FILE* outfileobj = nullptr;
 FILE* mapfileobj = nullptr;
 FILE* stbfileobj = nullptr;
 
-
-// Macros used to mark and detect unimplemented but needed
-#define NOTIMPLEMENTED { printf("*** NOT IMPLEMENTED, line %d\n", __LINE__); }
-
-
-/////////////////////////////////////////////////////////////////////////////
-
-
-struct tagGlobals
-{
-    //uint16_t    ODBLK[15]; // BLOCK TO HOLD BINOUT SPEC
-    // LNKOV1->STORE TIME TO ROLL OVER DATE
-    //uint16_t    TEMP; // TEMPORARY STORAGE
-    uint8_t     TXTBLK[RECSIZ];  // SPACE FOR A FORMATTED BINARY RECORD
-
-    int         UNDLST; // START OF UNDEFINED SYMBOL LIST
-    uint16_t    SYEN0;  // ADR OF SYMBOL TABLE ENTRY NUMBER 0
-    // REL PTR + THIS = ABS ADDR OF SYMBOL NODE
-    int         CSECT;  // PTR TO LATEST SECTION (PASS1)
-
-    //uint16_t    PA2LML; // START OF LML BUFR
-    // LNKOV1->TEMP. SEGMENT POINTER
-    //uint16_t    LMLPTR; // CURRENT PTR TO LIBRARY MOD LIST
-    //uint16_t    STLML;  // CURRENT START OF LMLPTR IF MULTI-LIBR FILES
-    //uint16_t    ENDLML; // END OF LIB MOD LIST
-    //uint16_t    ESZRBA; // SIZE OF CURRENT LIBRARY EPT
-    // RELOCATION INFO OUTPUT BUFR ADR
-    //uint16_t    OVCOUN; // NO. OF OVERLAY ENTRY PTS.
-    //uint16_t    OVSPTR; // PTR TO OVERLAY SEGMENT BLK
-    uint8_t     PAS1_5; // PASS 1.5 SWITCH(0 ON PASS1, 1 IF TO DO LIBRARY,
-    // BIT 7 SET IF DOING LIBRARIES
-    uint8_t     DUPMOD; // 1 IF LIB MOD IS DUP
-    // 0 IF LIB MOD IS NOT DUP
-    uint8_t     NUMCOL; // NUMBER OF COLUMNS WIDE FOR MAP
-    // IND + OR - RELOCATION DURING PASS 2
-    uint8_t     LIBNB;  // LIBRARY FILE NUMBER FOR LML
-
-    uint16_t    SWITCH; // SWITCHES FROM CSI (SEE "LINK1" FOR DETAILS)
-    uint16_t    SWIT1;  // Switches
-    //uint16_t    FILPT1; // START OF SAVESTATUS AREA -4
-
-    // VARIABLES FOR PROGRAM BEING LINKED
-    uint16_t    HGHLIM; // MAX # OF SECTIONS IN ANY MODULE PROCESSED
-    // HIGHEST LOCATION USED BY PROGRAM (I-SPACE)
-    uint16_t    DHGHLM; // MAX # OF SECTIONS IN ANY MODULE PROCESSED
-    // HIGHEST LOCATION USED BY PROGRAM (D-SPACE)
-
-    GSDentry BEGBLK; // TRANSFER ADDRESS BLOCK (4 WD GSD ENTRY)
-    //   TRANS ADDR OR REL OFFSET FROM PSECT
-
-    uint16_t    STKBLK[3]; // USER STACK ADDRESS BLOCK(SYMBOL & VALUE)
-    // LNKSAV->TEMP 4 WORD STORAGE FOR GSD RECORD
-
-    //uint16_t    HSWVAL; // /H SWITCH VALUE - I-SPACE
-    //uint16_t    DHSWVL; // /H SWITCH VALUE - D-SPACE
-
-    //uint16_t    ESWVAL; // /E SWITCH VALUE - I-SPACE
-    //uint32_t    ESWNAM; // /E SWITCH NAME - I-SPACE
-    //uint16_t    DESWVL; // /E SWITCH VALUE - D-SPACE
-    //uint32_t    DESWNM; // /E SWITCH NAME - D-SPACE
-    uint16_t    KSWVAL; // /K SWITCH VALUE OR STACK SIZE FOR REL FILE
-    //uint16_t    YSWNAM[25]; // /Y SECTION NAME ARRAY(TEMP OVERLAY # IN OV1 & SAV)
-    // +2 NEXT ASSIGNABLE OUTPUT BLK(LNKMAP)
-    //    RELOCATION INFO BLOCK #(LNKSAV) - I-SPACE
-    // YSWVAL==YSWNAM+4
-    //uint16_t    DYSWNM[25];
-    // DYSWVL==DYSWNM+4
-    //uint8_t     YSWT;   // SAY WE ARE USING /Y
-    //uint8_t     YCNT;   // NUMBER OF TIMES TO PROMPT FOR /Y (SET IN LINK2)
-    uint16_t    DEFALT; // DEFAULT BOUNDARY VALUE FOR /Y (SET IN LINK2)
-    //uint16_t    USWVAL; // /U SWITCH VALUE - I-SPACE
-    //uint32_t    USWNAM; // /U SWITCH NAME - I-SPACE
-    //uint16_t    DUSWVL; // /U SWITCH VALUE - D-SPACE
-    //uint32_t    DUSWNM; // /U SWITCH NAME - D-SPACE
-    //uint16_t    QSWVAL; // /Q BUFFER POINTER
-    //uint16_t    ZSWVAL; // /Z SWITCH VALUE - I-SPACE
-    //uint16_t    DZSWVL; // /Z SWITCH VALUE - D-SPACE
-    uint16_t    LRUNUM; // USED TO COUNT MAX # OF SECTIONS AND AS
-    //  TIME STAMP FOR SAV FILE CACHING
-    //uint16_t    BITBAD; // -> START OF BITMAP TABLE (D-SPACE IF /J USED)
-    //uint16_t    IBITBD; // -> START OF I-SPACE BITMAP TABLE
-    uint8_t     BITMAP[16]; // CONTAINS BITMAP OR IBITBD (IF /J USED)
-    //uint16_t    CACHER; // -> CACHE CONTROL BLOCKS
-    uint16_t    NUMBUF; // NUMBER OF AVAILABLE CACHING BLOCKS (DEF=3)
-    uint16_t    BASE;   // BASE OF CURRENT SECTION
-    uint16_t    CKSUM;  // CHECKSUM FOR STB & LDA OUTPUT
-    // LNKOV1->TEMP LINK POINTER TO NEW REGION BLK
-    // CURRENT REL BLK OVERLAY NUM
-    //uint16_t    ENDRT;  // END OF ROOT SYMBOL TBL LIST
-    uint16_t    VIRSIZ; // LARGEST REGION IN A PARTITION
-    //uint16_t    REGION; // XM REGION NUMBER
-    //uint16_t    WDBCNT; // WDB TABLE SIZE ( 14. * NUMBER OF PARTITIONS)
-    uint16_t    HIPHYS; // HIGH LIMIT FOR EXTENDED MEMORY (96K MAX)
-    uint16_t    SVLML;  // START OF LML LIST FOR WHOLE LIBRARY
-    uint16_t    SW_LML; // LML INTO OVERLAY SWITCH, AND PASS INDICATOR
-    //uint16_t    LOC0;   // USED FOR CONTENTS OF LOC 0 IN SAV HEADER
-    //uint16_t    LOC66;  // # /O SEGMENTS SAVED FOR CONVERSION TO ADDR OF
-    //  /V SEGS IN OVERLAY HANLDER TABLE
-    //uint16_t    LSTFMT; // CREF LISTING FORMAT (0=80COL, -1=132COL)
-
-    // I-D SPACE VARIABLES
-
-    //uint16_t    IDSWIT; // BITMASK WORD FOR WHICH SWITCHES USE SEPARATED
-    // I-D SPACE
-    // D-SPACE, LOW BYTE, I-SPACE, HI BYTE
-    //uint16_t    ILEN;   // TOTAL LENGTH OF I-SPACE PSECTS IN WORDS
-    //uint16_t    DLEN;   // TOTAL LENGTH OF D-SPACE PSECTS IN WORDS
-    //uint16_t    IBLK;   // TOTAL LENGTH OF I-SPACE PSECTS IN BLOCKS
-    //uint16_t    DBLK;   // TOTAL LENGTH OF D-SPACE PSECTS IN BLOCKS
-    //uint16_t    IROOT;  // SIZE OF THE I-SPACE ROOT IN WORDS
-    //uint16_t    DROOT;  // SIZE OF THE D-SPACE ROOT IN WORDS
-    //uint16_t    IBASE;  // START OF THE I BASE (BLOCKS)
-    //uint16_t    DBASE;  // START OF THE D BASE (BLOCKS)
-    //uint16_t    ILOC40; // CONTENTS OF LOC 40 FOR I-SPACE CCB
-    //uint16_t    IFLG;   // NON-ZERO MEANS WRITING I-SPACE BITMAP
-    //uint16_t    IDSTRT; // I-D SPACE ENTRY POINT ($OVRHZ)
-    //uint16_t    ZTAB;   // I-D SPACE START ADDRESS OF PSECT $ZTABL
-    //uint16_t    OVRCNT; // # OF OVERLAY SEGMENTS, USED FOR COMPUTING $OVDF6
-    //uint16_t    DSGBAS; // PASS 2 BASE ADR OF D-SPACE OVERLAY SEGMENT
-    //uint16_t    DSGBLK; // PASS 2 BASE BLK OF D-SPACE OVERLAY SEGMENT
-
-    uint32_t    MODNAM; // MODULE NAME, RAD50
-    // LDA OUTPUT BUFR PTR OR REL INFO BUFR PTR
-    uint32_t    IDENT;  // PROGRAM IDENTIFICATION
-    // "RELADR" ADR OF RELOCATION CODE IN TEXT OF REL FILE
-    // +2 "RELOVL" NEXT REL BLK OVERLAY #
-
-    //uint16_t    ASECT[8];
-
-    //uint16_t    DHLRT;  // D-SPACE HIGH ADDR LIMIT OF REGION (R.GHLD)
-    uint16_t    DBOTTM; // ST ADDR OF REGION AREA - D-SPACE (R.GSAD)
-    //uint16_t    DBOTTM_2; // REGION NUMBER (R.GNB)
-    //uint16_t    OVRG1;  // -> NEXT ORDB (R.GNXP)
-    //uint16_t    OVRG1_2; // -> OSDB THIS REGION (R.GSGP)
-    //uint16_t    HLRT;   // HIGH LIMIT OF AREA (R.GHL)
-    uint16_t    BOTTOM; // ST ADDR OF REGION AREA - (I-SPACE IF /J USED)
-
-    //uint16_t    CBUF;   // START OF CREF BUFFER
-    //uint16_t    CBEND;  // CBUF + 512. BYTES FOR A 1 BLOCK CREF BUFFER
-    //uint16_t    QAREA[10]; // EXTRA QUEUE ELEMENT
-    //uint16_t    PRAREA[5]; // AREA FOR PROGRAMMED REQUESTS
-
-    //uint16_t    EIB512; // IBUF + 512. BYTES FOR A 1 BLOCK MAP BUFR
-    uint16_t    SEGBAS; // BASE OF OVERLAY SEGMENT
-    uint16_t    SEGBLK; // BASE BLK OF OVERLAY SEGMENT
-    uint16_t    TXTLEN; // TEMP FOR /V SWITCH
-    uint16_t    LINLFT; // NUMBER OF LINES LEFT ON CURRENT MAP PAGE
-
-    // The following globals are defined inside the code
-
-    uint16_t    FLGWD;  // INTERNAL FLAG WORD
-    bool        FlagSTB;  // STB FILE REQUESTED
-    bool        FlagMAP;  // MAP FILE REQUESTED
-    //uint16_t    ENDOL;  // USE FOR CONTINUE SWITCHES /C OR //
-    uint16_t    SEGNUM; // KEEP TRACK OF INPUT SEGMENT #'S
-
-    // INPUT BUFFER INFORMATION
-
-    uint16_t    IRAREA; // CHANNEL NUMBER AND .READ EMT CODE
-    uint16_t    CURBLK; // RELATIVE INPUT BLOCK NUMBER
-    //uint16_t    IBUF;   // INPUT BUFR ADR(ALSO END OF OUTPUT BUFR (OBUF+512))
-    //uint16_t    IBFSIZ; // INPUT BUFR SIZE (MULTIPLE OF 256) WORD COUNT
-
-    //uint16_t    OBLK;   // RELATIVE OUTPUT BLOCK #
-    //uint16_t    OBUF;   // OUTPUT BUFR ADR
-
-    //uint16_t    MBLK;   // OUTPUT BLK # (INIT TO -1 FOR BUMP BEFORE WRITE)
-    uint16_t    MBPTR;  // OUTPUT BUFR POINTER (0 MEANS NO MAP OUTPUT)
-
-    //uint16_t    CBLK;   // OUTPUT BLK # (INIT TO -1 FOR BUMP BEFORE WRITE)
-    //uint16_t    CBPTR;  // DEFAULT IS NO CREF
-}
-Globals;
-
-
-/////////////////////////////////////////////////////////////////////////////
-
-
-void fatal_error(const char* message, ...)
-{
-    assert(message != nullptr);
-
-    printf("ERROR: ");
-    {
-        va_list ptr;
-        va_start(ptr, message);
-        vprintf(message, ptr);
-        va_end(ptr);
-    }
-
-    exit(EXIT_FAILURE);
-}
-
-void warning_message(const char* message, ...)
-{
-    assert(message != nullptr);
-
-    printf("WARNING: ");
-    {
-        va_list ptr;
-        va_start(ptr, message);
-        vprintf(message, ptr);
-        va_end(ptr);
-    }
-}
+struct tagGlobals Globals;
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -623,7 +375,7 @@ void print_symbol_table()
         if (entry->status & SY_IND) printf("IND ");
         if ((entry->flagseg & SY_SEC) == 0 && (entry->status & SY_WK)) printf("WEAK ");
         if ((entry->flagseg & SY_SEC) && (entry->status & SY_SAV)) printf("SAV ");
-        if ((entry->status & 07777) == 0) printf("(eol) ");  // show end-of-list node
+        if (entry->nextindex() == 0) printf("(eol) ");  // show end-of-list node
         printf("\n");
     }
 
