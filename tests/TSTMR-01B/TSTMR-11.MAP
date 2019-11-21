@@ -1,0 +1,9 @@
+RT-11 LINK  V05.45 	Load Map 	Friday 22-Nov-2019 01:03  Page 1
+TSTMR .SAV   	Title:	.MAIN.	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
+ 	 001000	012406 = 2691.   words  (RW,I,LCL,REL,CON)
+
+Transfer address = 001000, High limit = 013404 = 2946.   words

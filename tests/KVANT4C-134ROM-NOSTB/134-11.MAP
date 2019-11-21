@@ -1,0 +1,8 @@
+RT-11 LINK  V05.45 	Load Map 	Friday 22-Nov-2019 00:42  Page 1
+134   .SAV   	Title:	134ROM	Ident:	KX.01 	/H:020000
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	020000 = 4096.   words  (RW,I,GBL,ABS,OVR)
+
+Transfer address = 000000, High limit = 017776 = 4095.   words
