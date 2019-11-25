@@ -1,0 +1,9 @@
+RT-11 LINK  V05.45 	Load Map 	Monday 25-Nov-2019 21:59  Page 1
+PIEIS .SAV   	Title:	.MAIN.	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
+ 	 001000	001576 = 447.    words  (RW,I,LCL,REL,CON)
+
+Transfer address = 001000, High limit = 002574 = 702.    words
