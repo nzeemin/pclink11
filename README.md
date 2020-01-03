@@ -17,13 +17,15 @@ Command line:
 
 `pclink11 <input files and options>`
 
-Options:
+Options (both `/` and `-` prefixes are allowed):
  - `/EXECUTE:filespec` — Specifies the name of the memory image file
  - `/NOBITMAP` `/X` — Do not emit bit map
  - `/WIDE` `/W` — Produces a load map that is 132-columns wide
  - `/ALPHABETIZE` `/A` — Lists global symbols on the link map in alphabetical order
  - `/SYMBOLTABLE` `/STB` — Generates a symbol table file (.STB file)
  - `/MAP` — Generates map file
+ - `--version` — Show the program version information
+ - `--help` — Show quick help on the command line options
 
 Input files and options are space-separated.
 
@@ -49,7 +51,7 @@ First priority:
  - Fix bugs for the failing test cases
  
 Second priority:
- - More tests, currently we have 94 test cases
+ - More tests, currently we have 100 test cases
  - Compile under Linux/MacOS, configure CI to compile under Linux/MacOS on every commit
  - Reduce amount of logging, add option for verbosity level
 

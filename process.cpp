@@ -524,7 +524,7 @@ void process_pass1_file(SaveStatusEntry* sscur)
 
     printf("  Processing %s\n", sscur->filename);
     size_t offset = 0;
-    while (offset < sscur->filesize)
+    while (offset < sscur->filesize - 1)
     {
         uint8_t* data = sscur->data + offset;
         uint16_t* dataw = (uint16_t*)(data);
@@ -727,7 +727,7 @@ void process_pass15_libpro(const SaveStatusEntry* sscur)
 void process_pass15_library(const SaveStatusEntry* sscur)
 {
     size_t offset = 0;
-    while (offset < sscur->filesize)
+    while (offset < sscur->filesize - 1)
     {
         uint8_t* data = sscur->data + offset;
         uint16_t* dataw = (uint16_t*)(data);
@@ -1857,7 +1857,7 @@ void process_pass2_file(const SaveStatusEntry* sscur)
     assert(sscur->data != nullptr);
 
     size_t offset = 0;
-    while (offset < sscur->filesize)
+    while (offset < sscur->filesize - 1)
     {
         uint8_t* data = sscur->data + offset;
         uint16_t* dataw = (uint16_t*)(data);

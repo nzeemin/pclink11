@@ -340,6 +340,9 @@ void parse_commandline_option(const char* cur)
     }
 }
 
+bool g_okHelpRequested = false;
+bool g_okVersionRequested = false;
+
 // PROCESS COMMAND STRING SWITCHES, see LINK1\SWLOOP
 void parse_commandline(int argc, char **argv)
 {
@@ -351,6 +354,17 @@ void parse_commandline(int argc, char **argv)
     for (int arg = 1; arg < argc; arg++)
     {
         const char* argvcur = argv[arg];
+
+        if (strcmp(argvcur, "--help") == 0)
+        {
+            g_okHelpRequested = true;
+            break;
+        }
+        if (strcmp(argvcur, "--version") == 0)
+        {
+            g_okVersionRequested = true;
+            break;
+        }
 
         if (*argvcur == '/' || *argvcur == '-')  // Parse global arguments
         {
@@ -385,6 +399,9 @@ void parse_commandline(int argc, char **argv)
             //TODO: Parse options associated with the file
         }
     }
+
+    if (g_okHelpRequested || g_okVersionRequested)
+        return;
 
     // Validate command line params
     if (SaveStatusCount == 0)
@@ -438,6 +455,20 @@ int main(int argc, char *argv[])
     initialize();
 
     parse_commandline(argc, argv);
+    if (g_okHelpRequested)
+    {
+        print_help();
+        exit(EXIT_SUCCESS);
+    }
+    if (g_okVersionRequested)
+    {
+        printf(
+            "Cross-linker, porting PDP-11 LINK to C/C++, WIP\n"
+            "Ported in 2019-2020 by nzeemin\n"
+            "License LGPLv3: GNU Lesser General Public License v3.0 https://www.gnu.org/licenses/lgpl-3.0.html\n"
+            "Source code: https://github.com/nzeemin/pclink11\n");
+        exit(EXIT_SUCCESS);
+    }
 
     prepare_read_files();
 

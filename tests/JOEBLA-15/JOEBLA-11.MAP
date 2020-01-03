@@ -1,0 +1,10 @@
+RT-11 LINK  V05.45 	Load Map 	Thursday 02-Jan-2020 23:02  Page 1
+JOEBLA.SAV   	Title:	JOEBLA	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	101144 = 16690.  words  (RW,I,GBL,ABS,OVR)
+			L21740	021740	L36000	036000	START 	100400	
+			STACK 	100744	
+
+Transfer address = 100400, High limit = 101142 = 16689.  words
