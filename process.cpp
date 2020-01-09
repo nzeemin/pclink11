@@ -837,7 +837,7 @@ void process_pass15_library(const SaveStatusEntry* sscur)
             printf("    Block type 10 - ENDLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
 
             process_pass15_lmlorder();  // ORDER THIS LIBRARY LML
-            print_lml_table();//DEBUG
+            //print_lml_table();//DEBUG
 
             Globals.SW_LML &= ~0100000;  // RESET FOR FINAL OBJ. PROCESSING
             Globals.FLGWD &= ~AD_LML;  // CLEAR NEW UNDF FLAG
@@ -901,7 +901,7 @@ void process_pass15()
                 entry->value = 0;  // VALUE WORD IS 0
 
                 pass1_insert_entry_into_ordered_list(index, entry, true);
-                print_symbol_table();//DEBUG
+                //print_symbol_table();//DEBUG
             }
             index = nextindex;  // GO DO NEXT SYMBOL
         }
@@ -1142,8 +1142,11 @@ void process_pass_map_output_headers()
         fprintf(mapfileobj, "%s", unrad50(Globals.MODNAM));
     }
     fprintf(mapfileobj, "\tIdent:\t");
-    fprintf(mapfileobj, "%s", unrad50(Globals.IDENT));
-    fprintf(mapfileobj, "\t\n\n");
+    fprintf(mapfileobj, "%s\t", unrad50(Globals.IDENT));
+    if (Globals.SWITCH & SW_H)
+        fprintf(mapfileobj, "/H:%06ho", Globals.HSWVAL);
+
+    fprintf(mapfileobj, "\n\n");
     fprintf(mapfileobj, "Section  Addr\tSize");
     //printf("  Section  Addr   Size ");
     for (uint8_t i = 0; i < Globals.NUMCOL; i++)
@@ -1550,8 +1553,9 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             {
                 //curlocation = 0;  // FORCE 0 AS CONSTANT
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, (command & 010) == 0);
-                //printf("        Entry '%s' value = %06ho %04X dest = %06ho\n", entry->unrad50name(), entry->value, entry->value, *((uint16_t*)dest));
-                *((uint16_t*)dest) = entry->value;
+                printf("        Entry '%s' value = %06ho %04X dest = %06ho\n", entry->unrad50name(), entry->value, entry->value, *((uint16_t*)dest));
+                if ((command & 0177) == 012 || (entry->flags() & 0040/*SY$REL*/) == 0)
+                    *((uint16_t*)dest) = entry->value;
             }
             data += 4;  offset += 4;
             break;

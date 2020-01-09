@@ -529,6 +529,8 @@ int main(int argc, char *argv[])
     {
         // Get list of sub-directories in tests directory
         list_directory_subdirs("tests", g_testnames);
+
+        sort(g_testnames.begin(), g_testnames.end());
     }
 
     // Analyze all the tests

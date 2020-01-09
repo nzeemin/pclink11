@@ -274,8 +274,8 @@ struct tagGlobals
     uint16_t    STKBLK[3]; // USER STACK ADDRESS BLOCK(SYMBOL & VALUE)
     // LNKSAV->TEMP 4 WORD STORAGE FOR GSD RECORD
 
-    //uint16_t    HSWVAL; // /H SWITCH VALUE - I-SPACE
-    //uint16_t    DHSWVL; // /H SWITCH VALUE - D-SPACE
+    uint16_t    HSWVAL; // /H SWITCH VALUE - I-SPACE
+    uint16_t    DHSWVL; // /H SWITCH VALUE - D-SPACE
 
     //uint16_t    ESWVAL; // /E SWITCH VALUE - I-SPACE
     //uint32_t    ESWNAM; // /E SWITCH NAME - I-SPACE

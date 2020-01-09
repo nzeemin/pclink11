@@ -227,10 +227,22 @@ void parse_commandline_option(const char* cur)
         result = sscanf(cur, ":%ho", &param1);
         if (result < 1)
             fatal_error("Invalid /B option, use /B:addr\n");
+        if (param1 & 1)
+            fatal_error("Invalid /B option value, use even address\n");
         Globals.SWITCH |= SW_B;
-        //TMPIDD = 0;
-        //TMPIDI = 0;
-        //TODO
+        Globals.BOTTOM = param1;
+        Globals.DBOTTM = param1;
+        break;
+
+    case 'H':  // /H:addr - SPECIFY TOP ADR FOR LINK
+        result = sscanf(cur, ":%ho", &param1);
+        if (result < 1)
+            fatal_error("Invalid /H option, use /H:addr\n");
+        if (param1 & 1)
+            fatal_error("Invalid /H option value, use even address\n");
+        Globals.SWITCH |= SW_H;
+        Globals.HSWVAL = param1;
+        Globals.DHSWVL = param1;
         break;
 
         //case 'U':  // /U - ROUND SECTION
@@ -254,14 +266,6 @@ void parse_commandline_option(const char* cur)
         //    Globals.SWITCH |= SW_Y;
         //    //TMPIDD = D.SWY;
         //    //TMPIDI = I.SWY;
-        //    //TODO
-        //    break;
-
-        //case 'H':  // /H - SPECIFY TOP ADR FOR LINK
-        //    result = sscanf(cur, ":%ho:%ho", &param1, &param2);
-        //    Globals.SWITCH |= SW_H;
-        //    //TMPIDD = D.SWH;
-        //    //TMPIDI = I.SWH;
         //    //TODO
         //    break;
 
@@ -417,6 +421,7 @@ void print_help()
            "  /T:addr       Specifies the starting address of the linked program\n"
            "  /M:addr       Specifies the stack address for the linked program\n"
            "  /B:addr       Specifies the lowest address to be used by the linked program\n"
+           "  /H:addr       Specifies the highest address to be used by the linked program\n"
            "  /NOBITMAP    /X    Do not emit bit map\n"
            "  /WIDE        /W    Produces a load map that is 132 columns wide\n"
            "  /ALPHABETIZE /A    Lists global symbols on the link map in alphabetical order\n"
@@ -481,6 +486,7 @@ int main(int argc, char *argv[])
     }
     process_pass1_endp1();
 
+    print_symbol_table();//DEBUG
     process_pass_map_init();
     process_pass_map_output();
     process_pass_map_done();
@@ -488,7 +494,7 @@ int main(int argc, char *argv[])
     assert(stbfileobj == nullptr);
     assert(outfileobj == nullptr);
 
-    //print_symbol_table();//DEBUG
+    print_symbol_table();//DEBUG
     process_pass2_init();
     assert(outfileobj != nullptr);
     Globals.PAS1_5 = 0;
