@@ -259,7 +259,7 @@ void print_lml_table()
     for (int i = 0; i < LibraryModuleCount; i++)
     {
         const LibraryModuleEntry* lmlentry = LibraryModuleList + i;
-        printf("    #%04d file %02d block %06ho offset %06ho pass %d\n", (uint16_t)i, lmlentry->libfileno, lmlentry->relblockno, lmlentry->byteoffset, (int)lmlentry->passno/*, lmlentry->segmentno*/);
+        printf("    #%04d file %02d block %03ho offset %03ho pass %d\n", (uint16_t)i, lmlentry->libfileno, lmlentry->relblockno, lmlentry->byteoffset, (int)lmlentry->passno/*, lmlentry->segmentno*/);
     }
 }
 

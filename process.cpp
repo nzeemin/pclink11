@@ -643,7 +643,7 @@ void process_pass15_lmlorder()
         return;  // NOTHING TO ORDER.  RETURN
 
     // Find where to start - first not processed
-    int kbase = 0;
+    int kbase = LibraryModuleCount;
     for (int k = 0; k < LibraryModuleCount; k++)
     {
         const LibraryModuleEntry* ek = LibraryModuleList + k;
@@ -653,6 +653,9 @@ void process_pass15_lmlorder()
             break;
         }
     }
+
+    if (kbase == LibraryModuleCount)
+        return;  // Nothing to order
 
     // Sort from kbase to the end of the array
     for (int k = kbase + 1; k < LibraryModuleCount; k++)
@@ -780,24 +783,48 @@ void process_pass15_library(const SaveStatusEntry* sscur)
                 while (index > 0)
                 {
                     SymbolTableEntry* entry = SymbolTable + index;
-                    if ((entry->status & SY_WK) == 0)  // IS THIS A WEAK SYMBOL? SKIP WEAK SYMBOL
+
+                    if ((entry->status & SY_WK) != 0)  // IS THIS A WEAK SYMBOL? SKIP WEAK SYMBOL
                     {
-                        //TODO: IS SYMBOL A DUP SYMBOL?
-                        const uint16_t* itemw = process_pass15_eptsearch(data, eptsize, entry->name);
-                        if (itemw == nullptr)  // CONTINUE THRU UNDEF LIST
-                        {
-                            index = entry->nextindex();
-                            continue;
-                        }
-                        // THE UNDEFINED SYMBOL HAS BEEN FOUND IN THE CURRENT ENTRY POINT TABLE.
-                        uint16_t eptblock = itemw[2];
-                        uint16_t eptoffset = itemw[3] & 0777;
-                        printf("        Found EPT for '%s' block %06ho offset %06ho\n", entry->unrad50name(), eptblock, eptoffset);
-                        // CALL LMLBLD - PLACE MOD ADR IN LML
-                        process_pass15_lmlbld(eptblock, eptoffset);
-                        //TODO: IS THIS A /I SYMBOL
-                        //TODO: Find module name
+                        index = entry->nextindex();
+                        continue;
                     }
+
+                    if ((entry->status & SY_DUP) != 0)  // IS SYMBOL A DUP SYMBOL?
+                    {
+                        //TODO: IS SEG NUM FIELD ZERO?
+                        index = entry->nextindex();
+                        continue;
+                    }
+
+                    const uint16_t* itemw = process_pass15_eptsearch(data, eptsize, entry->name);
+                    if (itemw == nullptr)  // CONTINUE THRU UNDEF LIST
+                    {
+                        index = entry->nextindex();
+                        continue;
+                    }
+                    // THE UNDEFINED SYMBOL HAS BEEN FOUND IN THE CURRENT ENTRY POINT TABLE.
+                    uint16_t eptblock = itemw[2];
+                    uint16_t eptoffset = itemw[3] & 0777;
+                    printf("        Found EPT for '%s' block %06ho offset %06ho\n", entry->unrad50name(), eptblock, eptoffset);
+                    // CALL LMLBLD - PLACE MOD ADR IN LML
+                    process_pass15_lmlbld(eptblock, eptoffset);
+                    //TODO: IS THIS A /I SYMBOL
+
+                    const uint16_t* itemwmod = itemw;
+                    for (;;)  // GO SEARCH FOR MODULE NAME
+                    {
+                        itemwmod -= 4;  // BACK ONE EPT
+                        if (itemwmod <= (uint16_t*)data)
+                            break;
+                        if (itemwmod[2] & 0x8000)  // MODULE NAME?
+                            break;
+                    }
+
+                    const uint16_t* itemw1 = itemwmod;
+                    itemw1 += 4;  // GO TO NEXT SYMBOL
+                    //TODO
+
                     index = entry->nextindex();  // CONTINUE THRU UNDEF LIST
                 }
             }
@@ -810,7 +837,7 @@ void process_pass15_library(const SaveStatusEntry* sscur)
             printf("    Block type 10 - ENDLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
 
             process_pass15_lmlorder();  // ORDER THIS LIBRARY LML
-            //print_lml_table();//DEBUG
+            print_lml_table();//DEBUG
 
             Globals.SW_LML &= ~0100000;  // RESET FOR FINAL OBJ. PROCESSING
             Globals.FLGWD &= ~AD_LML;  // CLEAR NEW UNDF FLAG
@@ -1717,7 +1744,7 @@ void process_pass2_dump_txtblk()  // DUMP TEXT SUBROUTINE, see LINK7\TDMP0, LINK
     uint8_t* dest = OutputBuffer + addr;
     uint8_t* src = Globals.TXTBLK + 2;
     memcpy(dest, src, Globals.TXTLEN);
-    //printf("    process_pass2_dump_txtblk() at %04x len %04x data %02x %02x %02x %02x\n", addr, Globals.TXTLEN, src[0], src[1], src[2], src[3]);
+    printf("    process_pass2_dump_txtblk() at %04x len %04x data %02x %02x %02x %02x\n", addr, Globals.TXTLEN, src[0], src[1], src[2], src[3]);
 
     mark_bitmap_bits(addr, Globals.TXTLEN);
     //TODO: if ((Globals.SWITCH & SW_X) != 0)
@@ -1745,14 +1772,17 @@ void process_pass2_gsd_block(const SaveStatusEntry* sscur, const uint8_t* data)
 
         uint32_t itemnamerad50 = MAKEDWORD(itemw[0], itemw[1]);
         int itemtype = (itemw[2] >> 8) & 0xff;
-        //int itemflags = (itemw[2] & 0377);
+        int itemflags = (itemw[2] & 0377);
 
         printf("      Item '%s' type %d - %s\n", unrad50(itemnamerad50), itemtype, (itemtype > 7) ? "UNKNOWN" : GSDItemTypeNames[itemtype]);
         if (itemtype == 5)
         {
             uint32_t lkname = itemnamerad50;
-            uint16_t lkmsk = (uint16_t)~SY_SEC;
-            uint16_t lkwd = (uint16_t)SY_SEC;
+            uint16_t lkmsk = (uint16_t)~SY_SEC;  // CARE ABOUT SECTION FLAG
+            uint16_t lkwd = (uint16_t)SY_SEC;  // SECTION BIT FOR MATCH
+            //TODO: DOES PSECT HAVE SAV ATTRIBUTE?
+            if ((itemflags & 0100/*CS$GBL*/) == 0)  // LOCAL OR GLOBAL SECTION ?
+                lkmsk = (uint16_t)~(SY_SEC | SY_SEG);  // CARE ABOUT SECTION & SEGMENT #
             int index;
             bool isfound = symbol_table_lookup(lkname, lkwd, lkmsk, &index);
             if (!isfound)
@@ -1763,10 +1793,11 @@ void process_pass2_gsd_block(const SaveStatusEntry* sscur, const uint8_t* data)
             msentry->size = 0;  // ASSUME CONTRIBUTION OF 0 FOR THIS SECTION
             ModuleSectionCount++;
             SymbolTableEntry* entry = SymbolTable + index;
-            //TODO: DON'T UPDATE SECTION BASE IF OVR SECT
+            if ((entry->flags() & 4/*CS$ALO*/) != 0)
+                continue;  // DON'T UPDATE SECTION BASE IF OVR SECT
             uint16_t sectsize = itemw[3];
             //TODO: ROUND ALL SECTIONS EXCEPT "CON" DATA SECTIONS TO WORD BOUNDARIES
-            if ((entry->flags() & 4/*CS$ALO*/) == 0 && (entry->flags() & 0200/*CS$TYP*/) == 0)
+            if ((entry->flags() & 0200/*CS$TYP*/) == 0)
                 sectsize = (sectsize + 1) & ~1;
             msentry->size = sectsize;
         }
@@ -1789,7 +1820,7 @@ void proccess_pass2_libpa2(const SaveStatusEntry* sscur)
 
         offset = lmlentry->offset();
 
-        printf("      proccess_pass2_libpa2() #%04d for offset %06o\n", i, (unsigned int)offset);
+        printf("  proccess_pass2_libpa2() #%04d for offset %06o\n", i, (unsigned int)offset);
         while (offset < sscur->filesize)
         {
             uint8_t* data = sscur->data + offset;
@@ -1816,6 +1847,7 @@ void proccess_pass2_libpa2(const SaveStatusEntry* sscur)
                 Globals.TXTLEN = datasize;
                 assert(datasize <= sizeof(Globals.TXTBLK));
                 memcpy(Globals.TXTBLK, data + 6, blocksize - 6);
+                //printf(" data %02x %02x %02x %02x\n", data[8 + 0], data[8 + 1], data[8 + 2], data[8 + 3]);
 
                 *((uint16_t*)Globals.TXTBLK) = destaddr;  // ADD BASE TO GIVE ABS LOAD ADDR
             }
@@ -1837,8 +1869,7 @@ void proccess_pass2_libpa2(const SaveStatusEntry* sscur)
                     if (mstentry->size == 0)
                         continue;
                     SymbolTableEntry* entry = SymbolTable + mstentry->stindex;
-                    if (entry->name != RAD50_ABS && (entry->flags() & 4/*CS$ALO*/) == 0)
-                        entry->value += mstentry->size;
+                    entry->value += mstentry->size;
                 }
                 mst_table_clear();
 
@@ -1922,19 +1953,16 @@ void process_pass2_file(const SaveStatusEntry* sscur)
                 if (mstentry->size == 0)
                     continue;
                 SymbolTableEntry* entry = SymbolTable + mstentry->stindex;
-                if (entry->name != RAD50_ABS && (entry->flags() & 4/*CS$ALO*/) == 0)
-                    entry->value += mstentry->size;
+                entry->value += mstentry->size;
             }
             mst_table_clear();
         }
         else if (blocktype == 7)  // See LINK7\LIBPA2
         {
             printf("    Block type 7 - TITLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
-            //uint16_t eptsize = *(uint16_t*)(data + 24/*L_HEAB*/);  // EPT SIZE IN LIBRARY HEADER
             //TODO
             proccess_pass2_libpa2(sscur);
             break;
-            //data += eptsize; offset += eptsize;
         }
 
         data += blocksize; offset += blocksize;
