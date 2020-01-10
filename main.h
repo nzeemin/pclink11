@@ -23,7 +23,7 @@
 
 
 // Macros used to mark and detect unimplemented but needed
-#define NOTIMPLEMENTED { printf("*** NOT IMPLEMENTED, line %d\n", __LINE__); }
+#define NOTIMPLEMENTED { printf("*** NOT IMPLEMENTED at %s:%d ***\n", __FILE__, __LINE__); }
 
 
 /////////////////////////////////////////////////////////////////////////////

@@ -489,9 +489,35 @@ void process_pass1_gsd_item(const uint16_t* itemw, const SaveStatusEntry* sscur)
             Globals.IDENT = itemnamerad50;
         break;
     case 7: // 7 - VIRTUAL SECTION; see LINK3\VSECNM
-        printf("\n");
-        //TODO
-        NOTIMPLEMENTED
+        printf(" size %06ho\n", itemw[3]);
+        Globals.BASE = itemw[3];
+        // A VIRTUAL SECTION HAS BEEN FOUND WHICH IS PROCESSED SIMILAR TO
+        //     .PSECT	. VIR.,RW,D,GBL,REL,CON
+        // THE SIZE IS THE NUMBER OF 32 WORD AREAS REQUIRED.  THE SEGMENT # IS DEFINED AS THE ROOT (ZERO).
+        // THERE WILL NEVER BE ANY GLOBALS UNDER THIS SECTION AND THE SECTION STARTS AT A BASE OF ZERO.
+        itemflags = 0200/*CS$TYP*/ | 0100/*CS$GBL*/ | 040/*CS$REL*/;
+        process_pass1_gsd_item_psecnm(itemw, itemflags);
+        // IF $VIRSZ ALREADY IN SYM TBL THEN JUST ADD SIZE OF CURRENT VSECT TO IT
+        // ELSE ENTER NEW SYMBOL "$VIRSZ" WITH VALUE EQUAL TO CURRENT SIZE.
+        {
+            uint32_t lkname = RAD50_VIRSZ;
+            uint16_t lkmsk = (uint16_t)~SY_SEC;
+            uint16_t lkwd = 0;
+            int index;
+            bool isnewentry = !symbol_table_looke(lkname, lkwd, lkmsk, &index);
+            SymbolTableEntry* entry = SymbolTable + index;
+            if (isnewentry)
+            {
+                entry->flagseg = 010/*SY$DEF*/ | (4/*GLOBAL SYMBOL*/ << 8);
+                entry->value = Globals.BASE;
+
+                pass1_insert_entry_into_ordered_list(index, entry, true);
+            }
+            else
+            {
+                entry->value += Globals.BASE;
+            }
+        }
         break;
     default:
         printf("\n");
@@ -1022,6 +1048,11 @@ void process_pass_map_init()
     //TODO: IS PROGRAM OVERLAID?
 
     //TODO: PROCESS /H SWITCH
+    if (Globals.SWITCH & SW_H)
+    {
+        //TODO
+        ASECTentry->value = Globals.HSWVAL;  //TODO: very dumb version
+    }
 
     //TODO: PROCESS /U & /Q SWITCHES
 
