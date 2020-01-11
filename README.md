@@ -13,6 +13,8 @@ Port source: RT-11 LINK V05.45.
 Currently the PCLINK11 links most of test OBJ files properly, but we have some troubles linking tests with libraries.
 
 ## Usage ✨
+The source code is able to compile under Windows (VS2013), and also under Linux/MacOS (gcc/clang, use the Makefile).
+
 Command line:
 
 `pclink11 <input files and options>`
@@ -42,7 +44,7 @@ Then, we run the `pclink11` with to produce "our" output files, they renamed wit
 And finally, we compare "original" files with "our" files, line-to-line or byte-to-byte, using `testanalyzer` utility.
 
 "Our" MAP files differs in the first line (program name, date/time, no page number), and there's no paging, so no page header lines.
-SAV/SYS and STB files are binary, compared byte-to-byte, should be no differences.
+SAV/SYS/REL and STB files are binary, compared byte-to-byte, should be no differences.
 Log files are absolutely different, we're not comparing them.
 
 ## TODO 👷
@@ -51,12 +53,12 @@ First priority:
  - Fix bugs for the failing test cases
  
 Second priority:
- - More tests, currently we have 100 test cases
- - Compile under Linux/MacOS, configure CI to compile under Linux/MacOS on every commit
+ - Need more tests, currently we have 100+ test cases
  - Reduce amount of logging, add option for verbosity level
+ - Process other command-line options, including file-specific ones
 
 Not implemented now, and not sure we will:
- - Link for foreground execution
+ - Link for foreground execution with /R or /FOREGROUND option, produce .REL file
  - LDA output - produce a file in absolute binary loader format
  - Overlays
  - Linkage with separated instructions/data spaces

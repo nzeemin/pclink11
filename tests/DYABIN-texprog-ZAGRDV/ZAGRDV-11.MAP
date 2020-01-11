@@ -1,0 +1,8 @@
+RT-11 LINK  V05.45 	Load Map 	Saturday 11-Jan-2020 23:10  Page 1
+ZAGRDV.SAV   	Title:	.MAIN.	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
+
+Transfer address = 000001, High limit = 000776 = 255.    words
