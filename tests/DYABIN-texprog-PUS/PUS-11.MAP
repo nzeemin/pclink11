@@ -1,0 +1,13 @@
+RT-11 LINK  V05.45 	Load Map 	Saturday 11-Jan-2020 23:39  Page 1
+PUS   .SAV   	Title:	.MAIN.	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
+			MPRKKL	000001	MGTKKL	000010	WPKL  	000300	
+			WPKKL 	000324	RDKKL 	177070	RSKKL 	177076	
+			RSKL  	177700	RDKL  	177702	
+ 	 001000	005250 = 1364.   words  (RW,I,LCL,REL,CON)
+			PUS   	001000	
+
+Transfer address = 001000, High limit = 006246 = 1619.   words
