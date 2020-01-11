@@ -7,6 +7,7 @@ const TestDescriptor g_Tests[] =
 {
     /* directory           name        commandline */
     { "ADD32-PATRON",     "ADD32",    "/SYMBOLTABLE /MAP ADD32.OBJ" },
+    { "ASH4",             "ASH4",     "/SYMBOLTABLE /MAP ASH4.OBJ" },
     { "ASHC4",            "ASHC4",    "/SYMBOLTABLE /MAP ASHC4.OBJ" },
     { "BATCH-V14",        "BATCH",    "/SYMBOLTABLE /MAP BATCH.OBJ" },
     { "BIRITM-FORTRANIV", "BIRITM",   "/SYMBOLTABLE /MAP BIRITM.OBJ FORLIB.OBJ SYSLIB.OBJ" },
@@ -55,6 +56,7 @@ const TestDescriptor g_Tests[] =
     { "LP-DISK09",        "LP",       "/SYMBOLTABLE /MAP /EXECUTE:LP.SYS LP.OBJ /X" },
     { "LZSAV",            "LZSAV",    "/SYMBOLTABLE /MAP LZSAV.OBJ" },
     { "MAIN-50",          "MAIN",     "/SYMBOLTABLE /MAP MAIN.OBJ LEVELS.OBJ" },
+    { "MOVPC2",           "MOVPC2",   "/SYMBOLTABLE /MAP MOVPC2.OBJ" },
     { "MUL",              "MUL",      "/SYMBOLTABLE /MAP MUL.OBJ" },
     { "MY304",            "MY",       "/EXECUTE:MY.SYS MY.OBJ /SYMBOLTABLE /MAP /X" },
     { "MYTEST1",          "MYTST1",   "/SYMBOLTABLE /MAP MYTST1.OBJ OTHER.OBJ" },

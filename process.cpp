@@ -349,13 +349,11 @@ void process_pass1_gsd_item_csecnm(const uint16_t* itemw, int& itemtype, int& it
 }
 
 // Process GSD item PROGRAM SECTION NAME, see LINK3\PSECNM
-void process_pass1_gsd_item_psecnm(const uint16_t* itemw, int& itemflags)
+void process_pass1_gsd_item_psecnm(uint32_t sectname, int itemflags, uint16_t sectsize)
 {
-    assert(itemw != nullptr);
-
     Globals.LRUNUM++; // COUNT SECTIONS IN A MODULE
 
-    uint32_t lkname = MAKEDWORD(itemw[0], itemw[1]);
+    uint32_t lkname = sectname;
     uint16_t lkmsk = (uint16_t)~SY_SEC;
     uint16_t lkwd = (uint16_t)SY_SEC;
     if (itemflags & 1/*CS$SAV*/) // DOES PSECT HAVE SAVE ATTRIBUTE?
@@ -421,7 +419,6 @@ void process_pass1_gsd_item_psecnm(const uint16_t* itemw, int& itemflags)
     }
 
     //TODO: primitive version, depends on section flags
-    uint16_t sectsize = itemw[3];
     //if ((itemflags & 0040/*CS$REL*/) == 0 || (Globals.SWITCH & SW_X) != 0)
     //    sectsize = 0;
     if ((itemflags & 0200/*CS$TYP*/) == 0 || (itemflags & 0004/*CS$ALO*/) != 0)  // INSTRUCTION SECTION? CON SECTION ?
@@ -443,6 +440,14 @@ void process_pass1_gsd_item_psecnm(const uint16_t* itemw, int& itemflags)
         Globals.BASE = entry->value;
         entry->value += sectsize;
     }
+}
+void process_pass1_gsd_item_psecnm(const uint16_t* itemw, int itemflags)
+{
+    assert(itemw != nullptr);
+
+    uint32_t sectname = MAKEDWORD(itemw[0], itemw[1]);
+    uint16_t sectsize = itemw[3];
+    process_pass1_gsd_item_psecnm(sectname, itemflags, sectsize);
 }
 
 // PROCESS GSD TYPES, see LINK3\GSD
@@ -489,17 +494,17 @@ void process_pass1_gsd_item(const uint16_t* itemw, const SaveStatusEntry* sscur)
             Globals.IDENT = itemnamerad50;
         break;
     case 7: // 7 - VIRTUAL SECTION; see LINK3\VSECNM
-        printf(" size %06ho\n", itemw[3]);
-        Globals.BASE = itemw[3];
-        // A VIRTUAL SECTION HAS BEEN FOUND WHICH IS PROCESSED SIMILAR TO
-        //     .PSECT	. VIR.,RW,D,GBL,REL,CON
-        // THE SIZE IS THE NUMBER OF 32 WORD AREAS REQUIRED.  THE SEGMENT # IS DEFINED AS THE ROOT (ZERO).
-        // THERE WILL NEVER BE ANY GLOBALS UNDER THIS SECTION AND THE SECTION STARTS AT A BASE OF ZERO.
-        itemflags = 0200/*CS$TYP*/ | 0100/*CS$GBL*/ | 040/*CS$REL*/;
-        process_pass1_gsd_item_psecnm(itemw, itemflags);
-        // IF $VIRSZ ALREADY IN SYM TBL THEN JUST ADD SIZE OF CURRENT VSECT TO IT
-        // ELSE ENTER NEW SYMBOL "$VIRSZ" WITH VALUE EQUAL TO CURRENT SIZE.
         {
+            printf(" size %06ho\n", itemw[3]);
+            uint16_t sectsize = itemw[3];
+            // A VIRTUAL SECTION HAS BEEN FOUND WHICH IS PROCESSED SIMILAR TO
+            //     .PSECT	. VIR.,RW,D,GBL,REL,CON
+            // THE SIZE IS THE NUMBER OF 32 WORD AREAS REQUIRED.  THE SEGMENT # IS DEFINED AS THE ROOT (ZERO).
+            // THERE WILL NEVER BE ANY GLOBALS UNDER THIS SECTION AND THE SECTION STARTS AT A BASE OF ZERO.
+            itemflags = 0200/*CS$TYP*/ | 0100/*CS$GBL*/ | 040/*CS$REL*/;
+            process_pass1_gsd_item_psecnm(RAD50_VSEC, itemflags, 0);
+            // IF $VIRSZ ALREADY IN SYM TBL THEN JUST ADD SIZE OF CURRENT VSECT TO IT
+            // ELSE ENTER NEW SYMBOL "$VIRSZ" WITH VALUE EQUAL TO CURRENT SIZE.
             uint32_t lkname = RAD50_VIRSZ;
             uint16_t lkmsk = (uint16_t)~SY_SEC;
             uint16_t lkwd = 0;
@@ -509,7 +514,7 @@ void process_pass1_gsd_item(const uint16_t* itemw, const SaveStatusEntry* sscur)
             if (isnewentry)
             {
                 entry->flagseg = 010/*SY$DEF*/ | (4/*GLOBAL SYMBOL*/ << 8);
-                entry->value = Globals.BASE;
+                entry->value = sectsize;
 
                 pass1_insert_entry_into_ordered_list(index, entry, true);
             }

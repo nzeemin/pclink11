@@ -1,0 +1,9 @@
+RT-11 LINK  V05.45 	Load Map 	Saturday 11-Jan-2020 07:18  Page 1
+MOVPC2.SAV   	Title:	.MAIN.	Ident:	      	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	005334 = 1390.   words  (RW,I,GBL,ABS,OVR)
+			DIGIT 	003270	FILL  	003546	
+
+Transfer address = 001002, High limit = 005332 = 1389.   words
