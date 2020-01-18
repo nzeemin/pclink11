@@ -1587,11 +1587,12 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             // RELOCATES A DIRECT POINTER TO A GLOBAL SYMBOL. THE VALUE OF THE GLOBAL SYMBOL IS OBTAINED & STORED.
             printf(" '%s'\n", unrad50(*((uint32_t*)data)));
             {
-                //curlocation = 0;  // FORCE 0 AS CONSTANT
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, (command & 010) == 0);
-                printf("        Entry '%s' value = %06ho %04X dest = %06ho\n", entry->unrad50name(), entry->value, entry->value, *((uint16_t*)dest));
-                if ((command & 0177) == 012 || (entry->flags() & 0040/*SY$REL*/) == 0)
+                //printf("        Entry '%s' value = %06ho %04X dest = %06ho\n", entry->unrad50name(), entry->value, entry->value, *((uint16_t*)dest));
+                if ((command & 0177) == 012)
                     *((uint16_t*)dest) = entry->value;
+                else if ((command & 0177) == 002)
+                    *((uint16_t*)dest) += entry->value;
             }
             data += 4;  offset += 4;
             break;
