@@ -91,6 +91,7 @@ const TestDescriptor g_Tests[] =
     { "PRIM-FORTRANIV",   "PRIM",     "/SYMBOLTABLE /MAP PRIM.OBJ FORLIB.OBJ" },
     { "PPTEST-REL",       "PPTEST",   "/R /SYMBOLTABLE /MAP PPTEST.OBJ" },
     { "RDMTUN-DSKMXC",    "RDMTUN",   "/SYMBOLTABLE /MAP RDMTUN.OBJ SYSLIB.OBJ" },
+    { "RDRMC",            "RDRMC",    "/SYMBOLTABLE /MAP RDRMC.OBJ" },
     { "REGCOP-ODE11",     "REGCOP",   "/SYMBOLTABLE /MAP REGCOP.OBJ" },
     { "REGPER-ODE11",     "REGPER",   "/SYMBOLTABLE /MAP REGPER.OBJ" },
     { "RTS",              "RTS",      "/SYMBOLTABLE /MAP RTS.OBJ" },

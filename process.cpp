@@ -27,8 +27,8 @@ const uint32_t RAD50_GVHNDL = rad50x2("$OVRHV");  // /V OVERLAY HANDLER GBL ENTR
 const uint32_t RAD50_GZHNDL = rad50x2("$OVRHZ");  // I-D SPACE OVERLAY HANDLER GBL ENTRY
 const uint32_t RAD50_ZTABL  = rad50x2("$ZTABL");  // I-D SPACE OVERLAY HANDLER PSECT
 
-static const char* FORLIB = "FORLIB.OBJ";  // FORTRAN LIBRARY FILENAME
-static const char* SYSLIB = "SYSLIB.OBJ";  // DEFAULT SYSTEM LIBRARY FILENAME
+//static const char* FORLIB = "FORLIB.OBJ";  // FORTRAN LIBRARY FILENAME
+//static const char* SYSLIB = "SYSLIB.OBJ";  // DEFAULT SYSTEM LIBRARY FILENAME
 
 static const char* GSDItemTypeNames[] =
 {
@@ -489,7 +489,7 @@ void process_pass1_gsd_item(const uint16_t* itemw, const SaveStatusEntry* sscur)
         process_pass1_gsd_item_psecnm(itemw, itemflags);
         break;
     case 6: // 6 - IDENT DEFINITION; see LINK3\PGMIDN
-        printf("\n");
+        println();
         if (Globals.IDENT == 0)
             Globals.IDENT = itemnamerad50;
         break;
@@ -525,7 +525,7 @@ void process_pass1_gsd_item(const uint16_t* itemw, const SaveStatusEntry* sscur)
         }
         break;
     default:
-        printf("\n");
+        println();
         fatal_error("ERR21: Bad GSD type %d found in %s.\n", itemtype, sscur->filename);
     }
 }
@@ -612,7 +612,6 @@ void process_pass1_file(SaveStatusEntry* sscur)
 // PASS1: GSD PROCESSING, see LINK3\PASS1
 void process_pass1()
 {
-    printf("PASS 1\n");
     // PROCESS FORMATTED BINARY RECORDS, see LINK3\PA1
     for (int i = 0; i < SaveStatusCount; i++)
     {
@@ -885,7 +884,6 @@ void process_pass15_library(const SaveStatusEntry* sscur)
 // PASS 1.5 SCANS ONLY LIBRARIES
 void process_pass15()
 {
-    printf("PASS 1.5\n");
     Globals.LIBNB = 0;  // RESET LIBRARY FILE #
 
     for (int i = 0; i < SaveStatusCount; i++)
@@ -1191,7 +1189,7 @@ void process_pass_map_output_headers()
         printf("   Global  Value");
     }
     fprintf(mapfileobj, "\n\n");
-    printf("\n");
+    println();
 }
 
 // PRINT UNDEFINED GLOBALS IF ANY, see LINK5\DOUDFS
@@ -1216,7 +1214,7 @@ void process_pass_map_output_print_undefined_globals()
         index = entry->nextindex();
         count++;
     }
-    printf("\n");
+    println();
 }
 
 void process_pass_map_output_sectionline(const SymbolTableEntry* entry, uint16_t baseaddr, uint16_t sectsize)
@@ -1245,8 +1243,6 @@ void process_pass_map_output_sectionline(const SymbolTableEntry* entry, uint16_t
 // Map output: see LINK5\MAPHDR
 void process_pass_map_output()
 {
-    printf("PASS MAP\n");
-
     if (Globals.FlagMAP)
     {
         // Prepare MAP file name
@@ -1262,7 +1258,7 @@ void process_pass_map_output()
             fatal_error("ERR5: Failed to open file %s, error %d: %s.\n", mapfilename, errno, strerror(errno));
     }
 
-    Globals.LINLFT = LINPPG;
+    //Globals.LINLFT = LINPPG;
 
     if (Globals.FlagMAP) // OUTPUT THE HEADERS
     {
@@ -1283,7 +1279,7 @@ void process_pass_map_output()
             {
                 if (Globals.FlagMAP)
                     fprintf(mapfileobj, "\n");
-                printf("\n");
+                println();
                 tabcount = 0;
             }
 
@@ -1319,7 +1315,7 @@ void process_pass_map_output()
             {
                 if (Globals.FlagMAP)
                     fprintf(mapfileobj, "\n");
-                printf("\n");
+                println();
                 tabcount = 0;
             }
 
@@ -1333,7 +1329,7 @@ void process_pass_map_output()
             {
                 if (Globals.FlagMAP)
                     fprintf(mapfileobj, "\n");
-                printf("\n");
+                println();
             }
             break;
         }
@@ -1428,10 +1424,10 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
         switch (cpxcmd)
         {
         case 000:  // NOP
-            printf("\n");
+            println();
             break;
         case 001:  // ADD -- ADD TOP 2 ITEMS
-            printf("\n");
+            println();
             if (cpxstacktop > 0)
             {
                 cpxstacktop--;
@@ -1439,7 +1435,7 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
             }
             break;
         case 002:  // SUBTRACT -- NEGATE TOP ITEM ON STACK
-            printf("\n");
+            println();
             if (cpxstacktop > 0)
             {
                 cpxstacktop--;
@@ -1447,7 +1443,7 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
             }
             break;
         case 003:  // MULTIPLY
-            printf("\n");
+            println();
             if (cpxstacktop > 0)
             {
                 cpxstacktop--;
@@ -1455,7 +1451,7 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
             }
             break;
         case 004:  // DIVIDE, see LINK7\CPXDIV
-            printf("\n");
+            println();
             if (cpxstacktop > 0)
             {
                 if (cpxstack[cpxstacktop] == 0)
@@ -1465,7 +1461,7 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
             }
             break;
         case 005:  // AND
-            printf("\n");
+            println();
             if (cpxstacktop > 0)
             {
                 cpxstacktop--;
@@ -1473,7 +1469,7 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
             }
             break;
         case 006:  // OR
-            printf("\n");
+            println();
             if (cpxstacktop > 0)
             {
                 cpxstacktop--;
@@ -1481,7 +1477,7 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
             }
             break;
         case 007:  // XOR
-            printf("\n");
+            println();
             if (cpxstacktop > 0)
             {
                 cpxstacktop--;
@@ -1489,11 +1485,11 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
             }
             break;
         case 010:  // NEGATE TOP ITEM
-            printf("\n");
+            println();
             cpxstack[cpxstacktop] = 0 - cpxstack[cpxstacktop];
             break;
         case 011:  // COMPLEMENT -- COMPLEMENT TOP ITEM
-            printf("\n");
+            println();
             cpxstack[cpxstacktop] = ~cpxstack[cpxstacktop];
             break;
         case 012:  // STORE NOT DISPLACED
@@ -1508,7 +1504,7 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
             break;
         case 014:  // ILLEGAL FORMAT
         case 015:  // ILLEGAL FORMAT
-            printf("\n");
+            println();
             fatal_error("ERR35: Invalid complex relocation in %s\n", sscur->filename);
             break;
         case 016:  // PUSH GLOBAL SYMBOL VALUE
@@ -1545,7 +1541,7 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
             cpxstack[cpxstacktop] = cpxval;
             break;
         default:
-            printf("\n");
+            println();
             fatal_error("ERR36: Unknown complex relocation command %03ho in %s\n", (uint16_t)cpxcmd, sscur->filename);
         }
     }
@@ -1667,12 +1663,12 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             data += 2;  offset += 2;
             break;
         case 011:  // SET PROGRAM LIMITS, see LINK7\RLDSPL
-            printf("\n");
+            println();
             *((uint16_t*)dest) = Globals.BOTTOM;
             *((uint16_t*)dest + 1) = Globals.HGHLIM;
             break;
         case 017:  // COMPLEX RELOCATION STRING PROCESSING (GLOBAL ARITHMETIC)
-            printf("\n");
+            println();
             *((uint16_t*)dest) = process_pass2_rld_complex(sscur, data, offset, blocksize);
             break;
         default:
@@ -2014,7 +2010,6 @@ void process_pass2_file(const SaveStatusEntry* sscur)
 // PRODUCE SAVE IMAGE FILE, see LINK7\PASS2
 void process_pass2()
 {
-    printf("PASS 2\n");
     Globals.TXTLEN = 0;
     Globals.LIBNB = 0;
     for (int i = 0; i < SaveStatusCount; i++)

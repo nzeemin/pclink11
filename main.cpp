@@ -32,6 +32,11 @@ struct tagGlobals Globals;
 
 char savfilename[64] = { 0 };
 
+void println()
+{
+    putchar('\n');
+}
+
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -477,16 +482,20 @@ int main(int argc, char *argv[])
 
     prepare_read_files();
 
+    printf("PASS 1\n");
     Globals.PAS1_5 = 0;  // PASS 1 PHASE INDICATOR
     process_pass1();
     if (Globals.PAS1_5 & 1)  // BIT 0 SET IF TO DO 1.5 (we have library files)
     {
+        printf("PASS 1.5\n");
         Globals.PAS1_5 = 128;
         process_pass15();  // SCANS ONLY LIBRARIES
     }
     process_pass1_endp1();
 
-    print_symbol_table();//DEBUG
+    //print_symbol_table();//DEBUG
+    printf("PASS MAP\n");
+    assert(mapfileobj == nullptr);
     process_pass_map_init();
     process_pass_map_output();
     process_pass_map_done();
@@ -494,13 +503,15 @@ int main(int argc, char *argv[])
     assert(stbfileobj == nullptr);
     assert(outfileobj == nullptr);
 
-    print_symbol_table();//DEBUG
+    //print_symbol_table();//DEBUG
+    printf("PASS 2\n");
     process_pass2_init();
     assert(outfileobj != nullptr);
     Globals.PAS1_5 = 0;
     process_pass2();  // Non-library pass
     if (Globals.PAS1_5 & 1)  // BIT 0 SET IF TO DO 1.5 (we have library files)
     {
+        printf("PASS 2.5\n");
         Globals.PAS1_5 |= 128;  // MARK BEGINING OF 2ND HALF OF PASS
         process_pass2();  // Library pass
     }

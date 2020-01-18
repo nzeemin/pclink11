@@ -21,13 +21,14 @@
 #include "version.h"
 #endif
 
-
 // Macros used to mark and detect unimplemented but needed
 #define NOTIMPLEMENTED { printf("*** NOT IMPLEMENTED at %s:%d ***\n", __FILE__, __LINE__); }
 
+void println();  // printf("\n");
+
 
 /////////////////////////////////////////////////////////////////////////////
-
+// util.cpp
 
 const char* unrad50(uint32_t data);
 const char* unrad50(uint16_t loword, uint16_t hiword);
@@ -43,7 +44,7 @@ void warning_message(const char* message, ...);
 
 /////////////////////////////////////////////////////////////////////////////
 
-const uint16_t LINPPG = 60; // NUMBER OF LINES PER PAGE FOR MAP
+//const uint16_t LINPPG = 60; // NUMBER OF LINES PER PAGE FOR MAP
 
 const int RECSIZ = 128; // MAXIMUM SIZE OF A FORMATTED BINARY RECORD IN BYTES
 // DOES NOT COUNT LEADING 1ST WORD OF 1 OR THE CHECKSUM BYTE
