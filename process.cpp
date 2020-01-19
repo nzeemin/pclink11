@@ -942,6 +942,20 @@ void process_pass1_endp1()
 {
     //TODO
 
+    {
+        // NOW LOOKUP IN SYMBOL TABLE FOR THE VIRTUAL SECTION, IF IT IS THERE
+        // ZERO IT'S VALUE WORD(INDICATES SIZE OF SECTION) SO DOES NOT
+        // CONTRIBUTE TO SIZE OF PROGRAM DURING MAP PASS
+        uint16_t lkwd = (uint16_t)SY_SEC;  // SECTION NAME LOOKUP
+        uint16_t lkmsk = (uint16_t)~SY_SEC;  // CARE ABOUT SECTION FLG
+        int index;
+        if (symbol_table_lookup(RAD50_VSEC, lkwd, lkmsk, &index))
+        {
+            SymbolTableEntry* entry = SymbolTable + index;
+            entry->value = 0;
+        }
+    }
+
     if (ASECTentry == nullptr)  //HACK: add default ABS section if we still don't have one
     {
         // Enter ABS section into the symbol table
@@ -1688,6 +1702,18 @@ void process_pass2_init()
     if (OutputBuffer == nullptr)
         fatal_error("ERR11: Failed to allocate memory for output buffer.\n");
 
+    // FORCE BASE OF ZERO FOR VSECT IF ANY
+    {
+        uint16_t lkwd = (uint16_t)SY_SEC;  // SECTION NAME LOOKUP
+        uint16_t lkmsk = (uint16_t)~SY_SEC;  // CARE ABOUT SECTION FLG
+        int index;
+        if (symbol_table_lookup(RAD50_VSEC, lkwd, lkmsk, &index))
+        {
+            SymbolTableEntry* entry = SymbolTable + index;
+            entry->value = 0;
+        }
+    }
+
     // See LINK6\DOCASH
     Globals.LRUNUM = 0; // INIT LEAST RECENTLY USED TIME STAMP
     Globals.BASE = 0;
@@ -1968,6 +1994,7 @@ void process_pass2_file(const SaveStatusEntry* sscur)
             Globals.TXTLEN = datasize;
             assert(datasize <= sizeof(Globals.TXTBLK));
             memcpy(Globals.TXTBLK, data + 6, blocksize - 6);
+            //printf(" data %02x %02x %02x %02x\n", data[8 + 0], data[8 + 1], data[8 + 2], data[8 + 3]);
 
             *((uint16_t*)Globals.TXTBLK) = destaddr;  // ADD BASE TO GIVE ABS LOAD ADDR
         }
