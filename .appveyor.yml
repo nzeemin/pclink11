@@ -30,5 +30,6 @@ environment:
 build:
   project: pclink11.sln
 
-after_build:
-  - cmd: call !run-tests.cmd
+test_script:
+  - cmd: %CONFIGURATION%\testrunner.exe
+  - cmd: %CONFIGURATION%\testanalyzer.exe
