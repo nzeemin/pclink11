@@ -184,6 +184,8 @@ void process_pass1_gsd_item_taddr(const uint16_t* itemw, const SaveStatusEntry* 
     {
         const uint8_t* data = sscur->data + offset;
         uint16_t blocksize = ((uint16_t*)data)[1];
+        if (blocksize == 0)
+            break;
         uint16_t blocktype = ((uint16_t*)data)[2];
         if (blocktype == 1)
         {
@@ -564,11 +566,12 @@ void process_pass1_file(SaveStatusEntry* sscur)
             if (*dataw == 0)  // Possibly that is filler at the end of the block
             {
                 size_t offsetnext = (offset + 511) & ~511;
-                while (*data == 0 && offset < sscur->filesize && offset < offsetnext)
+                while (offset < sscur->filesize && offset < offsetnext)
                 {
+                    if (*data != 0) break;
                     data++; offset++;
                 }
-                if (offset == sscur->filesize)
+                if (offset >= sscur->filesize)
                     break;  // End of file
             }
             dataw = (uint16_t*)(data);
@@ -1010,7 +1013,12 @@ void process_pass_map_init()
     {
         memcpy(savfilename, SaveStatusArea[0].filename, 64);
         char* pext = strrchr(savfilename, '.');
-        pext++;
+        if (pext == nullptr)
+        {
+            pext = savfilename + strlen(savfilename);
+            *pext = '.';
+        }
+        pext++;  // skip the dot
         if (Globals.SWITCH & SW_R)
         {
             *pext++ = 'R'; *pext++ = 'E'; *pext = 'L';
@@ -1027,7 +1035,8 @@ void process_pass_map_init()
         char stbfilename[64];
         memcpy(stbfilename, savfilename, 64);
         char* pext = strrchr(stbfilename, '.');
-        pext++; *pext++ = 'S'; *pext++ = 'T'; *pext = 'B';
+        pext++;  // skip the dot
+        *pext++ = 'S'; *pext++ = 'T'; *pext = 'B';
 
         // Open STB file
         assert(stbfileobj == nullptr);
@@ -1145,7 +1154,7 @@ void process_pass_map_endstb()
     // Write zeroes till the end of 512-byte file block
     long stblen = ftell(stbfileobj);
     long stbalign = 512 - (stblen % 512);
-    if (stbalign > 0 && stbalign != 512)
+    if (stbalign != 512)
     {
         memset(Globals.TXTBLK, 0, sizeof(Globals.TXTBLK));
         while (stbalign >= sizeof(Globals.TXTBLK))
@@ -1960,11 +1969,12 @@ void process_pass2_file(const SaveStatusEntry* sscur)
             if (*dataw == 0)  // Possibly that is filler at the end of the block
             {
                 size_t offsetnext = (offset + 511) & ~511;
-                while (*data == 0 && offset < sscur->filesize && offset < offsetnext)
+                while (offset < sscur->filesize && offset < offsetnext)
                 {
+                    if (*data != 0) break;
                     data++; offset++;
                 }
-                if (offset == sscur->filesize)
+                if (offset >= sscur->filesize)
                     break;  // End of file
             }
             dataw = (uint16_t*)(data);
@@ -2042,7 +2052,6 @@ void process_pass2()
     for (int i = 0; i < SaveStatusCount; i++)
     {
         SaveStatusEntry* sscur = SaveStatusArea + i;
-        assert(sscur != nullptr);
 
         if (sscur->islibrary)
         {
