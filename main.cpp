@@ -20,6 +20,9 @@
 /////////////////////////////////////////////////////////////////////////////
 
 
+static const char* FORLIB = "FORLIB.OBJ";  // FORTRAN LIBRARY FILENAME
+//static const char* SYSLIB = "SYSLIB.OBJ";  // DEFAULT SYSTEM LIBRARY FILENAME
+
 uint8_t* OutputBuffer = nullptr;
 size_t OutputBufferSize = 0;
 int OutputBlockCount = 0;
@@ -30,7 +33,7 @@ FILE* stbfileobj = nullptr;
 
 struct tagGlobals Globals;
 
-char savfilename[64] = { 0 };
+char outfilename[64] = { 0 };
 
 void println()
 {
@@ -154,7 +157,7 @@ void parse_commandline_option(const char* cur)
     // /EXECUTE:filespec - Specifies the name of the memory image file
     if (strncmp(cur, "EXECUTE:", 8) == 0) //TODO: or /SAV
     {
-        strcpy(savfilename, cur + 8);
+        strcpy(outfilename, cur + 8);
         //TODO: Validate the name as a proper filename
         return;
     }
@@ -210,6 +213,7 @@ void parse_commandline_option(const char* cur)
         //TODO: /L IS ILLEGAL FOR FOREGROUND LINKS
         //TODO: IS /V SET? -> YES, ILLEGAL COMBINATION
         Globals.SWITCH |= SW_L;
+        return;
     }
 
     int result;
@@ -314,9 +318,9 @@ void parse_commandline_option(const char* cur)
         //    Globals.SWITCH |= SW_I;
         //    break;
 
-        //case 'F':  // /F - INCLUDE FORLIB.OBJ IN LINK
-        //    Globals.SWITCH |= SW_F;
-        //    break;
+        case 'F':  // /F - INCLUDE FORLIB.OBJ IN LINK
+            Globals.SWITCH |= SW_F;
+            break;
 
         //case 'S':  // /S - SYMBOL TABLE AS LARGE AS POSSIBLE
         //    //TODO
@@ -351,6 +355,27 @@ void parse_commandline_option(const char* cur)
     default:
         fatal_error("Unknown command line option '%c'\n", option);
     }
+}
+
+void parse_commandline_filename(const char * cur)
+{
+    if (SaveStatusCount == SaveStatusAreaSize)
+        fatal_error("Too many files specified.\n");
+
+    SaveStatusEntry* sscur = SaveStatusArea + SaveStatusCount;
+
+    // Parse filename
+    char* filenamecur = sscur->filename;
+    int filenamelen = 0;
+    while (*cur != 0 && (isalnum(*cur) || *cur == '.' || *cur == '_' || *cur == '-'))
+    {
+        *filenamecur = *cur;
+        filenamecur++;  cur++;
+        filenamelen++;
+        if (filenamelen >= sizeof(sscur->filename) - 1)
+            fatal_error("Too long filename: %s\n", cur);
+    }
+    SaveStatusCount++;
 }
 
 bool g_okHelpRequested = false;
@@ -394,31 +419,17 @@ void parse_commandline(int argc, char **argv)
         }
         else  // Parse filename and arguments
         {
-            if (SaveStatusCount == SaveStatusAreaSize)
-                fatal_error("Too many files specified.\n");
-
-            SaveStatusEntry* sscur = SaveStatusArea + SaveStatusCount;
-
-            // Parse filename
-            char* filenamecur = sscur->filename;
-            const char* cur = argvcur;
-            int filenamelen = 0;
-            while (*cur != 0 && (isalnum(*cur) || *cur == '.' || *cur == '_' || *cur == '-'))
-            {
-                *filenamecur = *cur;
-                filenamecur++;  cur++;
-                filenamelen++;
-                if (filenamelen >= sizeof(sscur->filename) - 1)
-                    fatal_error("Too long filename: %s\n", argvcur);
-            }
-            SaveStatusCount++;
-
-            //TODO: Parse options associated with the file
+            parse_commandline_filename(argvcur);
         }
     }
 
     if (g_okHelpRequested || g_okVersionRequested)
         return;
+
+    if (Globals.SWITCH & SW_F)
+    {
+        parse_commandline_filename(FORLIB); // INCLUDE FORLIB
+    }
 
     // Validate command line params
     if (SaveStatusCount == 0)

@@ -404,7 +404,7 @@ extern FILE* outfileobj;
 extern FILE* mapfileobj;
 extern FILE* stbfileobj;
 
-extern char savfilename[];
+extern char outfilename[];  // could be .SAV / .REL / .LDA or user-defined
 
 
 /////////////////////////////////////////////////////////////////////////////

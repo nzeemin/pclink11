@@ -27,9 +27,6 @@ const uint32_t RAD50_GVHNDL = rad50x2("$OVRHV");  // /V OVERLAY HANDLER GBL ENTR
 const uint32_t RAD50_GZHNDL = rad50x2("$OVRHZ");  // I-D SPACE OVERLAY HANDLER GBL ENTRY
 const uint32_t RAD50_ZTABL  = rad50x2("$ZTABL");  // I-D SPACE OVERLAY HANDLER PSECT
 
-//static const char* FORLIB = "FORLIB.OBJ";  // FORTRAN LIBRARY FILENAME
-//static const char* SYSLIB = "SYSLIB.OBJ";  // DEFAULT SYSTEM LIBRARY FILENAME
-
 static const char* GSDItemTypeNames[] =
 {
     /*0*/ "MODULE NAME",
@@ -1008,28 +1005,28 @@ void process_pass_map_init()
     Globals.HIPHYS = 0; // PARTITION EXTENDED ADDR HIGH LIMIT
     Globals.SEGBLK = 0; // BASE OF PREVIOUS XM PARTITION
 
-    // Prepare SAV file name
-    if (*savfilename == 0)
+    // Prepare output file name
+    if (*outfilename == 0)
     {
-        memcpy(savfilename, SaveStatusArea[0].filename, 64);
-        char* pext = strrchr(savfilename, '.');
+        memcpy(outfilename, SaveStatusArea[0].filename, 64);
+        char* pext = strrchr(outfilename, '.');
         if (pext == nullptr)
         {
-            pext = savfilename + strlen(savfilename);
+            pext = outfilename + strlen(outfilename);
             *pext = '.';
         }
         pext++;  // skip the dot
         if (Globals.SWITCH & SW_R)
         {
-            *pext++ = 'R'; *pext++ = 'E'; *pext = 'L';
+            *pext++ = 'R'; *pext++ = 'E'; *pext = 'L';  // REL
         }
         else if (Globals.SWITCH & SW_L)
         {
-            *pext++ = 'L'; *pext++ = 'D'; *pext = 'A';
+            *pext++ = 'L'; *pext++ = 'D'; *pext = 'A';  // LDA
         }
         else
         {
-            *pext++ = 'S'; *pext++ = 'A'; *pext = 'V';
+            *pext++ = 'S'; *pext++ = 'A'; *pext = 'V';  // SAV
         }
     }
 
@@ -1037,10 +1034,10 @@ void process_pass_map_init()
     {
         // Prepare STB file name
         char stbfilename[64];
-        memcpy(stbfilename, savfilename, 64);
+        memcpy(stbfilename, outfilename, 64);
         char* pext = strrchr(stbfilename, '.');
         pext++;  // skip the dot
-        *pext++ = 'S'; *pext++ = 'T'; *pext = 'B';
+        *pext++ = 'S'; *pext++ = 'T'; *pext = 'B';  // STB
 
         // Open STB file
         assert(stbfileobj == nullptr);
@@ -1187,7 +1184,7 @@ void process_pass_map_output_headers()
             timeptr->tm_hour, timeptr->tm_min);
 
     char savname[64];
-    strcpy(savname, savfilename);
+    strcpy(savname, outfilename);
     char* pdot = strrchr(savname, '.');
     if (pdot != nullptr) *pdot = 0;
     fprintf(mapfileobj, "%-6s", savname);
@@ -1274,9 +1271,9 @@ void process_pass_map_output()
     {
         // Prepare MAP file name
         char mapfilename[64] = { 0 };
-        memcpy(mapfilename, savfilename, 64);
+        memcpy(mapfilename, outfilename, 64);
         char* pext = strrchr(mapfilename, '.');
-        pext++; *pext++ = 'M'; *pext++ = 'A'; *pext = 'P';
+        pext++; *pext++ = 'M'; *pext++ = 'A'; *pext = 'P';  // MAP
 
         // Open MAP file
         assert(mapfileobj == nullptr);
@@ -1781,11 +1778,11 @@ void process_pass2_init()
 
     //TODO: BINOUT REQUESTED?
 
-    // Open SAV file for writing
+    // Open output file for writing
     assert(outfileobj == nullptr);
-    outfileobj = fopen(savfilename, "wb");
+    outfileobj = fopen(outfilename, "wb");
     if (outfileobj == nullptr)
-        fatal_error("ERR6: Failed to open %s file, error %d: %s.\n", savfilename, errno, strerror(errno));
+        fatal_error("ERR6: Failed to open %s file, error %d: %s.\n", outfilename, errno, strerror(errno));
 
     // See LINK6\INITP2
     //TODO: Some code for REL
@@ -2081,23 +2078,46 @@ void process_pass2_done()
 {
     uint16_t highlim = (Globals.SWIT1 & SW_J) ? Globals.DHGHLM : Globals.HGHLIM;
 
-    Globals.BITMAP[0] |= 128;  // We always use block 1
-
-    // Copy the bitmap to block 0
-    if ((Globals.FLGWD & 02000) == 0)
+    // Write to the output file
+    if (Globals.SWITCH & SW_L)  // LDA file
     {
-        int bitstowrite = ((int)highlim + 511) / 512;
-        int bytestowrite = (bitstowrite + 7) / 8;
-        memcpy(OutputBuffer + SysCom_BITMAP, Globals.BITMAP, bytestowrite);
+        uint16_t baseaddr = Globals.BOTTOM;
+
+        uint16_t ldaheader[3];
+        ldaheader[0] = 1;
+        ldaheader[1] = highlim - baseaddr; //TODO
+        ldaheader[2] = baseaddr;
+
+        size_t bytestowrite = sizeof(ldaheader);
+        size_t byteswrit = fwrite(ldaheader, 1, bytestowrite, outfileobj);
+        if (byteswrit != bytestowrite)
+            fatal_error("ERR6: Failed to write output file.\n");
+
+        bytestowrite = highlim - baseaddr;
+        bytestowrite = (bytestowrite + 6 + 511) / 512 * 512 - 6; // round to block size
+        byteswrit = fwrite(OutputBuffer + baseaddr, 1, bytestowrite, outfileobj);
+        if (byteswrit != bytestowrite)
+            fatal_error("ERR6: Failed to write output file.\n");
+    }
+    else  // SAV file
+    {
+        Globals.BITMAP[0] |= 128;  // We always use block 1
+
+        // Copy the bitmap to block 0
+        if ((Globals.FLGWD & 02000) == 0)
+        {
+            int bitstowrite = ((int)highlim + 511) / 512;
+            int bytestowrite = (bitstowrite + 7) / 8;
+            memcpy(OutputBuffer + SysCom_BITMAP, Globals.BITMAP, bytestowrite);
+        }
+
+        size_t bytestowrite = OutputBlockCount == 0 ? 65536 : OutputBlockCount * 512;
+        size_t byteswrit = fwrite(OutputBuffer, 1, bytestowrite, outfileobj);
+        if (byteswrit != bytestowrite)
+            fatal_error("ERR6: Failed to write output file.\n");
     }
 
-    // Write the SAV file
-    size_t bytestowrite = OutputBlockCount == 0 ? 65536 : OutputBlockCount * 512;
-    size_t byteswrit = fwrite(OutputBuffer, 1, bytestowrite, outfileobj);
-    if (byteswrit != bytestowrite)
-        fatal_error("ERR6: Failed to write output file.\n");
-
-    // Done with the SAV file, closing
+    // Done with the output file, closing
     fclose(outfileobj);  outfileobj = nullptr;
 }
 
