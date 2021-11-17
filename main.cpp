@@ -204,6 +204,14 @@ void parse_commandline_option(const char* cur)
         return;
     }
 
+    // /L - INDICATE LDA OUTPUT
+    if (strcmp(cur, "LDA") == 0 || strcmp(cur, "L") == 0)
+    {
+        //TODO: /L IS ILLEGAL FOR FOREGROUND LINKS
+        //TODO: IS /V SET? -> YES, ILLEGAL COMBINATION
+        Globals.SWITCH |= SW_L;
+    }
+
     int result;
     param1 = param2 = 0;  result = 0;
     int option = toupper(*cur++);
@@ -302,10 +310,6 @@ void parse_commandline_option(const char* cur)
         //    //TODO
         //    break;
 
-        //case 'L':  // /L - INDICATE LDA OUTPUT
-        //    //TODO
-        //    break;
-
         //case 'I':  // /I - INCLUDE MODULES FROM LIBRARY
         //    Globals.SWITCH |= SW_I;
         //    break;
@@ -375,7 +379,11 @@ void parse_commandline(int argc, char **argv)
             break;
         }
 
-        if (*argvcur == '/' || *argvcur == '-')  // Parse global arguments
+        if (*argvcur == '-'
+#ifdef _MSC_VER
+            || *argvcur == '/'
+#endif
+           )  // Parse global arguments
         {
             //TODO: Parse arguments like Command String Interpreter
             const char* cur = argvcur + 1;
@@ -474,7 +482,7 @@ int main(int argc, char *argv[])
     {
         printf(
             "Cross-linker, porting PDP-11 LINK to C/C++, WIP\n"
-            "Ported in 2019-2020 by nzeemin\n"
+            "Ported in 2019-2021 by nzeemin\n"
             "License LGPLv3: GNU Lesser General Public License v3.0 https://www.gnu.org/licenses/lgpl-3.0.html\n"
             "Source code: https://github.com/nzeemin/pclink11\n");
         exit(EXIT_SUCCESS);

@@ -1,0 +1,10 @@
+RT-11 LINK  V05.45 	Load Map 	Wednesday 17-Nov-2021 02:27  Page 1
+HELLO .LDA   	Title:	SAY   	Ident:	V00.00	
+
+Section  Addr	Size	Global	Value	Global	Value	Global	Value
+
+ . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
+ 	 001000	000162 = 57.     words  (RW,I,LCL,REL,CON)
+			START 	001000	PUTCON	001054	
+
+Transfer address = 001000, High limit = 001160 = 312.    words

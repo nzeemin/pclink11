@@ -372,12 +372,15 @@ void showdiff_binary_files(string& filepath11, string& filepathmy, const string&
 
 void process_test(string& stestdirname)
 {
+    bool islda = stestdirname.size() > 4 && stestdirname.compare(stestdirname.size() - 4, 4, "-LDA") == 0;
+    string exefileext = islda ? "LDA" : "SAV";
+
     string stestdirpath = TESTS_SUB_DIR + stestdirname;
     string filenamelogmy = findfile_bymask(stestdirpath, "-my.log");
     string filenamemap11 = findfile_bymask(stestdirpath, "-11.MAP");
     string filenamemapmy = findfile_bymask(stestdirpath, "-my.MAP");
-    string filenamesav11 = findfile_bymask(stestdirpath, "-11.SAV");
-    string filenamesavmy = findfile_bymask(stestdirpath, "-my.SAV");
+    string filenamesav11 = findfile_bymask(stestdirpath, islda ? "-11.LDA" : "-11.SAV");
+    string filenamesavmy = findfile_bymask(stestdirpath, islda ? "-my.LDA" : "-my.SAV");
     string filenamestb11 = findfile_bymask(stestdirpath, "-11.STB");
     string filenamestbmy = findfile_bymask(stestdirpath, "-my.STB");
 
@@ -399,9 +402,9 @@ void process_test(string& stestdirname)
     if (!nomap && filenamemapmy.empty())
         filesnotfound.push_back("*-my.MAP");
     if (filenamesav11.empty())
-        filesnotfound.push_back("*-11.SAV");
+        filesnotfound.push_back(islda ? "*-11.LDA" : "*-11.SAV");
     if (filenamesavmy.empty())
-        filesnotfound.push_back("*-my.SAV");
+        filesnotfound.push_back(islda ? "*-my.LDA" : "*-my.SAV");
     if (!nostb && filenamestb11.empty())
         filesnotfound.push_back("*-11.STB");
     if (!nostb && filenamestbmy.empty())
@@ -417,7 +420,7 @@ void process_test(string& stestdirname)
     string filepathsavmy = stestdirpath + PATH_SEPARATOR + filenamesavmy;
     if (!filenamesav11.empty() && !filenamesavmy.empty())
     {
-        ressavs = countdiff_binary_files(filepathsav11, filepathsavmy, "SAV", fileproblems);
+        ressavs = countdiff_binary_files(filepathsav11, filepathsavmy, exefileext, fileproblems);
     }
     string filepathstb11 = stestdirpath + PATH_SEPARATOR + filenamestb11;
     string filepathstbmy = stestdirpath + PATH_SEPARATOR + filenamestbmy;
@@ -464,7 +467,7 @@ void process_test(string& stestdirname)
     if (g_verbose)
     {
         if (!ressavs)
-            showdiff_binary_files(filepathsav11, filepathsavmy, "SAV", g_maxchunkstoshow);
+            showdiff_binary_files(filepathsav11, filepathsavmy, exefileext, g_maxchunkstoshow);
         if (!resstbs)
             showdiff_binary_files(filepathstb11, filepathstbmy, "STB", g_maxchunkstoshow);
     }

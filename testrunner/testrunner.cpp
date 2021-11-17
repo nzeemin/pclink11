@@ -122,11 +122,13 @@ void remove_test_artifacts(const TestDescriptor & test)
 {
     string testdirpath = string(TESTS_SUB_DIR) + test.directory;
 
-    // Remove *-my.log *-my.SAV *-my.MAP *-my.STB
+    // Remove *-my.log *-my.SAV *-my.LDA *-my.MAP *-my.STB
     string filenamelogmy = findfile_bymask(testdirpath, "-my.log");
     remove_file(testdirpath, filenamelogmy);
     string filenamesavmy = findfile_bymask(testdirpath, "-my.SAV");
     remove_file(testdirpath, filenamesavmy);
+    string filenameldamy = findfile_bymask(testdirpath, "-my.LDA");
+    remove_file(testdirpath, filenameldamy);
     string filenamemapmy = findfile_bymask(testdirpath, "-my.MAP");
     remove_file(testdirpath, filenamemapmy);
     string filenamestbmy = findfile_bymask(testdirpath, "-my.STB");
@@ -225,6 +227,8 @@ void process_test(const TestDescriptor & test)
     rename_file(testdirpath, filenamesys, string(test.name) + "-my.SAV");
     string filenamerel = findfile_bymask(testdirpath, string(test.name) + ".REL");
     rename_file(testdirpath, filenamerel, string(test.name) + "-my.SAV");
+    string filenamelda = findfile_bymask(testdirpath, string(test.name) + ".LDA");
+    rename_file(testdirpath, filenamelda, string(test.name) + "-my.LDA");
     string filenamemap = findfile_bymask(testdirpath, string(test.name) + ".MAP");
     rename_file(testdirpath, filenamemap, string(test.name) + "-my.MAP");
     string filenamestb = findfile_bymask(testdirpath, string(test.name) + ".STB");

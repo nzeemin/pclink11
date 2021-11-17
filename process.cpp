@@ -1023,6 +1023,10 @@ void process_pass_map_init()
         {
             *pext++ = 'R'; *pext++ = 'E'; *pext = 'L';
         }
+        else if (Globals.SWITCH & SW_L)
+        {
+            *pext++ = 'L'; *pext++ = 'D'; *pext = 'A';
+        }
         else
         {
             *pext++ = 'S'; *pext++ = 'A'; *pext = 'V';
