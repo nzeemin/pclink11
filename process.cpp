@@ -1008,7 +1008,7 @@ void process_pass_map_init()
     // Prepare output file name
     if (*outfilename == 0)
     {
-        memcpy(outfilename, SaveStatusArea[0].filename, 64);
+        strcpy_s(outfilename, _MAX_PATH + 1, SaveStatusArea[0].filename);
         char* pext = strrchr(outfilename, '.');
         if (pext == nullptr)
         {
@@ -1033,8 +1033,8 @@ void process_pass_map_init()
     if (Globals.FlagSTB) // IS THERE AN STB FILE?
     {
         // Prepare STB file name
-        char stbfilename[64];
-        memcpy(stbfilename, outfilename, 64);
+        char stbfilename[_MAX_PATH + 1];
+        strcpy_s(stbfilename, sizeof(stbfilename), outfilename);
         char* pext = strrchr(stbfilename, '.');
         pext++;  // skip the dot
         *pext++ = 'S'; *pext++ = 'T'; *pext = 'B';  // STB
@@ -1183,8 +1183,8 @@ void process_pass_map_output_headers()
             timeptr->tm_mday, month_names[timeptr->tm_mon], 1900 + timeptr->tm_year,
             timeptr->tm_hour, timeptr->tm_min);
 
-    char savname[64];
-    strcpy(savname, outfilename);
+    char savname[_MAX_PATH + 1];
+    strcpy_s(savname, sizeof(savname), outfilename);
     char* pdot = strrchr(savname, '.');
     if (pdot != nullptr) *pdot = 0;
     fprintf(mapfileobj, "%-6s", savname);
@@ -1270,8 +1270,8 @@ void process_pass_map_output()
     if (Globals.FlagMAP)
     {
         // Prepare MAP file name
-        char mapfilename[64] = { 0 };
-        memcpy(mapfilename, outfilename, 64);
+        char mapfilename[_MAX_PATH + 1] = { 0 };
+        strcpy_s(mapfilename, sizeof(mapfilename), outfilename);
         char* pext = strrchr(mapfilename, '.');
         pext++; *pext++ = 'M'; *pext++ = 'A'; *pext = 'P';  // MAP
 

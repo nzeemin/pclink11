@@ -33,7 +33,7 @@ FILE* stbfileobj = nullptr;
 
 struct tagGlobals Globals;
 
-char outfilename[64] = { 0 };
+char outfilename[_MAX_PATH + 1] = { 0 };
 
 void println()
 {
@@ -318,9 +318,9 @@ void parse_commandline_option(const char* cur)
         //    Globals.SWITCH |= SW_I;
         //    break;
 
-        case 'F':  // /F - INCLUDE FORLIB.OBJ IN LINK
-            Globals.SWITCH |= SW_F;
-            break;
+    case 'F':  // /F - INCLUDE FORLIB.OBJ IN LINK
+        Globals.SWITCH |= SW_F;
+        break;
 
         //case 'S':  // /S - SYMBOL TABLE AS LARGE AS POSSIBLE
         //    //TODO
@@ -451,6 +451,7 @@ void print_help()
            "  /ALPHABETIZE /A    Lists global symbols on the link map in alphabetical order\n"
            "  /SYMBOLTABLE /STB  Generates a symbol table file (.STB file)\n"
            "  /MAP               Generates map file\n"
+           "  /F                 Include FORLIB.OBJ\n"
            "\n");
     //TODO
 }

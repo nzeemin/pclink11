@@ -179,7 +179,7 @@ struct GSDentry
 
 struct SaveStatusEntry
 {
-    char     filename[64];
+    char     filename[_MAX_PATH + 1];
     size_t   filesize;
     bool     islibrary;
     uint8_t* data;
