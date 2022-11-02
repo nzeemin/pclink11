@@ -1,7 +1,7 @@
 # pclink11
 [![License: LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
 [![Build status](https://ci.appveyor.com/api/projects/status/3lt4c9rxx2bv0g0g?svg=true)](https://ci.appveyor.com/project/nzeemin/pclink11)
-[![Build Status](https://travis-ci.org/nzeemin/pclink11.svg?branch=master)](https://travis-ci.org/nzeemin/pclink11)
+[![Build Status](https://github.com/nzeemin/pclink11/actions/workflows/push-matrix.yml/badge.svg?branch=master)](https://github.com/nzeemin/pclink11/actions/workflows/push-matrix.yml)
 [![CodeFactor](https://www.codefactor.io/repository/github/nzeemin/pclink11/badge)](https://www.codefactor.io/repository/github/nzeemin/pclink11)
 
 Attempt to port PDP-11 LINKer to PC C/C++ — learning how the linker works, the hard way.
