@@ -6,6 +6,12 @@
 #define PATH_MAX    _MAX_PATH
 #endif
 
+#ifdef _MSC_VER
+const char PATH_SEPARATOR_CHAR = '\\';
+#else
+const char PATH_SEPARATOR_CHAR = '/';
+#endif
+
 
 /////////////////////////////////////////////////////////////////////////////
 // Type definitions

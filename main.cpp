@@ -357,7 +357,7 @@ void parse_commandline_option(const char* cur)
     }
 }
 
-void parse_commandline_filename(const char * cur)
+void parse_commandline_filename(const char * arg)
 {
     if (SaveStatusCount == SaveStatusAreaSize)
         fatal_error("Too many files specified.\n");
@@ -367,13 +367,14 @@ void parse_commandline_filename(const char * cur)
     // Parse filename
     char* filenamecur = sscur->filename;
     int filenamelen = 0;
-    while (*cur != 0 && (isalnum(*cur) || *cur == '.' || *cur == '_' || *cur == '-'))
+    const char* cur = arg;
+    while (*cur != 0 && (isalnum(*cur) || *cur == '.' || *cur == '_' || *cur == '-') || *cur == PATH_SEPARATOR_CHAR)
     {
         *filenamecur = *cur;
         filenamecur++;  cur++;
         filenamelen++;
         if (filenamelen >= sizeof(sscur->filename) - 1)
-            fatal_error("Too long filename: %s\n", cur);
+            fatal_error("Too long filename: %s\n", arg);
     }
     SaveStatusCount++;
 }
