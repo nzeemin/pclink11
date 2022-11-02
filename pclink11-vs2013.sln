@@ -3,13 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
 VisualStudioVersion = 12.0.40629.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pclink11", "pclink11.vcxproj", "{A2C48352-EBCA-4E66-96A2-65E0D360178D}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pclink11", "pclink11-vs2013.vcxproj", "{A2C48352-EBCA-4E66-96A2-65E0D360178D}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "dumpobj", "dumpobj\dumpobj.vcxproj", "{F0C86CB3-B8AF-497B-95FA-7ABB1E9A2821}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "dumpobj", "dumpobj\dumpobj-vs2013.vcxproj", "{F0C86CB3-B8AF-497B-95FA-7ABB1E9A2821}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testanalyzer", "testanalyzer\testanalyzer.vcxproj", "{7E5D83AB-2166-41C2-9213-04E2AB1CF56D}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testanalyzer", "testanalyzer\testanalyzer-vs2013.vcxproj", "{7E5D83AB-2166-41C2-9213-04E2AB1CF56D}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testrunner", "testrunner\testrunner.vcxproj", "{199F4B6D-D57C-4FC8-8E96-B8B8E684C7AB}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testrunner", "testrunner\testrunner-vs2013.vcxproj", "{199F4B6D-D57C-4FC8-8E96-B8B8E684C7AB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

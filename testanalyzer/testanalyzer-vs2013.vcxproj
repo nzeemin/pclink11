@@ -11,9 +11,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{199F4B6D-D57C-4FC8-8E96-B8B8E684C7AB}</ProjectGuid>
+    <ProjectGuid>{7E5D83AB-2166-41C2-9213-04E2AB1CF56D}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>testrunner</RootNamespace>
+    <RootNamespace>testanalyzer</RootNamespace>
+    <ProjectName>testanalyzer</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -41,6 +42,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
+    <TargetName>testanalyzer</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -76,11 +78,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="testlist.cpp" />
-    <ClCompile Include="testrunner.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="testrunner.h" />
+    <ClCompile Include="testanalyzer.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

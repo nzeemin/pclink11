@@ -28,7 +28,7 @@ environment:
 #      APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
 
 build:
-  project: pclink11.sln
+  project: pclink11-vs2013.sln
 
 test_script:
   - cmd: call !run-tests.cmd

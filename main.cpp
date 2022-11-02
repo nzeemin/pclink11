@@ -442,17 +442,17 @@ void print_help()
     printf("\n"
            "Usage: pclink11 <input files and options, space-separated>\n"
            "Options:\n"
-           "  /EXECUTE:filespec  Specifies the name of the memory image file\n"
-           "  /T:addr       Specifies the starting address of the linked program\n"
-           "  /M:addr       Specifies the stack address for the linked program\n"
-           "  /B:addr       Specifies the lowest address to be used by the linked program\n"
-           "  /H:addr       Specifies the highest address to be used by the linked program\n"
-           "  /NOBITMAP    /X    Do not emit bit map\n"
-           "  /WIDE        /W    Produces a load map that is 132 columns wide\n"
-           "  /ALPHABETIZE /A    Lists global symbols on the link map in alphabetical order\n"
-           "  /SYMBOLTABLE /STB  Generates a symbol table file (.STB file)\n"
-           "  /MAP               Generates map file\n"
-           "  /F                 Include FORLIB.OBJ\n"
+           "  -EXECUTE:filespec  Specifies the name of the memory image file\n"
+           "  -T:addr       Specifies the starting address of the linked program\n"
+           "  -M:addr       Specifies the stack address for the linked program\n"
+           "  -B:addr       Specifies the lowest address to be used by the linked program\n"
+           "  -H:addr       Specifies the highest address to be used by the linked program\n"
+           "  -NOBITMAP    -X    Do not emit bit map\n"
+           "  -WIDE        -W    Produces a load map that is 132 columns wide\n"
+           "  -ALPHABETIZE -A    Lists global symbols on the link map in alphabetical order\n"
+           "  -SYMBOLTABLE -STB  Generates a symbol table file (.STB file)\n"
+           "  -MAP               Generates map file\n"
+           "  -F                 Include FORLIB.OBJ\n"
            "\n");
     //TODO
 }
@@ -495,7 +495,7 @@ int main(int argc, char *argv[])
     {
         printf(
             "Cross-linker, porting PDP-11 LINK to C/C++, WIP\n"
-            "Ported in 2019-2021 by nzeemin\n"
+            "Ported in 2019-2022 by Nikita Zimin\n"
             "License LGPLv3: GNU Lesser General Public License v3.0 https://www.gnu.org/licenses/lgpl-3.0.html\n"
             "Source code: https://github.com/nzeemin/pclink11\n");
         exit(EXIT_SUCCESS);
