@@ -1008,7 +1008,7 @@ void process_pass_map_init()
     // Prepare output file name
     if (*outfilename == 0)
     {
-        strcpy_s(outfilename, PATH_MAX + 1, SaveStatusArea[0].filename);
+        strcpy(outfilename, SaveStatusArea[0].filename);
         char* pext = strrchr(outfilename, '.');
         if (pext == nullptr)
         {
@@ -1035,7 +1035,7 @@ void process_pass_map_init()
     {
         // Prepare STB file name
         char stbfilename[PATH_MAX + 1];
-        strcpy_s(stbfilename, sizeof(stbfilename), outfilename);
+        strcpy(stbfilename, outfilename);
         char* pext = strrchr(stbfilename, '.');
         if (pext == nullptr)
         {
@@ -1192,7 +1192,7 @@ void process_pass_map_output_headers()
             timeptr->tm_hour, timeptr->tm_min);
 
     char savname[PATH_MAX + 1];
-    strcpy_s(savname, sizeof(savname), outfilename);
+    strcpy(savname, outfilename);
     char* pdot = strrchr(savname, '.');
     if (pdot != nullptr) *pdot = 0;
     fprintf(mapfileobj, "%-6s", savname);
@@ -1279,7 +1279,7 @@ void process_pass_map_output()
     {
         // Prepare MAP file name
         char mapfilename[PATH_MAX + 1] = { 0 };
-        strcpy_s(mapfilename, sizeof(mapfilename), outfilename);
+        strcpy(mapfilename, outfilename);
         char* pext = strrchr(mapfilename, '.');
         if (pext == nullptr)
         {
