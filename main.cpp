@@ -33,7 +33,7 @@ FILE* stbfileobj = nullptr;
 
 struct tagGlobals Globals;
 
-char outfilename[_MAX_PATH + 1] = { 0 };
+char outfilename[PATH_MAX + 1] = { 0 };
 
 void println()
 {

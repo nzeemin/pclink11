@@ -2,6 +2,11 @@
 #include <stdint.h>
 
 
+#ifndef PATH_MAX
+#define PATH_MAX    _MAX_PATH
+#endif
+
+
 /////////////////////////////////////////////////////////////////////////////
 // Type definitions
 
@@ -179,7 +184,7 @@ struct GSDentry
 
 struct SaveStatusEntry
 {
-    char     filename[_MAX_PATH + 1];
+    char     filename[PATH_MAX + 1];
     size_t   filesize;
     bool     islibrary;
     uint8_t* data;

@@ -38,9 +38,9 @@ Examples:
 - `pclink11 TEST1.OBJ TEST2.OBJ /MAP /WIDE /A` — link two object files, generate map file with wide format, alphabetize list of symbols
 
 ## Testing Strategy
-Folder `tests` contains several dozens sub-folders with .OBJ files.
+Folder `tests` contains more than 100 sub-folders with .OBJ files.
 
-First, we use [RT-11 simulator](http://emulator.pdp-11.org.ru/RT-11/distr/) written by Dmitry Patronov to produce "etalon"/"original" output files, they renamed with `-11` suffix — see `!runtest11.cmd` command file.
+First, we use [RT-11 simulator](http://emulator.pdp-11.org.ru/RT-11/distr/) written by Dmitry Patronov to produce "etalon" or "original" output files, they renamed with `-11` suffix — see `!runtest11.cmd` command file.
 Then, we run the `pclink11` with to produce "our" output files, they renamed with `-my` suffix — see `!runtestmy.cmd` command file and `testrunner` utility.
 And finally, we compare "original" files with "our" files, line-to-line or byte-to-byte, using `testanalyzer` utility.
 
@@ -52,7 +52,7 @@ Log files are absolutely different, we're not comparing them, but in "our" log f
 
 First priority:
 - Fix bugs for the failing test cases
- 
+
 Second priority:
 - Need more tests, currently we have 115 test cases
 - Reduce amount of logging, add option for verbosity level
