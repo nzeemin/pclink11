@@ -432,7 +432,7 @@ void dumpobj()
             data += 32 + eptsize; offset += 32 + eptsize;
             continue;
         }
-        else if (blocktype == 8)
+        else //if (blocktype == 8)
         {
             printf("  Block type 10 - ENDLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
         }

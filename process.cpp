@@ -1018,16 +1018,17 @@ void process_pass_map_init()
         pext++;  // skip the dot
         if (Globals.SWITCH & SW_R)
         {
-            *pext++ = 'R'; *pext++ = 'E'; *pext = 'L';  // REL
+            *pext++ = 'R'; *pext++ = 'E'; *pext++ = 'L';  // REL
         }
         else if (Globals.SWITCH & SW_L)
         {
-            *pext++ = 'L'; *pext++ = 'D'; *pext = 'A';  // LDA
+            *pext++ = 'L'; *pext++ = 'D'; *pext++ = 'A';  // LDA
         }
         else
         {
-            *pext++ = 'S'; *pext++ = 'A'; *pext = 'V';  // SAV
+            *pext++ = 'S'; *pext++ = 'A'; *pext++ = 'V';  // SAV
         }
+        *pext = 0;
     }
 
     if (Globals.FlagSTB) // IS THERE AN STB FILE?
@@ -1036,14 +1037,21 @@ void process_pass_map_init()
         char stbfilename[_MAX_PATH + 1];
         strcpy_s(stbfilename, sizeof(stbfilename), outfilename);
         char* pext = strrchr(stbfilename, '.');
+        if (pext == nullptr)
+        {
+            pext = stbfilename + strlen(stbfilename);
+            *pext = '.';
+        }
         pext++;  // skip the dot
-        *pext++ = 'S'; *pext++ = 'T'; *pext = 'B';  // STB
+        *pext++ = 'S'; *pext++ = 'T'; *pext++ = 'B';  // STB
+        *pext = 0;
 
         // Open STB file
         assert(stbfileobj == nullptr);
         stbfileobj = fopen(stbfilename, "wb");
         if (stbfileobj == nullptr)
             fatal_error("ERR5: Failed to open %s file, error %d: %s.\n", stbfilename, errno, strerror(errno));
+
         // Prepare STB buffer
         memset(Globals.TXTBLK, 0, sizeof(Globals.TXTBLK));
         Globals.TXTLEN = 0;
@@ -1273,7 +1281,14 @@ void process_pass_map_output()
         char mapfilename[_MAX_PATH + 1] = { 0 };
         strcpy_s(mapfilename, sizeof(mapfilename), outfilename);
         char* pext = strrchr(mapfilename, '.');
-        pext++; *pext++ = 'M'; *pext++ = 'A'; *pext = 'P';  // MAP
+        if (pext == nullptr)
+        {
+            pext = mapfilename + strlen(mapfilename);
+            *pext = '.';
+        }
+        pext++;  // skip the dot
+        *pext++ = 'M'; *pext++ = 'A'; *pext++ = 'P';  // MAP
+        *pext = 0;
 
         // Open MAP file
         assert(mapfileobj == nullptr);

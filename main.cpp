@@ -522,11 +522,13 @@ int main(int argc, char *argv[])
     assert(mapfileobj == nullptr);
     assert(stbfileobj == nullptr);
     assert(outfileobj == nullptr);
+    assert(OutputBuffer == nullptr);
 
     //print_symbol_table();//DEBUG
     printf("PASS 2\n");
     process_pass2_init();
     assert(outfileobj != nullptr);
+    assert(OutputBuffer != nullptr);
     Globals.PAS1_5 = 0;
     process_pass2();  // Non-library pass
     if (Globals.PAS1_5 & 1)  // BIT 0 SET IF TO DO 1.5 (we have library files)
@@ -540,6 +542,10 @@ int main(int argc, char *argv[])
 
     printf("SUCCESS\n");
     finalize();
+    assert(mapfileobj == nullptr);
+    assert(stbfileobj == nullptr);
+    assert(outfileobj == nullptr);
+    assert(OutputBuffer == nullptr);
 
 #if defined(_DEBUG) && defined(_MSC_VER)
     if (_CrtDumpMemoryLeaks())
