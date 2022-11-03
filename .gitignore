@@ -3,6 +3,7 @@
 *.user
 *.ncb
 *.suo
+*.VC.db
 /*.sdf
 /*.opensdf
 /.vs
