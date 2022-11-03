@@ -85,6 +85,27 @@ static const char month_names[][4] =
 { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 
 
+void prepare_filename(char* buffer, const char* basefilename, const char* extension)
+{
+    assert(buffer != nullptr);
+    assert(basefilename != nullptr);
+    assert(*basefilename != 0);  // make sure we have the base filename
+    assert(extension != nullptr);
+
+    strcpy(buffer, basefilename);
+
+    char* pext = strrchr(buffer, '.');
+    if (pext == nullptr)
+    {
+        pext = buffer + strlen(buffer);
+        *pext = '.';
+    }
+    pext++;  // skip the dot
+
+    strcpy(pext, extension);
+}
+
+
 /////////////////////////////////////////////////////////////////////////////
 
 
@@ -1007,43 +1028,22 @@ void process_pass_map_init()
     // Prepare output file name
     if (*outfilename == 0)
     {
-        strcpy(outfilename, SaveStatusArea[0].filename);
-        char* pext = strrchr(outfilename, '.');
-        if (pext == nullptr)
-        {
-            pext = outfilename + strlen(outfilename);
-            *pext = '.';
-        }
-        pext++;  // skip the dot
+        const char* extension;
         if (Globals.SWITCH & SW_R)
-        {
-            *pext++ = 'R'; *pext++ = 'E'; *pext++ = 'L';  // REL
-        }
+            extension = "REL";
         else if (Globals.SWITCH & SW_L)
-        {
-            *pext++ = 'L'; *pext++ = 'D'; *pext++ = 'A';  // LDA
-        }
+            extension = "LDA";
         else
-        {
-            *pext++ = 'S'; *pext++ = 'A'; *pext++ = 'V';  // SAV
-        }
-        *pext = 0;
+            extension = "SAV";
+
+        prepare_filename(outfilename, SaveStatusArea[0].filename, extension);
     }
 
     if (Globals.FlagSTB) // IS THERE AN STB FILE?
     {
         // Prepare STB file name
         char stbfilename[PATH_MAX + 1];
-        strcpy(stbfilename, outfilename);
-        char* pext = strrchr(stbfilename, '.');
-        if (pext == nullptr)
-        {
-            pext = stbfilename + strlen(stbfilename);
-            *pext = '.';
-        }
-        pext++;  // skip the dot
-        *pext++ = 'S'; *pext++ = 'T'; *pext++ = 'B';  // STB
-        *pext = 0;
+        prepare_filename(stbfilename, outfilename, "STB");
 
         // Open STB file
         assert(stbfileobj == nullptr);
@@ -1277,17 +1277,8 @@ void process_pass_map_output()
     if (Globals.FlagMAP)
     {
         // Prepare MAP file name
-        char mapfilename[PATH_MAX + 1] = { 0 };
-        strcpy(mapfilename, outfilename);
-        char* pext = strrchr(mapfilename, '.');
-        if (pext == nullptr)
-        {
-            pext = mapfilename + strlen(mapfilename);
-            *pext = '.';
-        }
-        pext++;  // skip the dot
-        *pext++ = 'M'; *pext++ = 'A'; *pext++ = 'P';  // MAP
-        *pext = 0;
+        char mapfilename[PATH_MAX + 1];
+        prepare_filename(mapfilename, outfilename, "MAP");
 
         // Open MAP file
         assert(mapfileobj == nullptr);
