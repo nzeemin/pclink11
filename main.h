@@ -48,6 +48,7 @@ void unrad50(uint16_t word, char *cp);
 uint16_t rad50(const char *cp, const char **endp);
 uint32_t rad50x2(const char *cp);
 
+[[noreturn]]
 void fatal_error(const char* message, ...);
 
 void warning_message(const char* message, ...);
