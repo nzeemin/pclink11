@@ -15,9 +15,13 @@
 /version.h
 /dumpobj/Debug
 /dumpobj/Release
+/dumpobj/*.o
 /testanalyzer/Debug
 /testanalyzer/Release
+/testanalyzer/*.o
+/testanalyzer
 /testrunner/Debug
 /testrunner/Release
+/testrunner/*.o
 /x-*
 $notes.txt
