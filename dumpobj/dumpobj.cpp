@@ -1,15 +1,13 @@
 
 #define _CRT_SECURE_NO_WARNINGS
 
-#include <stdint.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <ctype.h>
-#include <assert.h>
-#include <stdarg.h>
-#include <time.h>
-#include <errno.h>
+#include <cstdint>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
+#include <cassert>
+#include <cstdarg>
+#include <cerrno>
 
 char objfilename[256] = { 0 };
 size_t objfilesize;

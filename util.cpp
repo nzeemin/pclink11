@@ -1,10 +1,10 @@
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <ctype.h>
-#include <assert.h>
-#include <stdarg.h>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
+#include <cctype>
+#include <cassert>
+#include <cstdarg>
 
 #include "main.h"
 
@@ -12,6 +12,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 
+[[noreturn]]
 void fatal_error(const char* message, ...)
 {
     assert(message != nullptr);
@@ -102,9 +103,9 @@ uint16_t rad50(const char *cp, const char **endp)
         return (uint16_t)acc;
 
     rp = strchr(radtbl, toupper(*cp));
-    if (rp == NULL)                    /* Not a RAD50 character */
+    if (rp == nullptr)                    /* Not a RAD50 character */
         return (uint16_t)acc;
-    acc = ((int) (rp - radtbl)) * 03100;        /* Convert */
+    acc = (rp - radtbl) * 03100;        /* Convert */
     cp++;
 
     /* Now, do the same thing two more times... */
@@ -114,9 +115,9 @@ uint16_t rad50(const char *cp, const char **endp)
     if (!*cp)
         return (uint16_t)acc;
     rp = strchr(radtbl, toupper(*cp));
-    if (rp == NULL)
+    if (rp == nullptr)
         return (uint16_t)acc;
-    acc += ((int) (rp - radtbl)) * 050;
+    acc += (rp - radtbl) * 050;
 
     cp++;
     if (endp)
@@ -124,9 +125,9 @@ uint16_t rad50(const char *cp, const char **endp)
     if (!*cp)
         return (uint16_t)acc;
     rp = strchr(radtbl, toupper(*cp));
-    if (rp == NULL)
+    if (rp == nullptr)
         return (uint16_t)acc;
-    acc += (int) (rp - radtbl);
+    acc += rp - radtbl;
 
     cp++;
     if (endp)

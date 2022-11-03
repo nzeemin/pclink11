@@ -3,14 +3,14 @@
 
 #ifdef _MSC_VER
 #define _CRT_SECURE_NO_WARNINGS
-#include <windows.h>
+#include <Windows.h>
 #else
 #include <sys/types.h>
 #include <dirent.h>
 #include <unistd.h>
 #endif
 
-#include <stdio.h>
+#include <cstdio>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -71,7 +71,7 @@ string findfile_bymask(const string& dirname, const string& mask)
 {
     DIR* dirp = opendir(dirname.c_str());
     struct dirent * dp;
-    while ((dp = readdir(dirp)) != NULL)
+    while ((dp = readdir(dirp)) != nullptr)
     {
         if (dp->d_type & DT_DIR)
             continue;

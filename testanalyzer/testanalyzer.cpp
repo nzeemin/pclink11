@@ -4,7 +4,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 
 #ifdef _MSC_VER
-#include <windows.h>
+#include <Windows.h>
 #else
 #include <sys/types.h>
 #include <dirent.h>
@@ -12,7 +12,7 @@
 #include <string.h>
 #endif
 
-#include <stdio.h>
+#include <cstdio>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -78,7 +78,7 @@ void list_directory_subdirs(const string& dirname, stringvec& v)
 {
     DIR* dirp = opendir(dirname.c_str());
     struct dirent * dp;
-    while ((dp = readdir(dirp)) != NULL)
+    while ((dp = readdir(dirp)) != nullptr)
     {
         if ((dp->d_type & DT_DIR) == 0 || dp->d_name[0] == '.')
             continue;
@@ -118,7 +118,7 @@ string findfile_bymask(const string& dirname, const string& mask)
 {
     DIR* dirp = opendir(dirname.c_str());
     struct dirent * dp;
-    while ((dp = readdir(dirp)) != NULL)
+    while ((dp = readdir(dirp)) != nullptr)
     {
         if (dp->d_type & DT_DIR)
             continue;
@@ -178,7 +178,7 @@ bool process_mylog(string mylogfilepath, stringvec& problems)
     problems.erase(unique(problems.begin(), problems.end()), problems.end());
 
     if (!g_verbose && warningcount > 0)
-        problems.push_back("Has " + std::to_string(warningcount) + " WARNINGs.");
+        problems.push_back("Has " + std::to_string(warningcount) + " WARNINGS.");
     if (!haserrors && !hassuccess)
         problems.push_back("Has no SUCCESS line.");
 

@@ -1,14 +1,13 @@
 
 #define _CRT_SECURE_NO_WARNINGS
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <ctype.h>
-#include <assert.h>
-#include <stdarg.h>
-#include <time.h>
-#include <errno.h>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
+#include <cctype>
+#include <cassert>
+#include <cstdarg>
+#include <cerrno>
 
 #include "main.h"
 
@@ -357,7 +356,7 @@ void parse_commandline_option(const char* cur)
     }
 }
 
-void parse_commandline_filename(const char * arg)
+void parse_commandline_filename(const char * filename)
 {
     if (SaveStatusCount == SaveStatusAreaSize)
         fatal_error("Too many files specified.\n");
@@ -367,14 +366,14 @@ void parse_commandline_filename(const char * arg)
     // Parse filename
     char* filenamecur = sscur->filename;
     int filenamelen = 0;
-    const char* cur = arg;
+    const char* cur = filename;
     while (*cur != 0 && (isalnum(*cur) || *cur == '.' || *cur == '_' || *cur == '-') || *cur == PATH_SEPARATOR_CHAR)
     {
         *filenamecur = *cur;
         filenamecur++;  cur++;
         filenamelen++;
         if (filenamelen >= sizeof(sscur->filename) - 1)
-            fatal_error("Too long filename: %s\n", arg);
+            fatal_error("Too long filename: %s\n", filename);
     }
     SaveStatusCount++;
 }
