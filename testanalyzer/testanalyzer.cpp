@@ -343,6 +343,11 @@ void showdiff_binary_files(string& filepath11, string& filepathmy, const string&
                     std::cout << buf;
                 }
                 SetTextAttribute(TEXTATTRIBUTES_NORMAL);
+                if (chunksize < 16)  // fill the gap
+                {
+                    for (int i = chunksize; i < 16; i++)
+                        std::cout << "   ";
+                }
                 std::cout << " ";
                 for (int i = 0; i < chunksize; i++)
                 {
@@ -352,6 +357,11 @@ void showdiff_binary_files(string& filepath11, string& filepathmy, const string&
                     std::cout << buf;
                 }
                 SetTextAttribute(TEXTATTRIBUTES_NORMAL);
+                if (chunksize < 16)  // fill the gap
+                {
+                    for (int i = chunksize; i < 16; i++)
+                        std::cout << "   ";
+                }
                 std::cout << "  my." << filekind << std::endl;
 
                 chunkshown++;

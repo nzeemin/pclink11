@@ -28,6 +28,7 @@ Options (both `/` and `-` prefixes are allowed):
 - `-ALPHABETIZE` `-A` — Lists global symbols on the link map in alphabetical order
 - `-SYMBOLTABLE` `-STB` — Generates a symbol table file (.STB file)
 - `-MAP` — Generates map file
+- `-FORLIB` `-F` — Include FORLIB.OBJ
 - `--version` — Show the program version information
 - `--help` — Show quick help on the command line options
 
@@ -55,13 +56,13 @@ First priority:
 - Fix bugs for the failing test cases
 
 Second priority:
-- Need more tests, currently we have 115 test cases
+- Need more tests, currently we have 119 test cases
 - Reduce amount of logging, add option for verbosity level
 - Process other command-line options, including file-specific ones
 
 Not implemented now, and not sure we will:
-- Link for foreground execution with /R or /FOREGROUND option, produce .REL file
-- LDA output — produce a file in absolute binary loader format
+- Link for foreground execution with `-R` or `-FOREGROUND` option, produce .REL file
+- LDA output — produce a file in absolute binary loader format (option `-L`)
 - Overlays
 - Linkage with separated instructions/data spaces
 

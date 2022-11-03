@@ -201,6 +201,8 @@ void parse_commandline_option(const char* cur)
     if (strcmp(cur, "FOREGROUND") == 0 || strcmp(cur, "R") == 0)
     {
         //result = sscanf(cur, ":%ho", &param1);
+        if ((Globals.SWITCH & (SW_B | SW_H | SW_K | SW_L)) != 0)
+            fatal_error("FOREGROUND mode is illegal with -B, -H, -K or LDA mode");
         Globals.SWITCH |= SW_R;
         //TODO: stacksize
         return;
@@ -209,9 +211,18 @@ void parse_commandline_option(const char* cur)
     // /L - INDICATE LDA OUTPUT
     if (strcmp(cur, "LDA") == 0 || strcmp(cur, "L") == 0)
     {
-        //TODO: /L IS ILLEGAL FOR FOREGROUND LINKS
+        // /L IS ILLEGAL FOR FOREGROUND LINKS
+        if ((Globals.SWITCH & SW_R) != 0)
+            fatal_error("LDA mode is illegal for FOREGROUND links");
         //TODO: IS /V SET? -> YES, ILLEGAL COMBINATION
         Globals.SWITCH |= SW_L;
+        return;
+    }
+
+    // /F - INCLUDE FORLIB.OBJ IN LINK
+    if (strcmp(cur, "FORLIB") == 0 || strcmp(cur, "F") == 0)
+    {
+        Globals.SWITCH |= SW_F;
         return;
     }
 
@@ -316,10 +327,6 @@ void parse_commandline_option(const char* cur)
         //case 'I':  // /I - INCLUDE MODULES FROM LIBRARY
         //    Globals.SWITCH |= SW_I;
         //    break;
-
-    case 'F':  // /F - INCLUDE FORLIB.OBJ IN LINK
-        Globals.SWITCH |= SW_F;
-        break;
 
         //case 'S':  // /S - SYMBOL TABLE AS LARGE AS POSSIBLE
         //    //TODO
@@ -451,7 +458,7 @@ void print_help()
            "  -ALPHABETIZE -A    Lists global symbols on the link map in alphabetical order\n"
            "  -SYMBOLTABLE -STB  Generates a symbol table file (.STB file)\n"
            "  -MAP               Generates map file\n"
-           "  -F                 Include FORLIB.OBJ\n"
+           "  -FORLIB      -F    Include FORLIB.OBJ\n"
            "\n");
     //TODO
 }

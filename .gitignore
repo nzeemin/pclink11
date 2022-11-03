@@ -4,6 +4,7 @@
 *.ncb
 *.suo
 *.VC.db
+*.VC.opendb
 /*.sdf
 /*.opensdf
 /.vs
