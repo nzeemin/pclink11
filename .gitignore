@@ -26,3 +26,5 @@
 /testrunner/*.o
 /x-*
 $notes.txt
+*.zip
+*.rar
