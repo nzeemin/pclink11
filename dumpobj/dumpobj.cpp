@@ -360,7 +360,7 @@ void dumpobj_titlib_block(uint8_t* data, uint16_t eptsize)
             continue;
         uint16_t block = itemw[2];
         uint16_t offset = itemw[3] & 0777;
-        printf("      EPT '%s' block %06o offset %06o\n", unrad50(itemnamerad50), block, offset);
+        printf("      EPT '%s' block %06ho offset %06o\n", unrad50(itemnamerad50), block, (unsigned int)offset);
     }
 }
 
@@ -382,14 +382,14 @@ void dumpobj()
                 break;  // End of file
             dataw = (uint16_t*)(data);
             if (*dataw != 1)
-                fatal_error("Unexpected word %06ho at %06o in %s\n", *dataw, offset, objfilename);
+                fatal_error("Unexpected word %06ho at %06o in %s\n", *dataw, (unsigned int)offset, objfilename);
         }
 
         uint16_t blocksize = ((uint16_t*)data)[1];
         uint16_t blocktype = ((uint16_t*)data)[2];
 
         if (blocktype == 0 || blocktype > 8)
-            fatal_error("Illegal record type at %06o in %s\n", offset, objfilename);
+            fatal_error("Illegal record type at %06o in %s\n", (unsigned int)offset, objfilename);
         else if (blocktype == 1)  // 1 - START GSD RECORD
         {
             int itemcount = (blocksize - 6) / 8;
