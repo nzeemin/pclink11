@@ -608,7 +608,7 @@ void process_pass1_file(SaveStatusEntry* sscur)
         }
         else if (blocktype == 6)  // 6 - MODULE END, see LINK3\MODND
         {
-            //printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+            //printf("    Block type 6 - ENDMOD at %06o size %06ho\n", (unsigned int)offset, blocksize);
             if (Globals.HGHLIM < Globals.LRUNUM)
                 Globals.HGHLIM = Globals.LRUNUM;
             Globals.LRUNUM = 0;
@@ -758,12 +758,12 @@ void process_pass15_libpro(const SaveStatusEntry* sscur)
                 fatal_error("Illegal record type at %06o in %s\n", (unsigned int)offset, sscur->filename);
             else if (blocktype == 1)  // 1 - START GSD RECORD, see LINK3\GSD
             {
-                printf("    Block type 1 - GSD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+                printf("    Block type 1 - GSD at %06o size %06ho\n", (unsigned int)offset, blocksize);
                 process_pass1_gsd_block(sscur, data);
             }
             else if (blocktype == 6)  // 6 - MODULE END, see LINK3\MODND
             {
-                //printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+                //printf("    Block type 6 - ENDMOD at %06o size %06ho\n", (unsigned int)offset, blocksize);
                 if (Globals.HGHLIM < Globals.LRUNUM)
                     Globals.HGHLIM = Globals.LRUNUM;
                 Globals.LRUNUM = 0;
@@ -801,10 +801,10 @@ void process_pass15_library(const SaveStatusEntry* sscur)
         uint16_t blocktype = ((uint16_t*)data)[2];
 
         if (blocktype == 0 || blocktype > 8)
-            fatal_error("Illegal record type %03ho at %06ho in %s\n", blocktype, offset, sscur->filename);
+            fatal_error("Illegal record type %03ho at %06o in %s\n", blocktype, (unsigned int)offset, sscur->filename);
         if (blocktype == 7)  // See LINK3\LIBRA, WE ARE ON PASS 1.5 , SO PROCESS LIBRARIES
         {
-            printf("    Block type 7 - TITLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+            printf("    Block type 7 - TITLIB at %06o size %06ho\n", (unsigned int)offset, blocksize);
             uint16_t eptsize = *(uint16_t*)(data + L_HEAB);
             printf("      EPT size %06ho bytes, %d. records\n", eptsize, (int)(eptsize / 8));
 
@@ -884,7 +884,7 @@ void process_pass15_library(const SaveStatusEntry* sscur)
         }
         else if (blocktype == 8)  // LINK3\ENDLIB
         {
-            printf("    Block type 10 - ENDLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+            printf("    Block type 10 - ENDLIB at %06o size %06ho\n", (unsigned int)offset, blocksize);
 
             process_pass15_lmlorder();  // ORDER THIS LIBRARY LML
             //print_lml_table();//DEBUG
@@ -1910,7 +1910,7 @@ void proccess_pass2_libpa2(const SaveStatusEntry* sscur)
                 fatal_error("Illegal record type at %06o in %s\n", (unsigned int)offset, sscur->filename);
             else if (blocktype == 1)  // START GSD RECORD, see LINK7\GSD
             {
-                printf("    Block type 1 - GSD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+                printf("    Block type 1 - GSD at %06o size %06ho\n", (unsigned int)offset, blocksize);
                 process_pass2_gsd_block(sscur, data);
             }
             else if (blocktype == 3)  // See LINK7\DMPTXT
@@ -1920,8 +1920,8 @@ void proccess_pass2_libpa2(const SaveStatusEntry* sscur)
                 uint16_t addr = ((uint16_t*)data)[3];
                 uint16_t destaddr = addr + Globals.BASE;
                 uint16_t datasize = blocksize - 8;
-                printf("    Block type 3 - TXT at %06ho size %06ho addr %06ho base %06ho dest %06ho len %06ho\n",
-                       (uint16_t)offset, blocksize, addr, Globals.BASE, destaddr, datasize);
+                printf("    Block type 3 - TXT at %06o size %06ho addr %06ho base %06ho dest %06ho len %06ho\n",
+                       (unsigned int)offset, blocksize, addr, Globals.BASE, destaddr, datasize);
                 Globals.TXTLEN = datasize;
                 assert(datasize <= sizeof(Globals.TXTBLK));
                 memcpy(Globals.TXTBLK, data + 6, blocksize - 6);
@@ -1932,12 +1932,12 @@ void proccess_pass2_libpa2(const SaveStatusEntry* sscur)
             else if (blocktype == 4)  // See LINK7\RLD
             {
                 uint16_t base = *((uint16_t*)Globals.TXTBLK);
-                printf("    Block type 4 - RLD at %06ho size %06ho base %06ho\n", (uint16_t)offset, blocksize, base);
+                printf("    Block type 4 - RLD at %06o size %06ho base %06ho\n", (unsigned int)offset, blocksize, base);
                 process_pass2_rld(sscur, data);
             }
             else if (blocktype == 6)  // MODULE END RECORD, See LINK7\MODND
             {
-                //printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+                //printf("    Block type 6 - ENDMOD at %06o size %06ho\n", (unsigned int)offset, blocksize);
                 process_pass2_dump_txtblk();
 
                 // AT THE END OF EACH MODULE THE BASE ADR OF EACH SECTION IS UPDATED AS DETERMINED BY THE MST.
@@ -1995,7 +1995,7 @@ void process_pass2_file(const SaveStatusEntry* sscur)
             fatal_error("ERR4: Illegal record type at %06o in %s\n", (unsigned int)offset, sscur->filename);
         else if (blocktype == 1)  // START GSD RECORD, see LINK7\GSD
         {
-            printf("    Block type 1 - GSD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+            printf("    Block type 1 - GSD at %06o size %06ho\n", (unsigned int)offset, blocksize);
             process_pass2_gsd_block(sscur, data);
         }
         else if (blocktype == 3)  // See LINK7\DMPTXT
@@ -2005,8 +2005,8 @@ void process_pass2_file(const SaveStatusEntry* sscur)
             uint16_t addr = ((uint16_t*)data)[3];
             uint16_t destaddr = addr + Globals.BASE;
             uint16_t datasize = blocksize - 8;
-            printf("    Block type 3 - TXT at %06ho size %06ho addr %06ho dest %06ho len %06ho\n",
-                   (uint16_t)offset, blocksize, addr, destaddr, datasize);
+            printf("    Block type 3 - TXT at %06o size %06ho addr %06ho dest %06ho len %06ho\n",
+                   (unsigned int)offset, blocksize, addr, destaddr, datasize);
             Globals.TXTLEN = datasize;
             assert(datasize <= sizeof(Globals.TXTBLK));
             memcpy(Globals.TXTBLK, data + 6, blocksize - 6);
@@ -2017,12 +2017,12 @@ void process_pass2_file(const SaveStatusEntry* sscur)
         else if (blocktype == 4)  // See LINK7\RLD
         {
             uint16_t base = *((uint16_t*)Globals.TXTBLK);
-            printf("    Block type 4 - RLD at %06ho size %06ho base %06ho\n", (uint16_t)offset, blocksize, base);
+            printf("    Block type 4 - RLD at %06o size %06ho base %06ho\n", (unsigned int)offset, blocksize, base);
             process_pass2_rld(sscur, data);
         }
         else if (blocktype == 6)  // MODULE END RECORD, See LINK7\MODND
         {
-            printf("    Block type 6 - ENDMOD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+            printf("    Block type 6 - ENDMOD at %06o size %06ho\n", (unsigned int)offset, blocksize);
 
             process_pass2_dump_txtblk();  // DUMP TXT BLK IF ANY
 
@@ -2039,7 +2039,7 @@ void process_pass2_file(const SaveStatusEntry* sscur)
         }
         else if (blocktype == 7)  // See LINK7\LIBPA2
         {
-            printf("    Block type 7 - TITLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+            printf("    Block type 7 - TITLIB at %06o size %06ho\n", (unsigned int)offset, blocksize);
             //TODO
             proccess_pass2_libpa2(sscur);
             break;

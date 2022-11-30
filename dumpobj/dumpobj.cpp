@@ -393,37 +393,37 @@ void dumpobj()
         else if (blocktype == 1)  // 1 - START GSD RECORD
         {
             int itemcount = (blocksize - 6) / 8;
-            printf("  Block type 1 - GSD at %06ho size %06ho itemcount %d\n", (uint16_t)offset, blocksize, itemcount);
+            printf("  Block type 1 - GSD at %06o size %06ho itemcount %d\n", (unsigned int)offset, blocksize, itemcount);
             dumpobj_gsd_block(data);
         }
         else if (blocktype == 2)  // 2 - ENDGSD
         {
-            printf("  Block type 2 - ENDGSD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+            printf("  Block type 2 - ENDGSD at %06o size %06ho\n", (unsigned int)offset, blocksize);
         }
         else if (blocktype == 3)  // 3 - TXT
         {
             uint16_t addr = ((uint16_t*)data)[3];
             uint16_t datasize = blocksize - 8;
-            printf("  Block type 3 - TXT at %06ho size %06ho addr %06ho len %06ho\n", (uint16_t)offset, blocksize, addr, datasize);
+            printf("  Block type 3 - TXT at %06o size %06ho addr %06ho len %06ho\n", (unsigned int)offset, blocksize, addr, datasize);
             //dumpobj_txt_block(data);
         }
         else if (blocktype == 4)  // 4 - RLD
         {
-            printf("  Block type 4 - RLD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+            printf("  Block type 4 - RLD at %06o size %06ho\n", (unsigned int)offset, blocksize);
             dumpobj_rld_block(data);
         }
         else if (blocktype == 5)  // 5 - ISD
         {
-            printf("  Block type 5 - ISD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+            printf("  Block type 5 - ISD at %06o size %06ho\n", (unsigned int)offset, blocksize);
             //dumpobj_isd_block(data);
         }
         else if (blocktype == 6)  // 6 - MODULE END
         {
-            printf("  Block type 6 - ENDMOD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+            printf("  Block type 6 - ENDMOD at %06o size %06ho\n", (unsigned int)offset, blocksize);
         }
         else if (blocktype == 7)  // 7 - TITLIB
         {
-            printf("  Block type 7 - TITLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+            printf("  Block type 7 - TITLIB at %06o size %06ho\n", (unsigned int)offset, blocksize);
             uint16_t eptsize = *(uint16_t*)(data + 24/*L_HEAB*/);  // EPT SIZE IN LIBRARY HEADER
             printf("      EPT size %06ho bytes, %d. records\n", eptsize, (int)(eptsize / 8));
             //data += 32/*L_HEPT*/; offset += 32/*L_HEPT*/;  // Move to 1ST EPT ENTRY
@@ -433,7 +433,7 @@ void dumpobj()
         }
         else //if (blocktype == 8)
         {
-            printf("  Block type 10 - ENDLIB at %06ho size %06ho\n", (uint16_t)offset, blocksize);
+            printf("  Block type 10 - ENDLIB at %06o size %06ho\n", (unsigned int)offset, blocksize);
         }
 
         data += blocksize; offset += blocksize;

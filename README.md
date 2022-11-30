@@ -56,7 +56,7 @@ First priority:
 - Fix bugs for the failing test cases
 
 Second priority:
-- Need more tests, currently we have 119 test cases
+- Need more tests, currently we have 120 test cases
 - Reduce amount of logging, add option for verbosity level
 - Process other command-line options, including file-specific ones
 
