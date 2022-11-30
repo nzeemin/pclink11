@@ -593,14 +593,14 @@ void process_pass1_file(SaveStatusEntry* sscur)
             }
             dataw = (uint16_t*)(data);
             if (*dataw != 1)
-                fatal_error("Unexpected word %06ho at %06ho in %s\n", *dataw, offset, sscur->filename);
+                fatal_error("Unexpected word %06ho at %06o in %s\n", *dataw, offset, sscur->filename);
         }
 
         uint16_t blocksize = ((uint16_t*)data)[1];
         uint16_t blocktype = ((uint16_t*)data)[2];
 
         if (blocktype == 0 || blocktype > 8)
-            fatal_error("Illegal record type at %06ho in %s\n", offset, sscur->filename);
+            fatal_error("Illegal record type at %06o in %s\n", offset, sscur->filename);
         else if (blocktype == 1)  // 1 - START GSD RECORD, see LINK3\GSD
         {
             printf("    Block type 1 - GSD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
@@ -755,7 +755,7 @@ void process_pass15_libpro(const SaveStatusEntry* sscur)
             uint16_t blocktype = ((uint16_t*)data)[2];
 
             if (blocktype == 0 || blocktype > 8)
-                fatal_error("Illegal record type at %06ho in %s\n", offset, sscur->filename);
+                fatal_error("Illegal record type at %06o in %s\n", offset, sscur->filename);
             else if (blocktype == 1)  // 1 - START GSD RECORD, see LINK3\GSD
             {
                 printf("    Block type 1 - GSD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
@@ -794,7 +794,7 @@ void process_pass15_library(const SaveStatusEntry* sscur)
                 break;  // End of file
             dataw = (uint16_t*)(data);
             if (*dataw != 1)
-                fatal_error("Unexpected word %06ho at %06ho in %s\n", *dataw, offset, sscur->filename);
+                fatal_error("Unexpected word %06ho at %06o in %s\n", *dataw, offset, sscur->filename);
         }
 
         uint16_t blocksize = ((uint16_t*)data)[1];
@@ -1907,7 +1907,7 @@ void proccess_pass2_libpa2(const SaveStatusEntry* sscur)
             uint16_t blocktype = ((uint16_t*)data)[2];
 
             if (blocktype == 0 || blocktype > 8)
-                fatal_error("Illegal record type at %06ho in %s\n", offset, sscur->filename);
+                fatal_error("Illegal record type at %06o in %s\n", offset, sscur->filename);
             else if (blocktype == 1)  // START GSD RECORD, see LINK7\GSD
             {
                 printf("    Block type 1 - GSD at %06ho size %06ho\n", (uint16_t)offset, blocksize);
@@ -1985,14 +1985,14 @@ void process_pass2_file(const SaveStatusEntry* sscur)
             }
             dataw = (uint16_t*)(data);
             if (*dataw != 1)
-                fatal_error("Unexpected word %06ho at %06ho in %s\n", *dataw, offset, sscur->filename);
+                fatal_error("Unexpected word %06ho at %06o in %s\n", *dataw, offset, sscur->filename);
         }
 
         uint16_t blocksize = ((uint16_t*)data)[1];
         uint16_t blocktype = ((uint16_t*)data)[2];
 
         if (blocktype == 0 || blocktype > 8)
-            fatal_error("ERR4: Illegal record type at %06ho in %s\n", offset, sscur->filename);
+            fatal_error("ERR4: Illegal record type at %06o in %s\n", offset, sscur->filename);
         else if (blocktype == 1)  // START GSD RECORD, see LINK7\GSD
         {
             printf("    Block type 1 - GSD at %06ho size %06ho\n", (uint16_t)offset, blocksize);

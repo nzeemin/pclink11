@@ -22,6 +22,7 @@ void* objfiledata = nullptr;
 #define LOWORD(l)          ((uint16_t)(((uint32_t)(l)) & 0xffff))
 #define HIWORD(l)          ((uint16_t)((((uint32_t)(l)) >> 16) & 0xffff))
 
+[[noreturn]]
 void fatal_error(const char* message, ...)
 {
     printf("ERROR: ");
@@ -381,14 +382,14 @@ void dumpobj()
                 break;  // End of file
             dataw = (uint16_t*)(data);
             if (*dataw != 1)
-                fatal_error("Unexpected word %06ho at %06ho in %s\n", *dataw, offset, objfilename);
+                fatal_error("Unexpected word %06ho at %06o in %s\n", *dataw, offset, objfilename);
         }
 
         uint16_t blocksize = ((uint16_t*)data)[1];
         uint16_t blocktype = ((uint16_t*)data)[2];
 
         if (blocktype == 0 || blocktype > 8)
-            fatal_error("Illegal record type at %06ho in %s\n", offset, objfilename);
+            fatal_error("Illegal record type at %06o in %s\n", offset, objfilename);
         else if (blocktype == 1)  // 1 - START GSD RECORD
         {
             int itemcount = (blocksize - 6) / 8;

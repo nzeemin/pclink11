@@ -1,6 +1,8 @@
 name: "CodeQL analysis"
 
-on: workflow_dispatch
+on:
+  push:
+    branches: [ master ]
 
 jobs:
   analyze:
