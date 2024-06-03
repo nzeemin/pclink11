@@ -2103,7 +2103,6 @@ void process_pass2()
 void process_pass2_done()
 {
     uint16_t highlim = (Globals.SWIT1 & SW_J) ? Globals.DHGHLM : Globals.HGHLIM;
-
     // Write to the output file
     if (Globals.SWITCH & SW_L)  // LDA file
     {
@@ -2119,11 +2118,35 @@ void process_pass2_done()
         if (byteswrit != bytestowrite)
             fatal_error("ERR6: Failed to write output file.\n");
 
-        bytestowrite = highlim - baseaddr;
+        uint8_t* ldaheader2 = (uint8_t*)ldaheader;
+
+        uint8_t checksum = 0;
+        for(int i=0; i<6; i++)
+          checksum += ldaheader2[i];
+        for(int i=baseaddr; i<highlim; i++)
+          checksum += OutputBuffer[i];
+        checksum = (255 - checksum) + 1;
+
+        bytestowrite = highlim - baseaddr + 8;
+        OutputBuffer[highlim] = checksum;
+        OutputBuffer[highlim+1] = 1;
+        OutputBuffer[highlim+2] = 0;
+        OutputBuffer[highlim+3] = 6;
+        OutputBuffer[highlim+4] = 0;
+        OutputBuffer[highlim+5] = baseaddr & 0xff;
+        OutputBuffer[highlim+6] = baseaddr >> 8;
+
+        checksum = 0;
+        for(int i=highlim+1; i<highlim+7; i++)
+          checksum += OutputBuffer[i];
+        checksum = (255 - checksum) + 1;
+
+        OutputBuffer[highlim+7] = checksum;
         bytestowrite = (bytestowrite + 6 + 511) / 512 * 512 - 6; // round to block size
         byteswrit = fwrite(OutputBuffer + baseaddr, 1, bytestowrite, outfileobj);
         if (byteswrit != bytestowrite)
             fatal_error("ERR6: Failed to write output file.\n");
+
     }
     else if (Globals.SWITCH & SW_R) // REL file
     {
