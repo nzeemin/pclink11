@@ -948,11 +948,10 @@ void process_pass15()
                 //TODO: IF INPUT SEG # .NE. SYM SEG # THEN SET EXTERNAL REFERENCE BIT
                 //TODO: CLEAR SEGMENT # BITS & SET SEGMENT # WHERE DEFINED
                 entry->value = 0;  // VALUE WORD IS 0
-
                 pass1_insert_entry_into_ordered_list(index, entry, true);
                 //print_symbol_table();//DEBUG
             }
-            index = nextindex;  // GO DO NEXT SYMBOL
+            index = nextindex;
         }
     }
 }
