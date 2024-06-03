@@ -19,6 +19,9 @@ SymbolTableEntry* SymbolTable = nullptr;
 SymbolTableEntry* ASECTentry = nullptr;
 int SymbolTableCount = 0;  // STCNT -- SYMBOL TBL ENTRIES COUNTER
 
+RELEntry* RelocationTable = nullptr;
+int RelocationTableCount = 0;
+
 LibraryModuleEntry LibraryModuleList[LibraryModuleListSize];
 int LibraryModuleCount = 0;  // Count of records in LibraryModuleList, see LMLPTR
 

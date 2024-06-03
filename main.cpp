@@ -60,6 +60,9 @@ void initialize()
     SymbolTable = (SymbolTableEntry*) ::calloc(SymbolTableSize, sizeof(SymbolTableEntry));
     SymbolTableCount = 0;
 
+    RelocationTable = (RELEntry*) :: calloc(RelocationTableSize, sizeof(RELEntry));
+    RelocationTableCount = 0;
+
     memset(LibraryModuleList, 0, LibraryModuleListSize * sizeof(LibraryModuleEntry));
 
     // Set globals defaults, see LINK1\START1
@@ -85,6 +88,10 @@ void finalize()
         free(SymbolTable);  SymbolTable = nullptr;
     }
 
+    if (RelocationTable != nullptr)
+    {
+        free(RelocationTable); RelocationTable = nullptr;
+    }
     for (int i = 0; i < SaveStatusCount; i++)
     {
         SaveStatusEntry* sscur = SaveStatusArea + i;
