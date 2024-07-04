@@ -180,6 +180,12 @@ const uint16_t SY_SEG = 01777;  // SEGMENT NUMBER BITS IN FLAGS WORD
 /////////////////////////////////////////////////////////////////////////////
 
 
+#define MAX_QSW 6
+struct QSWEntry
+{
+    uint32_t name;
+    uint16_t addr;
+};
 // **** GSD ENTRY STRUCTURE
 struct GSDentry
 {
@@ -308,7 +314,8 @@ struct tagGlobals
     //uint32_t    USWNAM; // /U SWITCH NAME - I-SPACE
     //uint16_t    DUSWVL; // /U SWITCH VALUE - D-SPACE
     //uint32_t    DUSWNM; // /U SWITCH NAME - D-SPACE
-    //uint16_t    QSWVAL; // /Q BUFFER POINTER
+    QSWEntry    QSWVAL[MAX_QSW]; // /Q BUFFER POINTER
+    uint16_t    QSWCNT;
     //uint16_t    ZSWVAL; // /Z SWITCH VALUE - I-SPACE
     //uint16_t    DZSWVL; // /Z SWITCH VALUE - D-SPACE
     uint16_t    LRUNUM; // USED TO COUNT MAX # OF SECTIONS AND AS
