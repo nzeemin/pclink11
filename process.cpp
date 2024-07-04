@@ -1949,6 +1949,14 @@ void proccess_pass2_libpa2(const SaveStatusEntry* sscur)
                 //printf(" data %02x %02x %02x %02x\n", data[8 + 0], data[8 + 1], data[8 + 2], data[8 + 3]);
 
                 *((uint16_t*)Globals.TXTBLK) = destaddr;  // ADD BASE TO GIVE ABS LOAD ADDR
+                if (Globals.SWITCH & SW_L)
+                {
+                    if (LdaTable[destaddr >> 1].value == 0)
+                    {
+                        LdaTable[destaddr >> 1].addr = destaddr;
+                        LdaTable[destaddr >> 1].value = Globals.TXTLEN;
+                    }
+                }
             }
             else if (blocktype == 4)  // See LINK7\RLD
             {
@@ -2034,6 +2042,14 @@ void process_pass2_file(const SaveStatusEntry* sscur)
             //printf(" data %02x %02x %02x %02x\n", data[8 + 0], data[8 + 1], data[8 + 2], data[8 + 3]);
 
             *((uint16_t*)Globals.TXTBLK) = destaddr;  // ADD BASE TO GIVE ABS LOAD ADDR
+            if (Globals.SWITCH & SW_L)
+            {
+                if (LdaTable[destaddr >> 1].value == 0)
+                {
+                    LdaTable[destaddr >> 1].addr = destaddr;
+                    LdaTable[destaddr >> 1].value = Globals.TXTLEN;
+                }
+            }
         }
         else if (blocktype == 4)  // See LINK7\RLD
         {
@@ -2107,46 +2123,69 @@ void process_pass2_done()
     if (Globals.SWITCH & SW_L)  // LDA file
     {
         uint16_t baseaddr = Globals.BOTTOM;
+        uint16_t total = 0;
 
         uint16_t ldaheader[3];
+        uint8_t* ldaheaderbp = (uint8_t*)ldaheader;
+        uint8_t checksum;
+        size_t bytestowrite;
+        size_t byteswrit;
+        for(int l=0; l<0x800; l++)
+        {
+            if (LdaTable[l].value == 0) continue;
+            printf("LDA: @0x%x = 0x%x\n",LdaTable[l].addr, LdaTable[l].value);
+            ldaheader[0] = 1;
+            ldaheader[1] = LdaTable[l].value + 6;
+            ldaheader[2] = LdaTable[l].addr;
+            bytestowrite = sizeof(ldaheader);
+            byteswrit = fwrite(ldaheader, 1, bytestowrite, outfileobj);
+            if (byteswrit != bytestowrite)
+                fatal_error("ERR6: Failed to write output file.\n");
+            total += byteswrit;
+            bytestowrite = LdaTable[l].value;
+            byteswrit = fwrite(OutputBuffer + LdaTable[l].addr, 1, bytestowrite, outfileobj);
+            if (byteswrit != bytestowrite)
+                fatal_error("ERR6: Failed to write output file.\n");
+            total += byteswrit;
+
+            checksum = 0;
+            for(int i=0; i<6; i++)
+                checksum += ldaheaderbp[i];
+            for(int i=0; i<LdaTable[l].value; i++)
+                checksum += OutputBuffer[LdaTable[l].addr + i];
+            checksum = (255 - checksum) + 1;
+
+            bytestowrite = 1;
+            byteswrit = fwrite(&checksum, 1, bytestowrite, outfileobj);
+            if (byteswrit != bytestowrite)
+                fatal_error("ERR6: Failed to write output file.\n");
+            total += byteswrit;
+        }
+        // Final block
         ldaheader[0] = 1;
-        ldaheader[1] = highlim - baseaddr; //TODO
+        ldaheader[1] = 6;
         ldaheader[2] = baseaddr;
-
-        size_t bytestowrite = sizeof(ldaheader);
-        size_t byteswrit = fwrite(ldaheader, 1, bytestowrite, outfileobj);
+        bytestowrite = sizeof(ldaheader);
+        byteswrit = fwrite(ldaheader, 1, bytestowrite, outfileobj);
         if (byteswrit != bytestowrite)
             fatal_error("ERR6: Failed to write output file.\n");
+        total += byteswrit;
 
-        uint8_t* ldaheader2 = (uint8_t*)ldaheader;
+        checksum = 0xf7;
+        bytestowrite = 1;
+        byteswrit = fwrite(&checksum, 1, bytestowrite, outfileobj);
+        if (byteswrit != bytestowrite)
+            fatal_error("ERR6: Failed to write output file.\n");
+        total += byteswrit;
 
-        uint8_t checksum = 0;
-        for(int i=0; i<6; i++)
-          checksum += ldaheader2[i];
-        for(int i=baseaddr; i<highlim; i++)
-          checksum += OutputBuffer[i];
-        checksum = (255 - checksum) + 1;
-
-        bytestowrite = highlim - baseaddr + 8;
-        OutputBuffer[highlim] = checksum;
-        OutputBuffer[highlim+1] = 1;
-        OutputBuffer[highlim+2] = 0;
-        OutputBuffer[highlim+3] = 6;
-        OutputBuffer[highlim+4] = 0;
-        OutputBuffer[highlim+5] = baseaddr & 0xff;
-        OutputBuffer[highlim+6] = baseaddr >> 8;
-
+        // Zero padding to block size
         checksum = 0;
-        for(int i=highlim+1; i<highlim+7; i++)
-          checksum += OutputBuffer[i];
-        checksum = (255 - checksum) + 1;
-
-        OutputBuffer[highlim+7] = checksum;
-        bytestowrite = (bytestowrite + 6 + 511) / 512 * 512 - 6; // round to block size
-        byteswrit = fwrite(OutputBuffer + baseaddr, 1, bytestowrite, outfileobj);
-        if (byteswrit != bytestowrite)
-            fatal_error("ERR6: Failed to write output file.\n");
-
+        while ( total & 0x1ff){
+            byteswrit = fwrite(&checksum, 1, bytestowrite, outfileobj);
+            if (byteswrit != bytestowrite)
+                fatal_error("ERR6: Failed to write output file.\n");
+            total += byteswrit;
+        }
     }
     else if (Globals.SWITCH & SW_R) // REL file
     {

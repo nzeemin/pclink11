@@ -226,6 +226,7 @@ extern int SymbolTableCount;  // STCNT -- SYMBOL TBL ENTRIES COUNTER
 const int RelocationTableSize = 4096; // FIXME
 extern RELEntry* RelocationTable;
 extern int RelocationTableCount;
+extern RELEntry* LdaTable;
 
 struct LibraryModuleEntry
 {
