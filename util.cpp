@@ -12,7 +12,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 
-[[noreturn]]
+NORETURN
 void fatal_error(const char* message, ...)
 {
     assert(message != nullptr);

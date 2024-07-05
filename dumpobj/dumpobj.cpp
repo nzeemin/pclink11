@@ -9,6 +9,13 @@
 #include <cstdarg>
 #include <cerrno>
 
+#ifdef _MSC_VER
+#define NORETURN __declspec(noreturn)
+#else
+#define NORETURN [[noreturn]]
+#endif
+
+
 char objfilename[256] = { 0 };
 size_t objfilesize;
 void* objfiledata = nullptr;
@@ -22,7 +29,7 @@ void* objfiledata = nullptr;
 #define LOWORD(l)          ((uint16_t)(((uint32_t)(l)) & 0xffff))
 #define HIWORD(l)          ((uint16_t)((((uint32_t)(l)) >> 16) & 0xffff))
 
-[[noreturn]]
+NORETURN
 void fatal_error(const char* message, ...)
 {
     printf("ERROR: ");
