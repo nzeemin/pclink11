@@ -371,7 +371,6 @@ void process_pass1_gsd_item_csecnm(const uint16_t* itemw, int& itemtype, int& it
 void process_pass1_gsd_item_psecnm(uint32_t sectname, int itemflags, uint16_t sectsize)
 {
     Globals.LRUNUM++; // COUNT SECTIONS IN A MODULE
-
     uint32_t lkname = sectname;
     uint16_t lkmsk = (uint16_t)~SY_SEC;
     uint16_t lkwd = (uint16_t)SY_SEC;
@@ -408,7 +407,7 @@ void process_pass1_gsd_item_psecnm(uint32_t sectname, int itemflags, uint16_t se
             NOTIMPLEMENTED
         }
         if (R2 != itemflags) // ARE SECTION ATTRIBUTES THE SAME?
-            fatal_error("ERR10: Conflicting section attributes.\n");
+            fatal_error("ERR10: Conflicting section '%s' attributes. R=0x%x flags=0x%x\n", entry->unrad50name(), R2, itemflags);
     }
 
     // CHKRT
@@ -1326,9 +1325,29 @@ void process_pass_map_output()
                 println();
                 tabcount = 0;
             }
-
+            for(int i=0; i<Globals.QSWCNT; i++)
+                if (Globals.QSWVAL[i].name == entry->name)
+                {
+                    baseaddr = Globals.QSWVAL[i].addr;
+                    break;
+                }
             entry->value = baseaddr;
+            // Check whether next section set fixed adddres via /Q option
+            SymbolTableEntry* nextentry = entry;
+            while(nextentry->nextindex())
+            {
+              nextentry = SymbolTable + nextentry->nextindex();
+              if (!(nextentry->flagseg & SY_SEC)) continue;
 
+              for(int i=0; i<Globals.QSWCNT; i++)
+                  if (Globals.QSWVAL[i].name == nextentry->name)
+                  {
+                      sectsize = Globals.QSWVAL[i].addr - baseaddr;
+                      break;
+                  }
+
+              break;
+            }
             // IS THIS BLANK SECTION 0-LENGTH?
             bool skipsect = ((entry->name >= 03100) == 0 && sectsize == 0);
             if (!skipsect)
@@ -1799,7 +1818,6 @@ void process_pass2_init()
         uint16_t stack = (Globals.SWIT1 & SW_J) ? Globals.DBOTTM : Globals.BOTTOM;
         *((uint16_t*)(OutputBuffer + SysCom_STACK)) = stack;
     }
-
     uint16_t highlim = (Globals.SWIT1 & SW_J) ? Globals.DHGHLM : Globals.HGHLIM;
     *((uint16_t*)(OutputBuffer + SysCom_HIGH)) = highlim - 2;  // HIGH LIMIT
     if (Globals.SWITCH & SW_K)  // For /K switch STORE IT AT LOC. 56 IN SYSCOM AREA
