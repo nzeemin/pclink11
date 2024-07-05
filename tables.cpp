@@ -88,7 +88,8 @@ void symbol_table_add_undefined_head(int index)
     {
         SymbolTableEntry* oldentry = SymbolTable + Globals.UNDLST;
         oldentry->value = (uint16_t)index;  // set back reference
-    }else
+    }
+    else
     {
         Globals.UNDEND = index;
     }
@@ -115,7 +116,9 @@ void symbol_table_add_undefined_tail(int index)
         entry->value = 0;
         Globals.UNDLST = index;
         Globals.UNDEND = index;
-    }else{
+    }
+    else
+    {
         uint16_t oldindex = Globals.UNDEND;
         SymbolTableEntry* oldentry = SymbolTable + Globals.UNDEND;
 
@@ -127,7 +130,7 @@ void symbol_table_add_undefined_tail(int index)
 }
 void symbol_table_add_undefined(int index)
 {
-  symbol_table_add_undefined_tail(index);
+    symbol_table_add_undefined_tail(index);
 }
 // REMOVE A ENTRY FROM THE UNDEFINED LIST, see LINK3\REMOVE
 void symbol_table_remove_undefined(int index)
@@ -149,7 +152,9 @@ void symbol_table_remove_undefined(int index)
     {
         SymbolTableEntry* nextentry = SymbolTable + nextindex;
         nextentry->value = previndex;
-    }else{
+    }
+    else
+    {
         Globals.UNDEND = previndex;
     }
     entry->value = 0;

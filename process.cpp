@@ -799,13 +799,14 @@ void process_pass15_library(const SaveStatusEntry* sscur)
 #else
             {
                 warning_message("Unexpected word %06ho at %06o in %s. Trying skip to ENDLIB\n", *dataw, (unsigned int)offset, sscur->filename);
-                while((dataw[0] != 1 || dataw[1] != 6 || dataw[2] != 6) && offset < sscur->filesize)
+                while ((dataw[0] != 1 || dataw[1] != 6 || dataw[2] != 6) && offset < sscur->filesize)
                 {
                     dataw++;
                     data += 2;
                     offset += 2;
                 }
-                if (*dataw != 1){
+                if (*dataw != 1)
+                {
                     fatal_error("Unable to find ENDLIB till offset %06o in %s\n", *dataw, (unsigned int)offset, sscur->filename);
                 }
             }
@@ -1325,7 +1326,7 @@ void process_pass_map_output()
                 println();
                 tabcount = 0;
             }
-            for(int i=0; i<Globals.QSWCNT; i++)
+            for (int i = 0; i < Globals.QSWCNT; i++)
                 if (Globals.QSWVAL[i].name == entry->name)
                 {
                     baseaddr = Globals.QSWVAL[i].addr;
@@ -1334,19 +1335,19 @@ void process_pass_map_output()
             entry->value = baseaddr;
             // Check whether next section set fixed adddres via /Q option
             SymbolTableEntry* nextentry = entry;
-            while(nextentry->nextindex())
+            while (nextentry->nextindex())
             {
-              nextentry = SymbolTable + nextentry->nextindex();
-              if (!(nextentry->flagseg & SY_SEC)) continue;
+                nextentry = SymbolTable + nextentry->nextindex();
+                if (!(nextentry->flagseg & SY_SEC)) continue;
 
-              for(int i=0; i<Globals.QSWCNT; i++)
-                  if (Globals.QSWVAL[i].name == nextentry->name)
-                  {
-                      sectsize = Globals.QSWVAL[i].addr - baseaddr;
-                      break;
-                  }
+                for (int i = 0; i < Globals.QSWCNT; i++)
+                    if (Globals.QSWVAL[i].name == nextentry->name)
+                    {
+                        sectsize = Globals.QSWVAL[i].addr - baseaddr;
+                        break;
+                    }
 
-              break;
+                break;
             }
             // IS THIS BLANK SECTION 0-LENGTH?
             bool skipsect = ((entry->name >= 03100) == 0 && sectsize == 0);
@@ -2164,10 +2165,10 @@ void process_pass2_done()
         uint8_t checksum;
         size_t bytestowrite;
         size_t byteswrit;
-        for(int l=0; l<0x800; l++)
+        for (int l = 0; l < 0x800; l++)
         {
             if (LdaTable[l].value == 0) continue;
-            printf("LDA: @0x%x = 0x%x\n",LdaTable[l].addr, LdaTable[l].value);
+            printf("LDA: @0x%x = 0x%x\n", LdaTable[l].addr, LdaTable[l].value);
             ldaheader[0] = 1;
             ldaheader[1] = LdaTable[l].value + 6;
             ldaheader[2] = LdaTable[l].addr;
@@ -2183,9 +2184,9 @@ void process_pass2_done()
             total += byteswrit;
 
             checksum = 0;
-            for(int i=0; i<6; i++)
+            for (int i = 0; i < 6; i++)
                 checksum += ldaheaderbp[i];
-            for(int i=0; i<LdaTable[l].value; i++)
+            for (int i = 0; i < LdaTable[l].value; i++)
                 checksum += OutputBuffer[LdaTable[l].addr + i];
             checksum = (255 - checksum) + 1;
 
@@ -2214,7 +2215,8 @@ void process_pass2_done()
 
         // Zero padding to block size
         checksum = 0;
-        while ( total & 0x1ff){
+        while ( total & 0x1ff)
+        {
             byteswrit = fwrite(&checksum, 1, bytestowrite, outfileobj);
             if (byteswrit != bytestowrite)
                 fatal_error("ERR6: Failed to write output file.\n");

@@ -9,13 +9,17 @@ Attempt to port PDP-11 LINKer to PC C/C++ — learning how the linker works, the
 The code (partially) ported from MACRO-11 sources to C/C++.
 Port source: RT-11 LINK V05.45.
 
+## Authors
+ * Nikita Zimin (@nzeemin)
+ * Vladimir Voroshilov (@voroshil)
+
 ## Status: Work in Progress 🚧
 
 Currently the PCLINK11 links most of test OBJ files properly, but we have some troubles linking tests with libraries.
 
 ## Usage
 
-The source code is able to compile under Windows (VS2013), and also under Linux/MacOS (gcc/clang, use the Makefile).
+The source code is able to compile under Windows (VS2013/VS2015), and also under Linux/MacOS (gcc/clang, use the Makefile).
 
 Command line:
 
@@ -29,6 +33,7 @@ Options (both `/` and `-` prefixes are allowed):
 - `-SYMBOLTABLE` `-STB` — Generates a symbol table file (.STB file)
 - `-MAP` — Generates map file
 - `-FORLIB` `-F` — Include FORLIB.OBJ
+- `-Q:section=address` — Set section to absolute address
 - `--version` — Show the program version information
 - `--help` — Show quick help on the command line options
 

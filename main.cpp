@@ -360,7 +360,7 @@ void parse_commandline_option(const char* cur)
         //    //TODO
         //    break;
 
-        case 'Q':  // /Q:addr - SET PSECTS TO ABSOLUTE ADDRESSES
+    case 'Q':  // /Q:addr - SET PSECTS TO ABSOLUTE ADDRESSES
         {
             if (Globals.QSWCNT == MAX_QSW)
                 fatal_error("Too many /Q options\n");
@@ -371,8 +371,8 @@ void parse_commandline_option(const char* cur)
             if (result < 2)
                 fatal_error("Invalid /Q option, use /Q:sect=addr\n");
             int i;
-            for(i=0; i<7; i++) if (!name[i]) break;
-            for(;i<7; i++) name[i] = ' ';
+            for (i = 0; i < 7; i++) if (!name[i]) break;
+            for (; i < 7; i++) name[i] = ' ';
 
             rad50name = rad50x2(name);
 
@@ -380,7 +380,8 @@ void parse_commandline_option(const char* cur)
             Globals.QSWVAL[Globals.QSWCNT].addr = param1;
             Globals.QSWCNT++;
             break;
-      }
+
+        }
         //case 'J':  // /J - USE SEPARATED I-D SPACE
         //    if (Globals.SWITCH & SW_R)
         //        fatal_error("Invalid option: /R illegal with /J\n"); //TODO: Should be warning only
@@ -531,7 +532,7 @@ int main(int argc, char *argv[])
     {
         printf(
             "Cross-linker, porting PDP-11 LINK to C/C++, WIP\n"
-            "Ported in 2019-2022 by Nikita Zimin\n"
+            "Ported in 2019-2024 by Nikita Zimin and others\n"
             "License LGPLv3: GNU Lesser General Public License v3.0 https://www.gnu.org/licenses/lgpl-3.0.html\n"
             "Source code: https://github.com/nzeemin/pclink11\n");
         exit(EXIT_SUCCESS);
