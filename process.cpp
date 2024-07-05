@@ -794,7 +794,23 @@ void process_pass15_library(const SaveStatusEntry* sscur)
                 break;  // End of file
             dataw = (uint16_t*)(data);
             if (*dataw != 1)
+#define IGNORE_BROKEN_ENTRIES 1
+#ifndef IGNORE_BROKEN_ENTRIES
                 fatal_error("Unexpected word %06ho at %06o in %s\n", *dataw, (unsigned int)offset, sscur->filename);
+#else
+            {
+                warning_message("Unexpected word %06ho at %06o in %s. Trying skip to ENDLIB\n", *dataw, (unsigned int)offset, sscur->filename);
+                while((dataw[0] != 1 || dataw[1] != 6 || dataw[2] != 6) && offset < sscur->filesize)
+                {
+                    dataw++;
+                    data += 2;
+                    offset += 2;
+                }
+                if (*dataw != 1){
+                    fatal_error("Unable to find ENDLIB till offset %06o in %s\n", *dataw, (unsigned int)offset, sscur->filename);
+                }
+            }
+#endif
         }
 
         uint16_t blocksize = ((uint16_t*)data)[1];
