@@ -948,11 +948,10 @@ void process_pass15()
                 //TODO: IF INPUT SEG # .NE. SYM SEG # THEN SET EXTERNAL REFERENCE BIT
                 //TODO: CLEAR SEGMENT # BITS & SET SEGMENT # WHERE DEFINED
                 entry->value = 0;  // VALUE WORD IS 0
-
                 pass1_insert_entry_into_ordered_list(index, entry, true);
                 //print_symbol_table();//DEBUG
             }
-            index = nextindex;  // GO DO NEXT SYMBOL
+            index = nextindex;
         }
     }
 }
@@ -1431,7 +1430,7 @@ SymbolTableEntry* process_pass2_rld_lookup(const uint8_t* data, bool global)
 }
 
 // COMPLEX RELOCATION STRING PROCESSING (GLOBAL ARITHMETIC), see LINK7\RLDCPX
-uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* &data, uint16_t &offset, uint16_t blocksize)
+uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* &data, uint16_t &offset, uint16_t blocksize, uint16_t addr)
 {
     assert(sscur != nullptr);
     assert(data != nullptr);
@@ -1527,7 +1526,8 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
             cpxbreak = true;
             break;
         case 013:  // STORE DISPLACED
-            cpxresult = cpxstack[cpxstacktop];  //TODO
+            cpxresult = cpxstack[cpxstacktop];
+            cpxresult -= addr + 2;
             printf(" %06ho\n", cpxresult);
             cpxbreak = true;
             break;
@@ -1698,7 +1698,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             break;
         case 017:  // COMPLEX RELOCATION STRING PROCESSING (GLOBAL ARITHMETIC)
             println();
-            *((uint16_t*)dest) = process_pass2_rld_complex(sscur, data, offset, blocksize);
+            *((uint16_t*)dest) = process_pass2_rld_complex(sscur, data, offset, blocksize, addr);
             break;
         default:
             fatal_error("ERR36: Unknown RLD command: %d in %s\n", (int)command, sscur->filename);
