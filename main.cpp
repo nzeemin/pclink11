@@ -25,6 +25,7 @@ static const char* FORLIB = "FORLIB.OBJ";  // FORTRAN LIBRARY FILENAME
 uint8_t* OutputBuffer = nullptr;
 size_t OutputBufferSize = 0;
 int OutputBlockCount = 0;
+int LdaOverheadBytes = 0;
 
 FILE* outfileobj = nullptr;
 FILE* mapfileobj = nullptr;
@@ -60,6 +61,11 @@ void initialize()
     SymbolTable = (SymbolTableEntry*) ::calloc(SymbolTableSize, sizeof(SymbolTableEntry));
     SymbolTableCount = 0;
 
+    RelocationTable = (RELEntry*) :: calloc(RelocationTableSize, sizeof(RELEntry));
+    RelocationTableCount = 0;
+
+    LdaTable = (RELEntry*) :: calloc(0x8000, sizeof(RELEntry));
+
     memset(LibraryModuleList, 0, LibraryModuleListSize * sizeof(LibraryModuleEntry));
 
     // Set globals defaults, see LINK1\START1
@@ -85,6 +91,14 @@ void finalize()
         free(SymbolTable);  SymbolTable = nullptr;
     }
 
+    if (RelocationTable != nullptr)
+    {
+        free(RelocationTable); RelocationTable = nullptr;
+    }
+    if (LdaTable != nullptr)
+    {
+        free(LdaTable); LdaTable = nullptr;
+    }
     for (int i = 0; i < SaveStatusCount; i++)
     {
         SaveStatusEntry* sscur = SaveStatusArea + i;

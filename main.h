@@ -180,6 +180,11 @@ const uint16_t SY_SEG = 01777;  // SEGMENT NUMBER BITS IN FLAGS WORD
 /////////////////////////////////////////////////////////////////////////////
 
 
+struct RELEntry
+{
+    uint16_t addr;
+    uint16_t value;
+};
 // **** GSD ENTRY STRUCTURE
 struct GSDentry
 {
@@ -217,6 +222,11 @@ const int SymbolTableSize = 4095;  // STSIZE
 extern SymbolTableEntry* SymbolTable;
 extern SymbolTableEntry* ASECTentry;
 extern int SymbolTableCount;  // STCNT -- SYMBOL TBL ENTRIES COUNTER
+
+const int RelocationTableSize = 4096; // FIXME
+extern RELEntry* RelocationTable;
+extern int RelocationTableCount;
+extern RELEntry* LdaTable;
 
 struct LibraryModuleEntry
 {
