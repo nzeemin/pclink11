@@ -19,6 +19,11 @@ SymbolTableEntry* SymbolTable = nullptr;
 SymbolTableEntry* ASECTentry = nullptr;
 int SymbolTableCount = 0;  // STCNT -- SYMBOL TBL ENTRIES COUNTER
 
+RELEntry* RelocationTable = nullptr;
+int RelocationTableCount = 0;
+
+RELEntry* LdaTable = nullptr;
+
 LibraryModuleEntry LibraryModuleList[LibraryModuleListSize];
 int LibraryModuleCount = 0;  // Count of records in LibraryModuleList, see LMLPTR
 
@@ -74,7 +79,7 @@ void symbol_table_delete(int index)
 }
 
 // ADD A REFERENCED SYMBOL TO THE UNDEFINED LIST, see LINK3\ADDUDF
-void symbol_table_add_undefined(int index)
+void symbol_table_add_undefined_head(int index)
 {
     assert(index > 0 && index < SymbolTableSize);
     assert(SymbolTable != nullptr);
@@ -83,6 +88,9 @@ void symbol_table_add_undefined(int index)
     {
         SymbolTableEntry* oldentry = SymbolTable + Globals.UNDLST;
         oldentry->value = (uint16_t)index;  // set back reference
+    }else
+    {
+        Globals.UNDEND = index;
     }
 
     SymbolTableEntry* entry = SymbolTable + index;
@@ -94,7 +102,33 @@ void symbol_table_add_undefined(int index)
 
     Globals.FLGWD |= AD_LML;  // IND TO ADD TO LML LATER
 }
+void symbol_table_add_undefined_tail(int index)
+{
+    assert(index > 0 && index < SymbolTableSize);
+    assert(SymbolTable != nullptr);
 
+    SymbolTableEntry* entry = SymbolTable + index;
+    entry->status |= SY_UDF;  // MAKE CUR SYM UNDEFINED
+    entry->flagseg = (entry->flagseg & ~SY_SEG) | Globals.SEGNUM;  // SET SEGMENT # WHERE INITIAL REF
+    if (Globals.UNDLST == 0)
+    {
+        entry->value = 0;
+        Globals.UNDLST = index;
+        Globals.UNDEND = index;
+    }else{
+        uint16_t oldindex = Globals.UNDEND;
+        SymbolTableEntry* oldentry = SymbolTable + Globals.UNDEND;
+
+        oldentry->status |= (uint16_t)index;
+        entry->value = oldindex;  // set back reference
+        Globals.UNDEND = index;
+    }
+    Globals.FLGWD |= AD_LML;  // IND TO ADD TO LML LATER
+}
+void symbol_table_add_undefined(int index)
+{
+  symbol_table_add_undefined_tail(index);
+}
 // REMOVE A ENTRY FROM THE UNDEFINED LIST, see LINK3\REMOVE
 void symbol_table_remove_undefined(int index)
 {
@@ -115,6 +149,8 @@ void symbol_table_remove_undefined(int index)
     {
         SymbolTableEntry* nextentry = SymbolTable + nextindex;
         nextentry->value = previndex;
+    }else{
+        Globals.UNDEND = previndex;
     }
     entry->value = 0;
     entry->status &= 0170000;

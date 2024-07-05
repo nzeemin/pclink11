@@ -180,12 +180,19 @@ const uint16_t SY_SEG = 01777;  // SEGMENT NUMBER BITS IN FLAGS WORD
 /////////////////////////////////////////////////////////////////////////////
 
 
+struct RELEntry
+{
+    uint16_t addr;
+    uint16_t value;
+};
+
 #define MAX_QSW 6
 struct QSWEntry
 {
     uint32_t name;
     uint16_t addr;
-};
+}
+
 // **** GSD ENTRY STRUCTURE
 struct GSDentry
 {
@@ -224,6 +231,11 @@ extern SymbolTableEntry* SymbolTable;
 extern SymbolTableEntry* ASECTentry;
 extern int SymbolTableCount;  // STCNT -- SYMBOL TBL ENTRIES COUNTER
 
+const int RelocationTableSize = 4096; // FIXME
+extern RELEntry* RelocationTable;
+extern int RelocationTableCount;
+extern RELEntry* LdaTable;
+
 struct LibraryModuleEntry
 {
     uint8_t  libfileno;     // LIBRARY FILE # (8 BITS) 1-255
@@ -256,6 +268,7 @@ struct tagGlobals
     uint8_t     TXTBLK[RECSIZ];  // SPACE FOR A FORMATTED BINARY RECORD
 
     int         UNDLST; // START OF UNDEFINED SYMBOL LIST
+    int         UNDEND; // END OF UNDEFINED SYMBOL LIST
     uint16_t    SYEN0;  // ADR OF SYMBOL TABLE ENTRY NUMBER 0
     // REL PTR + THIS = ABS ADDR OF SYMBOL NODE
     int         CSECT;  // PTR TO LATEST SECTION (PASS1)

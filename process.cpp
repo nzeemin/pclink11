@@ -793,7 +793,23 @@ void process_pass15_library(const SaveStatusEntry* sscur)
                 break;  // End of file
             dataw = (uint16_t*)(data);
             if (*dataw != 1)
+#define IGNORE_BROKEN_ENTRIES 1
+#ifndef IGNORE_BROKEN_ENTRIES
                 fatal_error("Unexpected word %06ho at %06o in %s\n", *dataw, (unsigned int)offset, sscur->filename);
+#else
+            {
+                warning_message("Unexpected word %06ho at %06o in %s. Trying skip to ENDLIB\n", *dataw, (unsigned int)offset, sscur->filename);
+                while((dataw[0] != 1 || dataw[1] != 6 || dataw[2] != 6) && offset < sscur->filesize)
+                {
+                    dataw++;
+                    data += 2;
+                    offset += 2;
+                }
+                if (*dataw != 1){
+                    fatal_error("Unable to find ENDLIB till offset %06o in %s\n", *dataw, (unsigned int)offset, sscur->filename);
+                }
+            }
+#endif
         }
 
         uint16_t blocksize = ((uint16_t*)data)[1];
@@ -947,11 +963,10 @@ void process_pass15()
                 //TODO: IF INPUT SEG # .NE. SYM SEG # THEN SET EXTERNAL REFERENCE BIT
                 //TODO: CLEAR SEGMENT # BITS & SET SEGMENT # WHERE DEFINED
                 entry->value = 0;  // VALUE WORD IS 0
-
                 pass1_insert_entry_into_ordered_list(index, entry, true);
                 //print_symbol_table();//DEBUG
             }
-            index = nextindex;  // GO DO NEXT SYMBOL
+            index = nextindex;
         }
     }
 }
@@ -1625,6 +1640,12 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             constdata = *((uint16_t*)data);
             printf(" %06ho\n", constdata);
             *((uint16_t*)dest) = constdata + Globals.BASE;
+            if (Globals.SWITCH & SW_R)
+            {
+                RelocationTable[RelocationTableCount].addr = (disbyte - 4) >> 1;
+                RelocationTable[RelocationTableCount].value = *((uint16_t*)dest);
+                RelocationTableCount++;
+            }
             data += 2;  offset += 2;
             break;
         case 002:  // GLOBAL
@@ -1647,6 +1668,12 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             constdata = *((uint16_t*)data);
             printf(" %06ho\n", constdata);
             *((uint16_t*)dest) = constdata - (addr + 2);
+            if (Globals.SWITCH & SW_R)
+            {
+                RelocationTable[RelocationTableCount].addr = (disbyte - 4) >> 1;
+                RelocationTable[RelocationTableCount].value = *((uint16_t*)dest);
+                RelocationTableCount++;
+            }
             data += 2;  offset += 2;
             break;
         case 004:  // GLOBAL DISPLACED, see LINK7\RLDGDR
@@ -1669,6 +1696,12 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             {
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, (command & 010) == 0);
                 *((uint16_t*)dest) = entry->value + constdata;
+                if (Globals.SWITCH & SW_R)
+                {
+                    RelocationTable[RelocationTableCount].addr = (disbyte - 4) >> 1;
+                    RelocationTable[RelocationTableCount].value = *((uint16_t*)dest);
+                    RelocationTableCount++;
+                }
             }
             data += 6;  offset += 6;
             break;
@@ -1793,11 +1826,14 @@ void process_pass2_init()
     // SYSCOM AREA FOR REL FILE
     if (Globals.SWITCH & SW_R)
     {
-        *((uint16_t*)(OutputBuffer + 052)) = Globals.BOTTOM;  // LESS BASE TO GET ACTUAL CODE SIZE
+//        *((uint16_t*)(OutputBuffer + 052)) = Globals.BOTTOM;  // LESS BASE TO GET ACTUAL CODE SIZE
+        *((uint16_t*)(OutputBuffer + 052)) = highlim - Globals.BEGBLK.value;  // Hack ???
+
         *((uint16_t*)(OutputBuffer + 054)) = Globals.KSWVAL;  // SIZE OF STACK IN BYTES
         //TODO: SIZE OF /O OVERLAY REGIONS IN BYTES, 0 IF NO OVERLAYS
         *((uint16_t*)(OutputBuffer + 060)) = rad50("REL", nullptr);  // REL FILE ID
         //TODO: RELATIVE BLOCK NUMBER OF START OF RELOCATION INFORMATION
+        *((uint16_t*)(OutputBuffer + 062)) = ((highlim +  511) / 512);
     }
 
     //TODO: BINOUT REQUESTED?
@@ -1947,6 +1983,14 @@ void proccess_pass2_libpa2(const SaveStatusEntry* sscur)
                 //printf(" data %02x %02x %02x %02x\n", data[8 + 0], data[8 + 1], data[8 + 2], data[8 + 3]);
 
                 *((uint16_t*)Globals.TXTBLK) = destaddr;  // ADD BASE TO GIVE ABS LOAD ADDR
+                if (Globals.SWITCH & SW_L)
+                {
+                    if (LdaTable[destaddr >> 1].value == 0)
+                    {
+                        LdaTable[destaddr >> 1].addr = destaddr;
+                        LdaTable[destaddr >> 1].value = Globals.TXTLEN;
+                    }
+                }
             }
             else if (blocktype == 4)  // See LINK7\RLD
             {
@@ -2032,6 +2076,14 @@ void process_pass2_file(const SaveStatusEntry* sscur)
             //printf(" data %02x %02x %02x %02x\n", data[8 + 0], data[8 + 1], data[8 + 2], data[8 + 3]);
 
             *((uint16_t*)Globals.TXTBLK) = destaddr;  // ADD BASE TO GIVE ABS LOAD ADDR
+            if (Globals.SWITCH & SW_L)
+            {
+                if (LdaTable[destaddr >> 1].value == 0)
+                {
+                    LdaTable[destaddr >> 1].addr = destaddr;
+                    LdaTable[destaddr >> 1].value = Globals.TXTLEN;
+                }
+            }
         }
         else if (blocktype == 4)  // See LINK7\RLD
         {
@@ -2101,25 +2153,99 @@ void process_pass2()
 void process_pass2_done()
 {
     uint16_t highlim = (Globals.SWIT1 & SW_J) ? Globals.DHGHLM : Globals.HGHLIM;
-
     // Write to the output file
     if (Globals.SWITCH & SW_L)  // LDA file
     {
         uint16_t baseaddr = Globals.BOTTOM;
+        uint16_t total = 0;
 
         uint16_t ldaheader[3];
-        ldaheader[0] = 1;
-        ldaheader[1] = highlim - baseaddr; //TODO
-        ldaheader[2] = baseaddr;
+        uint8_t* ldaheaderbp = (uint8_t*)ldaheader;
+        uint8_t checksum;
+        size_t bytestowrite;
+        size_t byteswrit;
+        for(int l=0; l<0x800; l++)
+        {
+            if (LdaTable[l].value == 0) continue;
+            printf("LDA: @0x%x = 0x%x\n",LdaTable[l].addr, LdaTable[l].value);
+            ldaheader[0] = 1;
+            ldaheader[1] = LdaTable[l].value + 6;
+            ldaheader[2] = LdaTable[l].addr;
+            bytestowrite = sizeof(ldaheader);
+            byteswrit = fwrite(ldaheader, 1, bytestowrite, outfileobj);
+            if (byteswrit != bytestowrite)
+                fatal_error("ERR6: Failed to write output file.\n");
+            total += byteswrit;
+            bytestowrite = LdaTable[l].value;
+            byteswrit = fwrite(OutputBuffer + LdaTable[l].addr, 1, bytestowrite, outfileobj);
+            if (byteswrit != bytestowrite)
+                fatal_error("ERR6: Failed to write output file.\n");
+            total += byteswrit;
 
-        size_t bytestowrite = sizeof(ldaheader);
-        size_t byteswrit = fwrite(ldaheader, 1, bytestowrite, outfileobj);
+            checksum = 0;
+            for(int i=0; i<6; i++)
+                checksum += ldaheaderbp[i];
+            for(int i=0; i<LdaTable[l].value; i++)
+                checksum += OutputBuffer[LdaTable[l].addr + i];
+            checksum = (255 - checksum) + 1;
+
+            bytestowrite = 1;
+            byteswrit = fwrite(&checksum, 1, bytestowrite, outfileobj);
+            if (byteswrit != bytestowrite)
+                fatal_error("ERR6: Failed to write output file.\n");
+            total += byteswrit;
+        }
+        // Final block
+        ldaheader[0] = 1;
+        ldaheader[1] = 6;
+        ldaheader[2] = baseaddr;
+        bytestowrite = sizeof(ldaheader);
+        byteswrit = fwrite(ldaheader, 1, bytestowrite, outfileobj);
+        if (byteswrit != bytestowrite)
+            fatal_error("ERR6: Failed to write output file.\n");
+        total += byteswrit;
+
+        checksum = 0xf7;
+        bytestowrite = 1;
+        byteswrit = fwrite(&checksum, 1, bytestowrite, outfileobj);
+        if (byteswrit != bytestowrite)
+            fatal_error("ERR6: Failed to write output file.\n");
+        total += byteswrit;
+
+        // Zero padding to block size
+        checksum = 0;
+        while ( total & 0x1ff){
+            byteswrit = fwrite(&checksum, 1, bytestowrite, outfileobj);
+            if (byteswrit != bytestowrite)
+                fatal_error("ERR6: Failed to write output file.\n");
+            total += byteswrit;
+        }
+    }
+    else if (Globals.SWITCH & SW_R) // REL file
+    {
+        Globals.BITMAP[0] |= 128;  // We always use block 1
+
+        // Copy the bitmap to block 0
+        if ((Globals.FLGWD & 02000) == 0)
+        {
+            int bitstowrite = ((int)highlim + 511) / 512;
+            int bytestowrite = (bitstowrite + 7) / 8;
+            memcpy(OutputBuffer + SysCom_BITMAP, Globals.BITMAP, bytestowrite);
+        }
+
+        size_t bytestowrite = OutputBlockCount == 0 ? 65536 : OutputBlockCount * 512;
+        size_t byteswrit = fwrite(OutputBuffer, 1, bytestowrite, outfileobj);
         if (byteswrit != bytestowrite)
             fatal_error("ERR6: Failed to write output file.\n");
 
-        bytestowrite = highlim - baseaddr;
-        bytestowrite = (bytestowrite + 6 + 511) / 512 * 512 - 6; // round to block size
-        byteswrit = fwrite(OutputBuffer + baseaddr, 1, bytestowrite, outfileobj);
+        // Add relocation list end marker
+        RelocationTable[RelocationTableCount].addr = 0177776;
+        RelocationTable[RelocationTableCount].value = 0;
+        RelocationTableCount++;
+        // Write relocation list
+        bytestowrite = RelocationTableCount * sizeof(RELEntry);
+        bytestowrite = (bytestowrite + 511) / 512 * 512; // round to block size
+        byteswrit = fwrite(RelocationTable, 1, bytestowrite, outfileobj);
         if (byteswrit != bytestowrite)
             fatal_error("ERR6: Failed to write output file.\n");
     }
