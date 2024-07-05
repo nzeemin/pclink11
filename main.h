@@ -191,7 +191,7 @@ struct QSWEntry
 {
     uint32_t name;
     uint16_t addr;
-}
+};
 
 // **** GSD ENTRY STRUCTURE
 struct GSDentry
