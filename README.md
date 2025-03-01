@@ -32,7 +32,13 @@ Options (both `/` and `-` prefixes are allowed):
 - `-ALPHABETIZE` `-A` — Lists global symbols on the link map in alphabetical order
 - `-SYMBOLTABLE` `-STB` — Generates a symbol table file (.STB file)
 - `-MAP` — Generates map file
+- `-FOREGROUND` `-R` — Foreground link
+- `-LDA` `-L` — LDA output
 - `-FORLIB` `-F` — Include FORLIB.OBJ
+- `-T:address` — Specify transfer address
+- `-M:address` — Modify initial stack
+- `-B:address` — Specify bottom address for link
+- `-H:address` — Specify top address for link
 - `-Q:section=address` — Set section to absolute address
 - `--version` — Show the program version information
 - `--help` — Show quick help on the command line options
@@ -61,7 +67,7 @@ First priority:
 - Fix bugs for the failing test cases
 
 Second priority:
-- Need more tests, currently we have 120 test cases
+- Need more tests, currently we have 121 test cases
 - Reduce amount of logging, add option for verbosity level
 - Process other command-line options, including file-specific ones
 

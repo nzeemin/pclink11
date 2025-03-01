@@ -366,7 +366,6 @@ void parse_commandline_option(const char* cur)
                 fatal_error("Too many /Q options\n");
 
             char name[7];
-            uint32_t rad50name;
             result = sscanf(cur, ":%6[^=]=%ho", name, &param1);
             if (result < 2)
                 fatal_error("Invalid /Q option, use /Q:sect=addr\n");
@@ -374,7 +373,7 @@ void parse_commandline_option(const char* cur)
             for (i = 0; i < 7; i++) if (!name[i]) break;
             for (; i < 7; i++) name[i] = ' ';
 
-            rad50name = rad50x2(name);
+            uint32_t rad50name = rad50x2(name);
 
             Globals.QSWVAL[Globals.QSWCNT].name = rad50name;
             Globals.QSWVAL[Globals.QSWCNT].addr = param1;

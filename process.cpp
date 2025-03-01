@@ -1573,7 +1573,7 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
             fatal_error("ERR35: Invalid complex relocation in %s\n", sscur->filename);
             break;
         case 016:  // PUSH GLOBAL SYMBOL VALUE
-            cpxname = MAKEDWORD(((uint16_t*)data)[0], ((uint16_t*)data)[1]);
+            cpxname = MAKEDWORD(((const uint16_t*)data)[0], ((const uint16_t*)data)[1]);
             printf(" '%s'\n", unrad50(cpxname));
             cpxentry = process_pass2_rld_lookup(data, true);
             data += 4;  offset += 4;
@@ -1585,7 +1585,7 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
         case 017:  // PUSH RELOCATABLE VALUE, see LINK7\CPXPRL
             // GET SECTION NUMBER
             cpxsect = *data;  data += 1;  offset += 1;
-            cpxval = *((uint16_t*)data);  data += 2;  offset += 2;  // GET OFFSET WITHIN SECTION
+            cpxval = *((const uint16_t*)data);  data += 2;  offset += 2;  // GET OFFSET WITHIN SECTION
             printf(" %03ho %06ho\n", (uint16_t)cpxsect, cpxval);
             // SEE IF SECTION NO. OK
             if (cpxsect >= ModuleSectionCount)
@@ -1598,7 +1598,7 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
             cpxstack[cpxstacktop] = cpxval + cpxentry->value;
             break;
         case 020:  // PUSH CONSTANT
-            cpxval = *((uint16_t*)data);  data += 2;  offset += 2;
+            cpxval = *((const uint16_t*)data);  data += 2;  offset += 2;
             printf(" %06ho\n", cpxval);
             cpxstacktop++;
             if (cpxstacktop >= cpxstacksize)
@@ -1652,21 +1652,26 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
         case 002:  // GLOBAL
         case 012:  // PSECT
             // RELOCATES A DIRECT POINTER TO A GLOBAL SYMBOL. THE VALUE OF THE GLOBAL SYMBOL IS OBTAINED & STORED.
-            printf(" '%s'\n", unrad50(*((uint32_t*)data)));
+            printf(" '%s'\n", unrad50(*((const uint32_t*)data)));
             {
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, (command & 010) == 0);
                 //printf("        Entry '%s' value = %06ho %04X dest = %06ho\n", entry->unrad50name(), entry->value, entry->value, *((uint16_t*)dest));
                 if ((command & 0177) == 012)
                     *((uint16_t*)dest) = entry->value;
                 else if ((command & 0177) == 002)
-                    *((uint16_t*)dest) += entry->value;
+                {
+                    if ((command & 0x80) != 0)  // byte
+                        *dest += entry->value;
+                    else
+                        *((uint16_t*)dest) += entry->value;
+                }
             }
             data += 4;  offset += 4;
             break;
         case 003:  // INTERNAL DISPLACED REL, see LINK7\RLDIDR
             // RELATIVE REFERENCE TO AN ABSOLUTE ADDRESS FROM WITHIN A RELOCATABLE SECTION.
             // THE ADDRESS + 2 THAT THE RELOCATED VALUE IS TO BE WRITTEN INTO IS SUBTRACTED FROM THE SPECIFIED CONSTANT & RESULTS STORED.
-            constdata = *((uint16_t*)data);
+            constdata = *((const uint16_t*)data);
             printf(" %06ho\n", constdata);
             *((uint16_t*)dest) = constdata - (addr + 2);
             if (Globals.SWITCH & SW_R)
@@ -1693,7 +1698,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             // THE SYMBOL VALUE IS ADDED TO THE SPECIFIED CONSTANT & STORED.
             //curlocation = 0;  // ADD 0 AS CONSTANT
             constdata = ((uint16_t*)data)[2];
-            printf(" '%s' %06ho\n", unrad50(*((uint32_t*)data)), constdata);
+            printf(" '%s' %06ho\n", unrad50(*((const uint32_t*)data)), constdata);
             {
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, (command & 010) == 0);
                 *((uint16_t*)dest) = entry->value + constdata;
@@ -1711,8 +1716,8 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             // RELATIVE REFERENCE TO A GLOBAL SYMBOL WITH AN ADDITIVE CONSTANT.
             // THE GLOBAL VALUE AND THE CONSTANT ARE ADDED. THE ADDRESS + 2 THAT THE RELOCATED VALUE IS
             // TO BE WRITTEN INTO IS SUBTRACTED FROM THE RESULTANT ADDITIVE VALUE & STORED.
-            constdata = ((uint16_t*)data)[2];
-            printf(" '%s' %06ho\n", unrad50(*((uint32_t*)data)), constdata);
+            constdata = ((const uint16_t*)data)[2];
+            printf(" '%s' %06ho\n", unrad50(*((const uint32_t*)data)), constdata);
             {
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, (command & 010) == 0);
                 *((uint16_t*)dest) = entry->value + constdata - (addr + 2);
@@ -1723,7 +1728,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
         case 007:  // LOCATION COUNTER DEFINITION, see LINK7\RLDLCD
             // DECLARES A CURRENT SECTION & LOCATION COUNTER VALUE
             constdata = ((uint16_t*)data)[2];
-            printf(" '%s' %06ho\n", unrad50(*((uint32_t*)data)), constdata);
+            printf(" '%s' %06ho\n", unrad50(*((const uint32_t*)data)), constdata);
             {
                 Globals.MBPTR = 0;  // 0 SAYS TO STORE TXT INFO
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, false);
