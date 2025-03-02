@@ -1,0 +1,5 @@
+
+.GLOBL foo
+foo = -5
+
+	.END

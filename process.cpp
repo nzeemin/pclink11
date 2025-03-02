@@ -1618,7 +1618,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
     assert(sscur != nullptr);
     assert(data != nullptr);
 
-    uint16_t blocksize = ((uint16_t*)data)[1];
+    uint16_t blocksize = ((const uint16_t*)data)[1];
     uint16_t offset = 6;  data += 6;
     uint16_t baseaddr = *((uint16_t*)Globals.TXTBLK);
     while (offset < blocksize)
@@ -1638,7 +1638,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             // TO A SPECIFIED CONSTANT ANT THE RESULT STORED IN THE IMAGE FILE AT THE CALCULATED ADDRESS
             // (I.E., DISPLACEMENT BYTE ADDED TO VALUE CALCULATED FROM THE LOAD ADDRESS OF THE PREVIOUS TEXT BLOCK).
             //curlocation = Globals.BASE;  // ADD SECTION BASE
-            constdata = *((uint16_t*)data);
+            constdata = *((const uint16_t*)data);
             printf(" %06ho\n", constdata);
             *((uint16_t*)dest) = constdata + Globals.BASE;
             if (Globals.SWITCH & SW_R)
@@ -1697,11 +1697,14 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             // RELOCATED A DIRECT POINTER TO A GLOBAL SYMBOL WITH AN ADDITIVE CONSTANT
             // THE SYMBOL VALUE IS ADDED TO THE SPECIFIED CONSTANT & STORED.
             //curlocation = 0;  // ADD 0 AS CONSTANT
-            constdata = ((uint16_t*)data)[2];
+            constdata = ((const uint16_t*)data)[2];
             printf(" '%s' %06ho\n", unrad50(*((const uint32_t*)data)), constdata);
             {
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, (command & 010) == 0);
-                *((uint16_t*)dest) = entry->value + constdata;
+                if ((command & 0x80) != 0)  // byte
+                    *dest = (uint8_t)(entry->value + constdata);
+                else
+                    *((uint16_t*)dest) = entry->value + constdata;
                 if (Globals.SWITCH & SW_R)
                 {
                     RelocationTable[RelocationTableCount].addr = (disbyte - 4) >> 1;
@@ -1727,7 +1730,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             break;
         case 007:  // LOCATION COUNTER DEFINITION, see LINK7\RLDLCD
             // DECLARES A CURRENT SECTION & LOCATION COUNTER VALUE
-            constdata = ((uint16_t*)data)[2];
+            constdata = ((const uint16_t*)data)[2];
             printf(" '%s' %06ho\n", unrad50(*((const uint32_t*)data)), constdata);
             {
                 Globals.MBPTR = 0;  // 0 SAYS TO STORE TXT INFO
@@ -1745,7 +1748,7 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             break;
         case 010:  // LOCATION COUNTER MODIFICATION, see LINK7\RLDLCM
             // THE CURRENT SECTION BASE IS ADDED TO THE SPECIFIED CONSTANT & RESULT IS STORED AS THE CURRENT LOCATION CTR.
-            constdata = ((uint16_t*)data)[0];
+            constdata = ((const uint16_t*)data)[0];
             printf(" %06ho\n", constdata);
             //curlocation = constdata + Globals.BASE;  // BASE OF SECTION + OFFSET = CURRENT LOCATION COUNTER
             data += 2;  offset += 2;
@@ -1757,7 +1760,10 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             break;
         case 017:  // COMPLEX RELOCATION STRING PROCESSING (GLOBAL ARITHMETIC)
             println();
-            *((uint16_t*)dest) = process_pass2_rld_complex(sscur, data, offset, blocksize, addr);
+            if ((command & 0x80) != 0)  // byte
+                *dest = (uint8_t)process_pass2_rld_complex(sscur, data, offset, blocksize, addr);
+            else
+                *((uint16_t*)dest) = process_pass2_rld_complex(sscur, data, offset, blocksize, addr);
             break;
         default:
             fatal_error("ERR36: Unknown RLD command: %d in %s\n", (int)command, sscur->filename);
@@ -1901,7 +1907,7 @@ void process_pass2_gsd_block(const SaveStatusEntry* sscur, const uint8_t* data)
     assert(sscur != nullptr);
     assert(data != nullptr);
 
-    uint16_t blocksize = ((uint16_t*)data)[1];
+    uint16_t blocksize = ((const uint16_t*)data)[1];
     int itemcount = (blocksize - 6) / 8;
     //printf("    Processing GSD block, %d items\n", itemcount);
 
@@ -1962,10 +1968,10 @@ void proccess_pass2_libpa2(const SaveStatusEntry* sscur)
         printf("  proccess_pass2_libpa2() #%04d for offset %06o\n", i, (unsigned int)offset);
         while (offset < sscur->filesize)
         {
-            uint8_t* data = sscur->data + offset;
+            const uint8_t* data = sscur->data + offset;
             //uint16_t* dataw = (uint16_t*)(data);
-            uint16_t blocksize = ((uint16_t*)data)[1];
-            uint16_t blocktype = ((uint16_t*)data)[2];
+            uint16_t blocksize = ((const uint16_t*)data)[1];
+            uint16_t blocktype = ((const uint16_t*)data)[2];
 
             if (blocktype == 0 || blocktype > 8)
                 fatal_error("Illegal record type at %06o in %s\n", (unsigned int)offset, sscur->filename);
