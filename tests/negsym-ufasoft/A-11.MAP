@@ -1,10 +1,10 @@
-RT-11 LINK  V05.45 	Load Map 	Sunday 02-Mar-2025 14:19  Page 1
+RT-11 LINK  V05.45 	Load Map 	Wednesday 05-Mar-2025 00:05  Page 1
 A     .SAV   	Title:	.MAIN.	Ident:	      	
 
 Section  Addr	Size	Global	Value	Global	Value	Global	Value
 
  . ABS.	 000000	001000 = 256.    words  (RW,I,GBL,ABS,OVR)
 			FOO   	177773	
- 	 001000	000036 = 15.     words  (RW,I,LCL,REL,CON)
+ 	 001000	000074 = 30.     words  (RW,I,LCL,REL,CON)
 
-Transfer address = 001000, High limit = 001034 = 270.    words
+Transfer address = 001000, High limit = 001072 = 285.    words

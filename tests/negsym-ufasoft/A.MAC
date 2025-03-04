@@ -3,22 +3,33 @@ START:
 
 .GLOBL foo
 
-bar2:	.BYTE	foo
+K002:	.BYTE	foo
 	.BYTE   0
 	.WORD   foo
-	.WORD   0
 
-bar5:	MOVB	#<foo + 1>, R0
+	MOV	#foo, R0
+	MOVB	#foo, R0
+
+K004:	MOV	foo, R0
+	MOVB	foo, R0
+
+	MOV	@foo, R0
+	MOVB	@foo, R0
+
+K005:	MOVB	#<foo + 1>, R0
 	MOV	#<foo + 1>, R0
+
+	MOVB	@#<foo + 1>, R0
+	MOV	@#<foo + 1>, R0
 
 	.BYTE	<foo + 1>
 	.BYTE	0
 	.WORD	<foo + 1>
 
-bar6:	MOVB	<foo + 1>, R0
+K006:	MOVB	<foo + 1>, R0
 	MOV	<foo + 1>, R0
 
-bar017:	.BYTE	<foo + foo>
+K017:	.BYTE	<foo + foo>
 	.BYTE	0
 	.WORD	<foo + foo>
 
