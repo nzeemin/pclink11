@@ -25,6 +25,7 @@
 /testrunner/Release
 /testrunner/*.o
 /x-*
+/.idea
 $notes.txt
 *.zip
 *.rar
