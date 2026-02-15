@@ -2217,7 +2217,10 @@ void process_pass2_done()
             fatal_error("ERR6: Failed to write output file.\n");
         total += byteswrit;
 
-        checksum = 0xf7;
+        checksum = 0;
+        for (int i = 0; i < 6; i++)
+            checksum -= ldaheaderbp[i];
+
         bytestowrite = 1;
         byteswrit = fwrite(&checksum, 1, bytestowrite, outfileobj);
         if (byteswrit != bytestowrite)
