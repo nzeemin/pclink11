@@ -170,20 +170,12 @@ void parse_commandline_option(const char* cur)
     int result;
     uint16_t param1, param2;
 
-    // /EXECUTE:filespec - Specifies the name of the memory image file
-    if (strncmp(cur, "EXECUTE:", 8) == 0) //TODO: or /SAV
-    {
-        strcpy(outfilename, cur + 8);
-        //TODO: Validate the name as a proper filename
-        return;
-    }
-
-    if (_stricmp(cur, "QUITE") == 0)
+    if (strcmp(cur, "QUITE") == 0)
     {
         Verbosity = 1;  // Keep messages level at minimum
         return;
     }
-    if (_strnicmp(cur, "VERBOSITY", 9) == 0)
+    if (strncmp(cur, "VERBOSITY", 9) == 0)
     {
         result = sscanf(cur + 9, ":%hd", &param1);
         if (result < 1)
@@ -192,8 +184,16 @@ void parse_commandline_option(const char* cur)
         return;
     }
 
+    // /EXECUTE:filespec - Specifies the name of the memory image file
+    if (strncmp(cur, "EXECUTE:", 8) == 0) //TODO: or /SAV
+    {
+        strcpy(outfilename, cur + 8);
+        //TODO: Validate the name as a proper filename
+        return;
+    }
+
     // /WIDE /W - SPECIFY WIDE MAP LISTING
-    if (_stricmp(cur, "WIDE") == 0 || strcmp(cur, "W") == 0)
+    if (strcmp(cur, "WIDE") == 0 || strcmp(cur, "W") == 0)
     {
         Globals.NUMCOL = 6; // 6 COLUMNS
         //Globals.LSTFMT--; // WIDE CREF
@@ -201,35 +201,35 @@ void parse_commandline_option(const char* cur)
     }
 
     // /NOBITMAP /X - DO NOT EMIT BIT MAP
-    if (_stricmp(cur, "NOBITMAP") == 0 || strcmp(cur, "X") == 0)
+    if (strcmp(cur, "NOBITMAP") == 0 || strcmp(cur, "X") == 0)
     {
         Globals.SWITCH |= SW_X;
         return;
     }
 
     // /SYMBOLTABLE /STB - Generates a symbol table file
-    if (_stricmp(cur, "SYMBOLTABLE") == 0 || strcmp(cur, "STB") == 0)
+    if (strcmp(cur, "SYMBOLTABLE") == 0 || strcmp(cur, "STB") == 0)
     {
         Globals.FlagSTB = true;
         return;
     }
 
     // /MAP - Generates map file
-    if (_stricmp(cur, "MAP") == 0)
+    if (strcmp(cur, "MAP") == 0)
     {
         Globals.FlagMAP = true;
         return;
     }
 
     // /ALPHABETIZE /A - ALPHABETIZE MAP
-    if (_stricmp(cur, "ALPHABETIZE") == 0 || strcmp(cur, "A") == 0)
+    if (strcmp(cur, "ALPHABETIZE") == 0 || strcmp(cur, "A") == 0)
     {
         Globals.SWITCH |= SW_A;
         return;
     }
 
     // /FOREGROUND /R[:stacksize] - INDICATE FOREGROUND LINK
-    if (_stricmp(cur, "FOREGROUND") == 0 || strcmp(cur, "R") == 0)
+    if (strcmp(cur, "FOREGROUND") == 0 || strcmp(cur, "R") == 0)
     {
         //result = sscanf(cur, ":%ho", &param1);
         if ((Globals.SWITCH & (SW_B | SW_H | SW_K | SW_L)) != 0)
@@ -240,7 +240,7 @@ void parse_commandline_option(const char* cur)
     }
 
     // /L - INDICATE LDA OUTPUT
-    if (_stricmp(cur, "LDA") == 0 || strcmp(cur, "L") == 0)
+    if (strcmp(cur, "LDA") == 0 || strcmp(cur, "L") == 0)
     {
         // /L IS ILLEGAL FOR FOREGROUND LINKS
         if ((Globals.SWITCH & SW_R) != 0)
@@ -251,7 +251,7 @@ void parse_commandline_option(const char* cur)
     }
 
     // /F - INCLUDE FORLIB.OBJ IN LINK
-    if (_stricmp(cur, "FORLIB") == 0 || strcmp(cur, "F") == 0)
+    if (strcmp(cur, "FORLIB") == 0 || strcmp(cur, "F") == 0)
     {
         Globals.SWITCH |= SW_F;
         return;
