@@ -379,7 +379,6 @@ void parse_commandline_option(const char* cur)
             Globals.QSWVAL[Globals.QSWCNT].addr = param1;
             Globals.QSWCNT++;
             break;
-
         }
         //case 'J':  // /J - USE SEPARATED I-D SPACE
         //    if (Globals.SWITCH & SW_R)

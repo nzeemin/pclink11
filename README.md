@@ -12,6 +12,7 @@ Port source: RT-11 LINK V05.45.
 ## Authors
  * Nikita Zimin (@nzeemin)
  * Vladimir Voroshilov (@voroshil)
+ * @ilynxy
 
 ## Status: Work in Progress 🚧
 
@@ -67,7 +68,7 @@ First priority:
 - Fix bugs for the failing test cases
 
 Second priority:
-- Need more tests, currently we have 122 test cases
+- Need more tests, currently we have 123 test cases
 - Reduce amount of logging, add option for verbosity level
 - Process other command-line options, including file-specific ones
 
