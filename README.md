@@ -27,6 +27,8 @@ Command line:
 `pclink11 <input files and options>`
 
 Options (both `/` and `-` prefixes are allowed):
+- `-QUIET` — Minimizes verbosity level
+- `-VERBOSITY:N` — Specifies verbosity level; N=1..6; default is 2
 - `-EXECUTE:filespec` — Specifies the name of the memory image file
 - `-NOBITMAP` `-X` — Do not emit bit map
 - `-WIDE` `-W` — Produces a load map that is 132-columns wide

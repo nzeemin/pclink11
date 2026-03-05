@@ -170,7 +170,7 @@ void parse_commandline_option(const char* cur)
     int result;
     uint16_t param1, param2;
 
-    if (strcmp(cur, "QUITE") == 0)
+    if (strcmp(cur, "QUIET") == 0)
     {
         Verbosity = 1;  // Keep messages level at minimum
         return;
@@ -419,7 +419,7 @@ void parse_commandline_filename(const char * filename)
     char* filenamecur = sscur->filename;
     int filenamelen = 0;
     const char* cur = filename;
-    while (*cur != 0 && (isalnum(*cur) || *cur == '.' || *cur == '_' || *cur == '-') || *cur == PATH_SEPARATOR_CHAR)
+    while ((*cur != 0 && (isalnum(*cur)) || *cur == '.' || *cur == '_' || *cur == '-') || *cur == PATH_SEPARATOR_CHAR)
     {
         *filenamecur = *cur;
         filenamecur++;  cur++;
