@@ -33,6 +33,8 @@ FILE* stbfileobj = nullptr;
 
 struct tagGlobals Globals;
 
+uint16_t Verbosity = 2;
+
 char outfilename[PATH_MAX + 1] = { 0 };
 
 void println()
@@ -165,6 +167,7 @@ void parse_commandline_option(const char* cur)
 {
     assert(cur != nullptr);
 
+    int result;
     uint16_t param1, param2;
 
     // /EXECUTE:filespec - Specifies the name of the memory image file
@@ -175,8 +178,22 @@ void parse_commandline_option(const char* cur)
         return;
     }
 
+    if (_stricmp(cur, "QUITE") == 0)
+    {
+        Verbosity = 1;  // Keep messages level at minimum
+        return;
+    }
+    if (_strnicmp(cur, "VERBOSITY", 9) == 0)
+    {
+        result = sscanf(cur + 9, ":%hd", &param1);
+        if (result < 1)
+            fatal_error("Invalid /VERBOSITY option, use /VERBOSITY:level\n");
+        Verbosity = param1;
+        return;
+    }
+
     // /WIDE /W - SPECIFY WIDE MAP LISTING
-    if (strcmp(cur, "WIDE") == 0 || strcmp(cur, "W") == 0)
+    if (_stricmp(cur, "WIDE") == 0 || strcmp(cur, "W") == 0)
     {
         Globals.NUMCOL = 6; // 6 COLUMNS
         //Globals.LSTFMT--; // WIDE CREF
@@ -184,35 +201,35 @@ void parse_commandline_option(const char* cur)
     }
 
     // /NOBITMAP /X - DO NOT EMIT BIT MAP
-    if (strcmp(cur, "NOBITMAP") == 0 || strcmp(cur, "X") == 0)
+    if (_stricmp(cur, "NOBITMAP") == 0 || strcmp(cur, "X") == 0)
     {
         Globals.SWITCH |= SW_X;
         return;
     }
 
     // /SYMBOLTABLE /STB - Generates a symbol table file
-    if (strcmp(cur, "SYMBOLTABLE") == 0 || strcmp(cur, "STB") == 0)
+    if (_stricmp(cur, "SYMBOLTABLE") == 0 || strcmp(cur, "STB") == 0)
     {
         Globals.FlagSTB = true;
         return;
     }
 
     // /MAP - Generates map file
-    if (strcmp(cur, "MAP") == 0)
+    if (_stricmp(cur, "MAP") == 0)
     {
         Globals.FlagMAP = true;
         return;
     }
 
     // /ALPHABETIZE /A - ALPHABETIZE MAP
-    if (strcmp(cur, "ALPHABETIZE") == 0 || strcmp(cur, "A") == 0)
+    if (_stricmp(cur, "ALPHABETIZE") == 0 || strcmp(cur, "A") == 0)
     {
         Globals.SWITCH |= SW_A;
         return;
     }
 
     // /FOREGROUND /R[:stacksize] - INDICATE FOREGROUND LINK
-    if (strcmp(cur, "FOREGROUND") == 0 || strcmp(cur, "R") == 0)
+    if (_stricmp(cur, "FOREGROUND") == 0 || strcmp(cur, "R") == 0)
     {
         //result = sscanf(cur, ":%ho", &param1);
         if ((Globals.SWITCH & (SW_B | SW_H | SW_K | SW_L)) != 0)
@@ -223,7 +240,7 @@ void parse_commandline_option(const char* cur)
     }
 
     // /L - INDICATE LDA OUTPUT
-    if (strcmp(cur, "LDA") == 0 || strcmp(cur, "L") == 0)
+    if (_stricmp(cur, "LDA") == 0 || strcmp(cur, "L") == 0)
     {
         // /L IS ILLEGAL FOR FOREGROUND LINKS
         if ((Globals.SWITCH & SW_R) != 0)
@@ -234,13 +251,12 @@ void parse_commandline_option(const char* cur)
     }
 
     // /F - INCLUDE FORLIB.OBJ IN LINK
-    if (strcmp(cur, "FORLIB") == 0 || strcmp(cur, "F") == 0)
+    if (_stricmp(cur, "FORLIB") == 0 || strcmp(cur, "F") == 0)
     {
         Globals.SWITCH |= SW_F;
         return;
     }
 
-    int result;
     param1 = param2 = 0;  result = 0;
     int option = toupper(*cur++);
     switch (option)
@@ -477,6 +493,8 @@ void print_help()
     printf("\n"
            "Usage: pclink11 <input files and options, space-separated>\n"
            "Options:\n"
+           "  -QUIET        Minimizes verbosity level\n"
+           "  -VERBOSITY:N  Specifies verbosity level; N=1..6; default is 2\n"
            "  -EXECUTE:filespec  Specifies the name of the memory image file\n"
            "  -T:addr       Specifies the starting address of the linked program\n"
            "  -M:addr       Specifies the stack address for the linked program\n"
@@ -530,7 +548,7 @@ int main(int argc, char *argv[])
     {
         printf(
             "Cross-linker, porting PDP-11 LINK to C/C++, WIP\n"
-            "Ported in 2019-2024 by Nikita Zimin and others\n"
+            "Ported in 2019-2026 by Nikita Zimin and others\n"
             "License LGPLv3: GNU Lesser General Public License v3.0 https://www.gnu.org/licenses/lgpl-3.0.html\n"
             "Source code: https://github.com/nzeemin/pclink11\n");
         exit(EXIT_SUCCESS);

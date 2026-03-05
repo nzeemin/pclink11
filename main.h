@@ -433,6 +433,8 @@ struct tagGlobals
 };
 extern struct tagGlobals Globals;
 
+extern uint16_t Verbosity;
+
 extern uint8_t* OutputBuffer;
 extern size_t OutputBufferSize;
 extern int OutputBlockCount;

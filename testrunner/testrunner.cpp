@@ -207,6 +207,7 @@ void process_test(const TestDescriptor & test)
     // Prepare command line
     string pclink11path = PCLINK11_PATH;
     string commandline = string(test.commandline);
+    commandline += " -VERBOSITY:255";  // Set verbosity level to maximum
     string outfilename = string(test.name) + "-my.log";
 
     // Make sure we have some .OBJ files in the test folder

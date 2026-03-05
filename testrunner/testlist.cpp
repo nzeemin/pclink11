@@ -6,7 +6,7 @@
 const TestDescriptor g_Tests[] =
 {
     /* directory           name        commandline */
-    { "ADD32-PATRON",     "ADD32",    "-SYMBOLTABLE -MAP ADD32.OBJ" },
+    { "ADD32-PATRON",     "ADD32",    "-symboltable -map ADD32.OBJ" },
     { "ASH4",             "ASH4",     "-SYMBOLTABLE -MAP ASH4.OBJ" },
     { "ASHC4",            "ASHC4",    "-SYMBOLTABLE -MAP ASHC4.OBJ" },
     { "BASIC-UKNC-DSK-1988-OLD", "BASUKD", "-SYMBOLTABLE -MAP -EXECUTE:BASUKD.SAV DAT.OBJ MONIT.OBJ MDBLOC.OBJ IO.OBJ COMP.OBJ TRAP.OBJ JMIN.OBJ JMP.OBJ DISK.OBJ GRAFUK.OBJ FLOATS.OBJ" },

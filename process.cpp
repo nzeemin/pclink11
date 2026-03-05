@@ -181,7 +181,8 @@ void process_pass1_gsd_item_taddr(const uint16_t* itemw, const SaveStatusEntry* 
     if (!symbol_table_lookup(lkname, lkwd, lkmsk, &index))
         fatal_error("ERR31: Transfer address for '%s' undefined or in overlay.\n", unrad50(lkname));
     SymbolTableEntry* entry = SymbolTable + index;
-    printf("        Entry '%s' %06ho %06ho %06ho\n", entry->unrad50name(), entry->flagseg, entry->value, entry->status);
+    if (Verbosity > 4)
+        printf("        Entry '%s' %06ho %06ho %06ho\n", entry->unrad50name(), entry->flagseg, entry->value, entry->status);
 
     if ((entry->flags() & 040/*CS$REL*/) == 0 ||
         (entry->flags() & 4/*CS$ALO*/) != 0 ||
@@ -216,7 +217,8 @@ void process_pass1_gsd_item_taddr(const uint16_t* itemw, const SaveStatusEntry* 
                 {
                     uint16_t itemvaltmp = itemwtmp[3];
                     uint16_t sectsize = (itemvaltmp + 1) & ~1;  // ROUND SECTION SIZE TO WORD BOUNDARY
-                    printf("        Item '%s' type %d - CSECT or PSECT size %06ho\n", unrad50(itemwtmp[0], itemwtmp[1]), itemtypetmp, sectsize);
+                    if (Verbosity > 4)
+                        printf("        Item '%s' type %d - CSECT or PSECT size %06ho\n", unrad50(itemwtmp[0], itemwtmp[1]), itemtypetmp, sectsize);
                     int newvalue = entry->value - sectsize + itemw[3];
                     //TODO: UPDATE OFFSET VALUE
                     //TODO
@@ -478,42 +480,51 @@ void process_pass1_gsd_item(const uint16_t* itemw, const SaveStatusEntry* sscur)
     int itemtype = (itemw[2] >> 8) & 0xff;
     int itemflags = (itemw[2] & 0377);
 
-    printf("      Item '%s' type %d - %s", unrad50(itemnamerad50), itemtype, (itemtype > 7) ? "UNKNOWN" : GSDItemTypeNames[itemtype]);
+    if (Verbosity > 3)
+        printf("      Item '%s' type %d - %s", unrad50(itemnamerad50), itemtype, (itemtype > 7) ? "UNKNOWN" : GSDItemTypeNames[itemtype]);
     switch (itemtype)
     {
     case 0: // 0 - MODULE NAME FROM .TITLE, see LINK3\MODNME
-        printf(", base %06ho\n", Globals.BASE);
+        if (Verbosity > 3)
+            printf(", base %06ho\n", Globals.BASE);
         if (Globals.MODNAM == 0)
             Globals.MODNAM = itemnamerad50;
         break;
     case 2: // 2 - ISD ENTRY (IGNORED), see LINK3\ISDNAM
-        printf(", ignored\n");
+        if (Verbosity > 3)
+            printf(", ignored\n");
         break;
     case 3: // 3 - TRANSFER ADDRESS; see LINK3\TADDR
-        printf(" %06ho\n", itemw[3]);
+        if (Verbosity > 3)
+            printf(" %06ho\n", itemw[3]);
         process_pass1_gsd_item_taddr(itemw, sscur);
         break;
     case 4: // 4 - GLOBAL SYMBOL, see LINK3\SYMNAM
-        printf(" flags %03o addr %06ho\n", itemflags, itemw[3]);
+        if (Verbosity > 3)
+            printf(" flags %03o addr %06ho\n", itemflags, itemw[3]);
         process_pass1_gsd_item_symnam(itemw);
         break;
     case 1: // 1 - CSECT NAME, see LINK3\CSECNM
-        printf(" %06ho\n", itemw[3]);
+        if (Verbosity > 3)
+            printf(" %06ho\n", itemw[3]);
         process_pass1_gsd_item_csecnm(itemw, itemtype, itemflags);
         process_pass1_gsd_item_psecnm(itemw, itemflags);
         break;
     case 5: // 5 - PSECT NAME; see LINK3\PSECNM
-        printf(" flags %03o maxlen %06ho\n", itemflags, itemw[3]);
+        if (Verbosity > 3)
+            printf(" flags %03o maxlen %06ho\n", itemflags, itemw[3]);
         process_pass1_gsd_item_psecnm(itemw, itemflags);
         break;
     case 6: // 6 - IDENT DEFINITION; see LINK3\PGMIDN
-        println();
+        if (Verbosity > 3)
+            println();
         if (Globals.IDENT == 0)
             Globals.IDENT = itemnamerad50;
         break;
     case 7: // 7 - VIRTUAL SECTION; see LINK3\VSECNM
         {
-            printf(" size %06ho\n", itemw[3]);
+            if (Verbosity > 3)
+                printf(" size %06ho\n", itemw[3]);
             uint16_t sectsize = itemw[3];
             // A VIRTUAL SECTION HAS BEEN FOUND WHICH IS PROCESSED SIMILAR TO
             //     .PSECT	. VIR.,RW,D,GBL,REL,CON
@@ -543,7 +554,8 @@ void process_pass1_gsd_item(const uint16_t* itemw, const SaveStatusEntry* sscur)
         }
         break;
     default:
-        println();
+        if (Verbosity > 3)
+            println();
         fatal_error("ERR21: Bad GSD type %d found in %s.\n", itemtype, sscur->filename);
     }
 }
@@ -571,7 +583,8 @@ void process_pass1_file(SaveStatusEntry* sscur)
     assert(sscur != nullptr);
     assert(sscur->data != nullptr);
 
-    printf("  Processing %s\n", sscur->filename);
+    if (Verbosity > 1)
+        printf("  Processing %s\n", sscur->filename);
     size_t offset = 0;
     while (offset < sscur->filesize - 1)
     {
@@ -602,12 +615,14 @@ void process_pass1_file(SaveStatusEntry* sscur)
             fatal_error("Illegal record type at %06o in %s\n", (unsigned int)offset, sscur->filename);
         else if (blocktype == 1)  // 1 - START GSD RECORD, see LINK3\GSD
         {
-            printf("    Block type 1 - GSD at %06o size %06ho\n", (unsigned int)offset, blocksize);
+            if (Verbosity > 2)
+                printf("    Block type 1 - GSD at %06o size %06ho\n", (unsigned int)offset, blocksize);
             process_pass1_gsd_block(sscur, data);
         }
         else if (blocktype == 6)  // 6 - MODULE END, see LINK3\MODND
         {
-            //printf("    Block type 6 - ENDMOD at %06o size %06ho\n", (unsigned int)offset, blocksize);
+            //if (Verbosity > 2)
+            //    printf("    Block type 6 - ENDMOD at %06o size %06ho\n", (unsigned int)offset, blocksize);
             if (Globals.HGHLIM < Globals.LRUNUM)
                 Globals.HGHLIM = Globals.LRUNUM;
             Globals.LRUNUM = 0;
@@ -732,7 +747,8 @@ void process_pass15_libpro(const SaveStatusEntry* sscur)
 
     Globals.DUPMOD = 0;  // ASSUME THIS IS NOT A DUP MOD
 
-    //printf("      process_pass15_libpro() for library #%d %s\n", (int)Globals.LIBNB, sscur->filename);
+    //if (Verbosity > 3)
+    //    printf("      process_pass15_libpro() for library #%d %s\n", (int)Globals.LIBNB, sscur->filename);
     size_t offset = 0;
     for (int i = 0; i < LibraryModuleCount; i++)
     {
@@ -745,7 +761,8 @@ void process_pass15_libpro(const SaveStatusEntry* sscur)
             continue;  // already passed
 
         offset = lmlentry->offset();
-        printf("      Module #%d offset %06o\n", i, (unsigned int)offset);
+        if (Verbosity > 3)
+            printf("      Module #%d offset %06o\n", i, (unsigned int)offset);
         while (offset < sscur->filesize)
         {
             uint8_t* data = sscur->data + offset;
@@ -757,12 +774,14 @@ void process_pass15_libpro(const SaveStatusEntry* sscur)
                 fatal_error("Illegal record type at %06o in %s\n", (unsigned int)offset, sscur->filename);
             else if (blocktype == 1)  // 1 - START GSD RECORD, see LINK3\GSD
             {
-                printf("    Block type 1 - GSD at %06o size %06ho\n", (unsigned int)offset, blocksize);
+                if (Verbosity > 2)
+                    printf("    Block type 1 - GSD at %06o size %06ho\n", (unsigned int)offset, blocksize);
                 process_pass1_gsd_block(sscur, data);
             }
             else if (blocktype == 6)  // 6 - MODULE END, see LINK3\MODND
             {
-                //printf("    Block type 6 - ENDMOD at %06o size %06ho\n", (unsigned int)offset, blocksize);
+                //if (Verbosity > 2)
+                //    printf("    Block type 6 - ENDMOD at %06o size %06ho\n", (unsigned int)offset, blocksize);
                 if (Globals.HGHLIM < Globals.LRUNUM)
                     Globals.HGHLIM = Globals.LRUNUM;
                 Globals.LRUNUM = 0;
@@ -820,9 +839,11 @@ void process_pass15_library(const SaveStatusEntry* sscur)
             fatal_error("Illegal record type %03ho at %06o in %s\n", blocktype, (unsigned int)offset, sscur->filename);
         if (blocktype == 7)  // See LINK3\LIBRA, WE ARE ON PASS 1.5 , SO PROCESS LIBRARIES
         {
-            printf("    Block type 7 - TITLIB at %06o size %06ho\n", (unsigned int)offset, blocksize);
+            if (Verbosity > 2)
+                printf("    Block type 7 - TITLIB at %06o size %06ho\n", (unsigned int)offset, blocksize);
             uint16_t eptsize = *(uint16_t*)(data + L_HEAB);
-            printf("      EPT size %06ho bytes, %d. records\n", eptsize, (int)(eptsize / 8));
+            if (Verbosity > 3)
+                printf("      EPT size %06ho bytes, %d. records\n", eptsize, (int)(eptsize / 8));
 
             //Globals.SVLML = Globals.STLML; // SAVE START OF ALL LML'S FOR THIS LIB
             Globals.FLGWD |= LB_OBJ; // IND LIB FILE TO LINKER
@@ -872,7 +893,8 @@ void process_pass15_library(const SaveStatusEntry* sscur)
                     // THE UNDEFINED SYMBOL HAS BEEN FOUND IN THE CURRENT ENTRY POINT TABLE.
                     uint16_t eptblock = itemw[2];
                     uint16_t eptoffset = itemw[3] & 0777;
-                    printf("        Found EPT for '%s' block %06ho offset %06ho\n", entry->unrad50name(), eptblock, eptoffset);
+                    if (Verbosity > 4)
+                        printf("        Found EPT for '%s' block %06ho offset %06ho\n", entry->unrad50name(), eptblock, eptoffset);
                     // CALL LMLBLD - PLACE MOD ADR IN LML
                     process_pass15_lmlbld(eptblock, eptoffset);
                     //TODO: IS THIS A /I SYMBOL
@@ -900,7 +922,8 @@ void process_pass15_library(const SaveStatusEntry* sscur)
         }
         else if (blocktype == 8)  // LINK3\ENDLIB
         {
-            printf("    Block type 10 - ENDLIB at %06o size %06ho\n", (unsigned int)offset, blocksize);
+            if (Verbosity > 2)
+                printf("    Block type 10 - ENDLIB at %06o size %06ho\n", (unsigned int)offset, blocksize);
 
             process_pass15_lmlorder();  // ORDER THIS LIBRARY LML
             //print_lml_table();//DEBUG
@@ -937,7 +960,8 @@ void process_pass15()
         {
             Globals.FLGWD &= ~AD_LML;  // CLEAR NEW UNDF FLAG
 
-            printf("  Processing %s (%d), %06ho\n", sscur->filename, j, Globals.BASE);
+            if (Verbosity > 1)
+                printf("  Processing %s (%d), %06ho\n", sscur->filename, j, Globals.BASE);
             process_pass15_library(sscur);
 
             if ((Globals.FLGWD & AD_LML) == 0)  // NEW UNDEF'S ADDED WHILE PROCESSING LIBR ?
@@ -1484,14 +1508,17 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
         uint8_t cpxsect;
         uint16_t cpxval;
         uint32_t cpxname;
-        printf("        Complex cmd %03ho %s", (uint16_t)cpxcmd, (cpxcmd > 020) ? "UNKNOWN" : CPXCommandNames[cpxcmd]);
+        if (Verbosity > 4)
+            printf("        Complex cmd %03ho %s", (uint16_t)cpxcmd, (cpxcmd > 020) ? "UNKNOWN" : CPXCommandNames[cpxcmd]);
         switch (cpxcmd)
         {
         case 000:  // NOP
-            println();
+            if (Verbosity > 4)
+                println();
             break;
         case 001:  // ADD -- ADD TOP 2 ITEMS
-            println();
+            if (Verbosity > 4)
+                println();
             if (cpxstacktop > 0)
             {
                 cpxstacktop--;
@@ -1499,7 +1526,8 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
             }
             break;
         case 002:  // SUBTRACT -- NEGATE TOP ITEM ON STACK
-            println();
+            if (Verbosity > 4)
+                println();
             if (cpxstacktop > 0)
             {
                 cpxstacktop--;
@@ -1507,7 +1535,8 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
             }
             break;
         case 003:  // MULTIPLY
-            println();
+            if (Verbosity > 4)
+                println();
             if (cpxstacktop > 0)
             {
                 cpxstacktop--;
@@ -1515,7 +1544,8 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
             }
             break;
         case 004:  // DIVIDE, see LINK7\CPXDIV
-            println();
+            if (Verbosity > 4)
+                println();
             if (cpxstacktop > 0)
             {
                 if (cpxstack[cpxstacktop] == 0)
@@ -1525,7 +1555,8 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
             }
             break;
         case 005:  // AND
-            println();
+            if (Verbosity > 4)
+                println();
             if (cpxstacktop > 0)
             {
                 cpxstacktop--;
@@ -1533,7 +1564,8 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
             }
             break;
         case 006:  // OR
-            println();
+            if (Verbosity > 4)
+                println();
             if (cpxstacktop > 0)
             {
                 cpxstacktop--;
@@ -1541,7 +1573,8 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
             }
             break;
         case 007:  // XOR
-            println();
+            if (Verbosity > 4)
+                println();
             if (cpxstacktop > 0)
             {
                 cpxstacktop--;
@@ -1549,32 +1582,38 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
             }
             break;
         case 010:  // NEGATE TOP ITEM
-            println();
+            if (Verbosity > 4)
+                println();
             cpxstack[cpxstacktop] = 0 - cpxstack[cpxstacktop];
             break;
         case 011:  // COMPLEMENT -- COMPLEMENT TOP ITEM
-            println();
+            if (Verbosity > 4)
+                println();
             cpxstack[cpxstacktop] = ~cpxstack[cpxstacktop];
             break;
         case 012:  // STORE NOT DISPLACED
             cpxresult = cpxstack[cpxstacktop];
-            printf(" %06ho\n", cpxresult);
+            if (Verbosity > 4)
+                printf(" %06ho\n", cpxresult);
             cpxbreak = true;
             break;
         case 013:  // STORE DISPLACED
             cpxresult = cpxstack[cpxstacktop];
             cpxresult -= addr + 2;
-            printf(" %06ho\n", cpxresult);
+            if (Verbosity > 4)
+                printf(" %06ho\n", cpxresult);
             cpxbreak = true;
             break;
         case 014:  // ILLEGAL FORMAT
         case 015:  // ILLEGAL FORMAT
-            println();
+            if (Verbosity > 4)
+                println();
             fatal_error("ERR35: Invalid complex relocation in %s\n", sscur->filename);
             break;
         case 016:  // PUSH GLOBAL SYMBOL VALUE
             cpxname = MAKEDWORD(((const uint16_t*)data)[0], ((const uint16_t*)data)[1]);
-            printf(" '%s'\n", unrad50(cpxname));
+            if (Verbosity > 4)
+                printf(" '%s'\n", unrad50(cpxname));
             cpxentry = process_pass2_rld_lookup(data, true);
             data += 4;  offset += 4;
             cpxstacktop++;
@@ -1586,7 +1625,8 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
             // GET SECTION NUMBER
             cpxsect = *data;  data += 1;  offset += 1;
             cpxval = *((const uint16_t*)data);  data += 2;  offset += 2;  // GET OFFSET WITHIN SECTION
-            printf(" %03ho %06ho\n", (uint16_t)cpxsect, cpxval);
+            if (Verbosity > 4)
+                printf(" %03ho %06ho\n", (uint16_t)cpxsect, cpxval);
             // SEE IF SECTION NO. OK
             if (cpxsect >= ModuleSectionCount)
                 fatal_error("ERR35: Invalid complex relocation section number in %s\n", sscur->filename);
@@ -1599,14 +1639,16 @@ uint16_t process_pass2_rld_complex(const SaveStatusEntry* sscur, const uint8_t* 
             break;
         case 020:  // PUSH CONSTANT
             cpxval = *((const uint16_t*)data);  data += 2;  offset += 2;
-            printf(" %06ho\n", cpxval);
+            if (Verbosity > 4)
+                printf(" %06ho\n", cpxval);
             cpxstacktop++;
             if (cpxstacktop >= cpxstacksize)
                 fatal_error("ERR35: Complex relocation stack overflow in %s\n", sscur->filename);
             cpxstack[cpxstacktop] = cpxval;
             break;
         default:
-            println();
+            if (Verbosity > 4)
+                println();
             fatal_error("ERR36: Unknown complex relocation command %03ho in %s\n", (uint16_t)cpxcmd, sscur->filename);
         }
     }
@@ -1628,8 +1670,9 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
         uint8_t* dest = Globals.TXTBLK + (disbyte - 2);
         uint16_t addr = baseaddr + (disbyte - 2) - 2;
 
-        printf("      %06ho RLD type %03ho %s",
-               addr, (uint16_t)(command & 0177), ((command & 0177) > 017) ? "UNKNOWN" : RLDCommandNames[command & 0177]);
+        if (Verbosity > 3)
+            printf("      %06ho RLD type %03ho %s",
+                   addr, (uint16_t)(command & 0177), ((command & 0177) > 017) ? "UNKNOWN" : RLDCommandNames[command & 0177]);
         uint16_t constdata;
         switch (command & 0177)
         {
@@ -1639,7 +1682,8 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             // (I.E., DISPLACEMENT BYTE ADDED TO VALUE CALCULATED FROM THE LOAD ADDRESS OF THE PREVIOUS TEXT BLOCK).
             //curlocation = Globals.BASE;  // ADD SECTION BASE
             constdata = *((const uint16_t*)data);
-            printf(" %06ho\n", constdata);
+            if (Verbosity > 3)
+                printf(" %06ho\n", constdata);
             *((uint16_t*)dest) = constdata + Globals.BASE;
             if (Globals.SWITCH & SW_R)
             {
@@ -1652,7 +1696,8 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
         case 002:  // GLOBAL
         case 012:  // PSECT
             // RELOCATES A DIRECT POINTER TO A GLOBAL SYMBOL. THE VALUE OF THE GLOBAL SYMBOL IS OBTAINED & STORED.
-            printf(" '%s'\n", unrad50(*((const uint32_t*)data)));
+            if (Verbosity > 3)
+                printf(" '%s'\n", unrad50(*((const uint32_t*)data)));
             {
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, (command & 010) == 0);
                 //printf("        Entry '%s' value = %06ho %04X dest = %06ho\n", entry->unrad50name(), entry->value, entry->value, *((uint16_t*)dest));
@@ -1672,7 +1717,8 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             // RELATIVE REFERENCE TO AN ABSOLUTE ADDRESS FROM WITHIN A RELOCATABLE SECTION.
             // THE ADDRESS + 2 THAT THE RELOCATED VALUE IS TO BE WRITTEN INTO IS SUBTRACTED FROM THE SPECIFIED CONSTANT & RESULTS STORED.
             constdata = *((const uint16_t*)data);
-            printf(" %06ho\n", constdata);
+            if (Verbosity > 3)
+                printf(" %06ho\n", constdata);
             *((uint16_t*)dest) = constdata - (addr + 2);
             if (Globals.SWITCH & SW_R)
             {
@@ -1684,7 +1730,8 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             break;
         case 004:  // GLOBAL DISPLACED, see LINK7\RLDGDR
         case 014:  // PSECT DISPLACED
-            printf(" '%s'\n", unrad50(*((uint32_t*)data)));
+            if (Verbosity > 3)
+                printf(" '%s'\n", unrad50(*((uint32_t*)data)));
             {
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, (command & 010) == 0);
                 //printf("        Entry '%s' value = %06ho %04X dest = %06ho\n", entry->unrad50name(), entry->value, entry->value, *((uint16_t*)dest));
@@ -1698,7 +1745,8 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             // THE SYMBOL VALUE IS ADDED TO THE SPECIFIED CONSTANT & STORED.
             //curlocation = 0;  // ADD 0 AS CONSTANT
             constdata = ((const uint16_t*)data)[2];
-            printf(" '%s' %06ho\n", unrad50(*((const uint32_t*)data)), constdata);
+            if (Verbosity > 3)
+                printf(" '%s' %06ho\n", unrad50(*((const uint32_t*)data)), constdata);
             {
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, (command & 010) == 0);
                 if ((command & 0x80) != 0)  // byte
@@ -1720,7 +1768,8 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
             // THE GLOBAL VALUE AND THE CONSTANT ARE ADDED. THE ADDRESS + 2 THAT THE RELOCATED VALUE IS
             // TO BE WRITTEN INTO IS SUBTRACTED FROM THE RESULTANT ADDITIVE VALUE & STORED.
             constdata = ((const uint16_t*)data)[2];
-            printf(" '%s' %06ho\n", unrad50(*((const uint32_t*)data)), constdata);
+            if (Verbosity > 3)
+                printf(" '%s' %06ho\n", unrad50(*((const uint32_t*)data)), constdata);
             {
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, (command & 010) == 0);
                 *((uint16_t*)dest) = entry->value + constdata - (addr + 2);
@@ -1731,7 +1780,8 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
         case 007:  // LOCATION COUNTER DEFINITION, see LINK7\RLDLCD
             // DECLARES A CURRENT SECTION & LOCATION COUNTER VALUE
             constdata = ((const uint16_t*)data)[2];
-            printf(" '%s' %06ho\n", unrad50(*((const uint32_t*)data)), constdata);
+            if (Verbosity > 3)
+                printf(" '%s' %06ho\n", unrad50(*((const uint32_t*)data)), constdata);
             {
                 Globals.MBPTR = 0;  // 0 SAYS TO STORE TXT INFO
                 SymbolTableEntry* entry = process_pass2_rld_lookup(data, false);
@@ -1749,23 +1799,28 @@ void process_pass2_rld(const SaveStatusEntry* sscur, const uint8_t* data)
         case 010:  // LOCATION COUNTER MODIFICATION, see LINK7\RLDLCM
             // THE CURRENT SECTION BASE IS ADDED TO THE SPECIFIED CONSTANT & RESULT IS STORED AS THE CURRENT LOCATION CTR.
             constdata = ((const uint16_t*)data)[0];
-            printf(" %06ho\n", constdata);
+            if (Verbosity > 3)
+                printf(" %06ho\n", constdata);
             //curlocation = constdata + Globals.BASE;  // BASE OF SECTION + OFFSET = CURRENT LOCATION COUNTER
             data += 2;  offset += 2;
             break;
         case 011:  // SET PROGRAM LIMITS, see LINK7\RLDSPL
-            println();
+            if (Verbosity > 3)
+                println();
             *((uint16_t*)dest) = Globals.BOTTOM;
             *((uint16_t*)dest + 1) = Globals.HGHLIM;
             break;
         case 017:  // COMPLEX RELOCATION STRING PROCESSING (GLOBAL ARITHMETIC)
-            println();
+            if (Verbosity > 3)
+                println();
             if ((command & 0x80) != 0)  // byte
                 *dest = (uint8_t)process_pass2_rld_complex(sscur, data, offset, blocksize, addr);
             else
                 *((uint16_t*)dest) = process_pass2_rld_complex(sscur, data, offset, blocksize, addr);
             break;
         default:
+            if (Verbosity > 3)
+                println();
             fatal_error("ERR36: Unknown RLD command: %d in %s\n", (int)command, sscur->filename);
         }
     }
@@ -1889,7 +1944,8 @@ void process_pass2_dump_txtblk()  // DUMP TEXT SUBROUTINE, see LINK7\TDMP0, LINK
     uint8_t* dest = OutputBuffer + addr;
     uint8_t* src = Globals.TXTBLK + 2;
     memcpy(dest, src, Globals.TXTLEN);
-    printf("    process_pass2_dump_txtblk() at %04x len %04x data %02x %02x %02x %02x\n", addr, Globals.TXTLEN, src[0], src[1], src[2], src[3]);
+    if (Verbosity > 2)
+        printf("    process_pass2_dump_txtblk() at %04x len %04x data %02x %02x %02x %02x\n", addr, Globals.TXTLEN, src[0], src[1], src[2], src[3]);
 
     mark_bitmap_bits(addr, Globals.TXTLEN);
     //TODO: if ((Globals.SWITCH & SW_X) != 0)
@@ -1909,7 +1965,8 @@ void process_pass2_gsd_block(const SaveStatusEntry* sscur, const uint8_t* data)
 
     uint16_t blocksize = ((const uint16_t*)data)[1];
     int itemcount = (blocksize - 6) / 8;
-    //printf("    Processing GSD block, %d items\n", itemcount);
+    //if (Verbosity > 2)
+    //    printf("    Processing GSD block, %d items\n", itemcount);
 
     for (int i = 0; i < itemcount; i++)
     {
@@ -1919,7 +1976,8 @@ void process_pass2_gsd_block(const SaveStatusEntry* sscur, const uint8_t* data)
         int itemtype = (itemw[2] >> 8) & 0xff;
         int itemflags = (itemw[2] & 0377);
 
-        printf("      Item '%s' type %d - %s\n", unrad50(itemnamerad50), itemtype, (itemtype > 7) ? "UNKNOWN" : GSDItemTypeNames[itemtype]);
+        if (Verbosity > 3)
+            printf("      Item '%s' type %d - %s\n", unrad50(itemnamerad50), itemtype, (itemtype > 7) ? "UNKNOWN" : GSDItemTypeNames[itemtype]);
         if (itemtype == 5)
         {
             uint32_t lkname = itemnamerad50;
@@ -1965,7 +2023,8 @@ void proccess_pass2_libpa2(const SaveStatusEntry* sscur)
 
         offset = lmlentry->offset();
 
-        printf("  proccess_pass2_libpa2() #%04d for offset %06o\n", i, (unsigned int)offset);
+        if (Verbosity > 1)
+            printf("  proccess_pass2_libpa2() #%04d for offset %06o\n", i, (unsigned int)offset);
         while (offset < sscur->filesize)
         {
             const uint8_t* data = sscur->data + offset;
@@ -1977,7 +2036,8 @@ void proccess_pass2_libpa2(const SaveStatusEntry* sscur)
                 fatal_error("Illegal record type at %06o in %s\n", (unsigned int)offset, sscur->filename);
             else if (blocktype == 1)  // START GSD RECORD, see LINK7\GSD
             {
-                printf("    Block type 1 - GSD at %06o size %06ho\n", (unsigned int)offset, blocksize);
+                if (Verbosity > 2)
+                    printf("    Block type 1 - GSD at %06o size %06ho\n", (unsigned int)offset, blocksize);
                 process_pass2_gsd_block(sscur, data);
             }
             else if (blocktype == 3)  // See LINK7\DMPTXT
@@ -1987,8 +2047,9 @@ void proccess_pass2_libpa2(const SaveStatusEntry* sscur)
                 uint16_t addr = ((uint16_t*)data)[3];
                 uint16_t destaddr = addr + Globals.BASE;
                 uint16_t datasize = blocksize - 8;
-                printf("    Block type 3 - TXT at %06o size %06ho addr %06ho base %06ho dest %06ho len %06ho\n",
-                       (unsigned int)offset, blocksize, addr, Globals.BASE, destaddr, datasize);
+                if (Verbosity > 2)
+                    printf("    Block type 3 - TXT at %06o size %06ho addr %06ho base %06ho dest %06ho len %06ho\n",
+                           (unsigned int)offset, blocksize, addr, Globals.BASE, destaddr, datasize);
                 Globals.TXTLEN = datasize;
                 assert(datasize <= sizeof(Globals.TXTBLK));
                 memcpy(Globals.TXTBLK, data + 6, blocksize - 6);
@@ -2007,12 +2068,14 @@ void proccess_pass2_libpa2(const SaveStatusEntry* sscur)
             else if (blocktype == 4)  // See LINK7\RLD
             {
                 uint16_t base = *((uint16_t*)Globals.TXTBLK);
-                printf("    Block type 4 - RLD at %06o size %06ho base %06ho\n", (unsigned int)offset, blocksize, base);
+                if (Verbosity > 2)
+                    printf("    Block type 4 - RLD at %06o size %06ho base %06ho\n", (unsigned int)offset, blocksize, base);
                 process_pass2_rld(sscur, data);
             }
             else if (blocktype == 6)  // MODULE END RECORD, See LINK7\MODND
             {
-                //printf("    Block type 6 - ENDMOD at %06o size %06ho\n", (unsigned int)offset, blocksize);
+                //if (Verbosity > 2)
+                //    printf("    Block type 6 - ENDMOD at %06o size %06ho\n", (unsigned int)offset, blocksize);
                 process_pass2_dump_txtblk();
 
                 // AT THE END OF EACH MODULE THE BASE ADR OF EACH SECTION IS UPDATED AS DETERMINED BY THE MST.
@@ -2070,7 +2133,8 @@ void process_pass2_file(const SaveStatusEntry* sscur)
             fatal_error("ERR4: Illegal record type at %06o in %s\n", (unsigned int)offset, sscur->filename);
         else if (blocktype == 1)  // START GSD RECORD, see LINK7\GSD
         {
-            printf("    Block type 1 - GSD at %06o size %06ho\n", (unsigned int)offset, blocksize);
+            if (Verbosity > 2)
+                printf("    Block type 1 - GSD at %06o size %06ho\n", (unsigned int)offset, blocksize);
             process_pass2_gsd_block(sscur, data);
         }
         else if (blocktype == 3)  // See LINK7\DMPTXT
@@ -2080,8 +2144,9 @@ void process_pass2_file(const SaveStatusEntry* sscur)
             uint16_t addr = ((uint16_t*)data)[3];
             uint16_t destaddr = addr + Globals.BASE;
             uint16_t datasize = blocksize - 8;
-            printf("    Block type 3 - TXT at %06o size %06ho addr %06ho dest %06ho len %06ho\n",
-                   (unsigned int)offset, blocksize, addr, destaddr, datasize);
+            if (Verbosity > 2)
+                printf("    Block type 3 - TXT at %06o size %06ho addr %06ho dest %06ho len %06ho\n",
+                       (unsigned int)offset, blocksize, addr, destaddr, datasize);
             Globals.TXTLEN = datasize;
             assert(datasize <= sizeof(Globals.TXTBLK));
             memcpy(Globals.TXTBLK, data + 6, blocksize - 6);
@@ -2100,12 +2165,14 @@ void process_pass2_file(const SaveStatusEntry* sscur)
         else if (blocktype == 4)  // See LINK7\RLD
         {
             uint16_t base = *((uint16_t*)Globals.TXTBLK);
-            printf("    Block type 4 - RLD at %06o size %06ho base %06ho\n", (unsigned int)offset, blocksize, base);
+            if (Verbosity > 2)
+                printf("    Block type 4 - RLD at %06o size %06ho base %06ho\n", (unsigned int)offset, blocksize, base);
             process_pass2_rld(sscur, data);
         }
         else if (blocktype == 6)  // MODULE END RECORD, See LINK7\MODND
         {
-            printf("    Block type 6 - ENDMOD at %06o size %06ho\n", (unsigned int)offset, blocksize);
+            if (Verbosity > 2)
+                printf("    Block type 6 - ENDMOD at %06o size %06ho\n", (unsigned int)offset, blocksize);
 
             process_pass2_dump_txtblk();  // DUMP TXT BLK IF ANY
 
@@ -2122,7 +2189,8 @@ void process_pass2_file(const SaveStatusEntry* sscur)
         }
         else if (blocktype == 7)  // See LINK7\LIBPA2
         {
-            printf("    Block type 7 - TITLIB at %06o size %06ho\n", (unsigned int)offset, blocksize);
+            if (Verbosity > 2)
+                printf("    Block type 7 - TITLIB at %06o size %06ho\n", (unsigned int)offset, blocksize);
             //TODO
             proccess_pass2_libpa2(sscur);
             break;
@@ -2157,7 +2225,8 @@ void process_pass2()
                 continue;  // Skip non-library on library pass
         }
 
-        printf("  Processing %s %s\n", sscur->filename, sscur->islibrary ? "library" : "");
+        if (Verbosity > 1)
+            printf("  Processing %s %s\n", sscur->filename, sscur->islibrary ? "library" : "");
         process_pass2_file(sscur);
     }
 }
